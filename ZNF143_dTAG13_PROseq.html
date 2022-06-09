@@ -714,28 +714,28 @@ function toggle_visibility(id1) {
 <h1>Contents</h1>
 <div id="TOC">
 <ul>
-<li><a href="#intro"><span class="toc-section-number">1</span> Intro</a>
+<li><a href="#intro" id="toc-intro"><span class="toc-section-number">1</span> Intro</a>
 <ul>
-<li><a href="#load-modules-and-download-files"><span class="toc-section-number">1.1</span> Load modules and download files</a></li>
+<li><a href="#load-modules-and-download-files" id="toc-load-modules-and-download-files"><span class="toc-section-number">1.1</span> Load modules and download files</a></li>
 </ul></li>
-<li><a href="#build-reference-genome"><span class="toc-section-number">2</span> Build reference genome</a></li>
-<li><a href="#reference-gene-annotation"><span class="toc-section-number">3</span> Reference gene annotation</a></li>
-<li><a href="#processing-pro-seq-data"><span class="toc-section-number">4</span> Processing PRO-seq data</a>
+<li><a href="#build-reference-genome" id="toc-build-reference-genome"><span class="toc-section-number">2</span> Build reference genome</a></li>
+<li><a href="#reference-gene-annotation" id="toc-reference-gene-annotation"><span class="toc-section-number">3</span> Reference gene annotation</a></li>
+<li><a href="#processing-pro-seq-data" id="toc-processing-pro-seq-data"><span class="toc-section-number">4</span> Processing PRO-seq data</a>
 <ul>
-<li><a href="#initialize-variables"><span class="toc-section-number">4.1</span> Initialize variables</a>
+<li><a href="#initialize-variables" id="toc-initialize-variables"><span class="toc-section-number">4.1</span> Initialize variables</a>
 <ul>
-<li><a href="#umi-detour-determining-umi-length-empirically"><span class="toc-section-number">4.1.1</span> UMI detour: determining UMI length empirically</a></li>
+<li><a href="#umi-detour-determining-umi-length-empirically" id="toc-umi-detour-determining-umi-length-empirically"><span class="toc-section-number">4.1.1</span> UMI detour: determining UMI length empirically</a></li>
 </ul></li>
-<li><a href="#process-reads"><span class="toc-section-number">4.2</span> Process reads</a></li>
-<li><a href="#remove-rdna-aligned-reads-and-align-to-genome"><span class="toc-section-number">4.3</span> Remove rDNA-aligned reads and align to genome</a></li>
-<li><a href="#metrics-and-stats-up-to-the-complexity-step"><span class="toc-section-number">4.4</span> Metrics and stats up to the complexity step</a></li>
+<li><a href="#process-reads" id="toc-process-reads"><span class="toc-section-number">4.2</span> Process reads</a></li>
+<li><a href="#remove-rdna-aligned-reads-and-align-to-genome" id="toc-remove-rdna-aligned-reads-and-align-to-genome"><span class="toc-section-number">4.3</span> Remove rDNA-aligned reads and align to genome</a></li>
+<li><a href="#metrics-and-stats-up-to-the-complexity-step" id="toc-metrics-and-stats-up-to-the-complexity-step"><span class="toc-section-number">4.4</span> Metrics and stats up to the complexity step</a></li>
 </ul></li>
 </ul>
 </div>
 
 <div id="intro" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Intro</h1>
-<p>Following the commands outlined in the nascent RNA methods PDF found here:
+<p>Following the commands outlined in the nascent RNA methods PDF found here:<br />
 <a href="https://github.com/guertinlab/Nascent_RNA_Methods" class="uri">https://github.com/guertinlab/Nascent_RNA_Methods</a></p>
 <div id="load-modules-and-download-files" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Load modules and download files</h2>
@@ -746,11 +746,11 @@ module load fastx
 module load seqtk
 module load cutadapt 
 </code></pre>
-<p>Other R scripts and software is located in /home/FCAM/jdong/software
+<p>Other R scripts and software is located in <code>/home/FCAM/jdong/software</code><br />
 Rust (required for some of the non-module software) was installed on the cluster
 with the following command:</p>
 <pre class="bash"><code>curl --proto &#39;=https&#39; --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre>
-<p>Note: as of June 6, 2022, seqOutBias requires loading genometools/v1.5.10</p>
+<p>Note: seqOutBias requires loading genometools/v1.5.10</p>
 </div>
 </div>
 <div id="build-reference-genome" class="section level1" number="2">
@@ -1152,6 +1152,45 @@ done</code></pre>
 </div>
 <div id="metrics-and-stats-up-to-the-complexity-step" class="section level2" number="4.4">
 <h2><span class="header-section-number">4.4</span> Metrics and stats up to the complexity step</h2>
+<p><strong>IMPORTANT</strong>: If you’re planning on swarming the cluster for this next step, first<br />
+run seqOutBias on just one (1) file. This generates the necessary intermediate files<br />
+for your particular reference genome, a long and crucial step that only needs to be<br />
+completed once. If you have already run seqOutBias before, make sure your working<br />
+directory contains these intermediate files, or use “–gt-workdir=<path>” in the<br />
+seqOutBias step to specify the directory where those files are located.</p>
+<p>After running seqOutBias for the first time, you are free to swarm the rest of your<br />
+files as you like.</p>
+<pre><code>#! /usr/bin/bash
+
+#SBATCH --job-name=seqOutBias_only_HEK_ZNF143FKBP_DMSO_rep3
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 2                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=16G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%x_%j.all_out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%x_%j.all_out
+
+module load samtools bedtools seqtk
+module load genometools/1.5.10
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+genome=/home/FCAM/jdong/human38/hg38.fa
+readsize=38
+filename=HEK_ZNF143FKBP_DMSO_rep3_PE1.fastq
+
+name=$(echo $filename | awk -F &quot;_PE1.fastq&quot; &#39;{print $1}&#39;)
+echo &quot;Current sample: ${name}&quot;
+
+cd $directory
+echo &quot;Current directory: &quot; $(pwd)
+echo &quot;Current node: &quot; $(hostname)
+
+seqOutBias $genome ${name}.bam --no-scale --stranded --bed-stranded-positive \
+    --bw=$name.bigWig --bed=$name.bed --out-split-pairends --only-paired \
+    --tail-edge --read-size=$read_size</code></pre>
 <p>“PRO-seq_final-metrics_template.sh”</p>
 <pre class="bash"><code>#! /usr/bin/bash
 
@@ -1282,7 +1321,7 @@ do
     sbatch ${SCRIPTS}/${nm}_PRO-seq_final-metrics.sh
 done</code></pre>
 <p>Cleanup</p>
-<pre><code>rm ${name}_PE1_short.fastq
+<pre class="bash"><code>rm ${name}_PE1_short.fastq
 rm ${name}_PE2_short.fastq
 rm ${name}_PE1_noadap.fastq
 rm ${name}_PE2_noadap.fastq

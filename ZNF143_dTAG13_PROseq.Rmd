@@ -1,5 +1,20 @@
+---
+title: \sf ZNF143 degron PRO-seq Analysis
+header-includes:
+- \usepackage{color}
+- \usepackage{float}
+- \DeclareUnicodeCharacter{2212}{-}
+author: Jinhong Dong
+date: "June 9, 2022"
+output:
+  bookdown::html_document2:
+    toc: true
+fontsize: 14pt
+geometry: margin=1in
+---
+
 # Intro
-Following the commands outlined in the nascent RNA methods PDF found here: 
+Following the commands outlined in the nascent RNA methods PDF found here: \
 https://github.com/guertinlab/Nascent_RNA_Methods
 
 ## Load modules and download files
@@ -12,13 +27,13 @@ module load seqtk
 module load cutadapt 
 
 ```
-Other R scripts and software is located in /home/FCAM/jdong/software
+Other R scripts and software is located in `/home/FCAM/jdong/software` \
 Rust (required for some of the non-module software) was installed on the cluster
 with the following command:
 ```{r engine='bash', eval=F, echo=TRUE}
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
-Note: as of June 6, 2022, seqOutBias requires loading genometools/v1.5.10 
+Note: seqOutBias requires loading genometools/v1.5.10 
 
 # Build reference genome
 Submit following script to sbatch:
@@ -450,6 +465,50 @@ done
 
 ## Metrics and stats up to the complexity step
 
+**IMPORTANT**: If you're planning on swarming the cluster for this next step, first \
+run seqOutBias on just one (1) file. This generates the necessary intermediate files\
+for your particular reference genome, a long and crucial step that only needs to be \
+completed once. If you have already run seqOutBias before, make sure your working \
+directory contains these intermediate files, or use "--gt-workdir=<path>" in the \
+seqOutBias step to specify the directory where those files are located. 
+
+After running seqOutBias for the first time, you are free to swarm the rest of your\
+files as you like.
+
+```
+#! /usr/bin/bash
+
+#SBATCH --job-name=seqOutBias_only_HEK_ZNF143FKBP_DMSO_rep3
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 2                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=16G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%x_%j.all_out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%x_%j.all_out
+
+module load samtools bedtools seqtk
+module load genometools/1.5.10
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+genome=/home/FCAM/jdong/human38/hg38.fa
+readsize=38
+filename=HEK_ZNF143FKBP_DMSO_rep3_PE1.fastq
+
+name=$(echo $filename | awk -F "_PE1.fastq" '{print $1}')
+echo "Current sample: ${name}"
+
+cd $directory
+echo "Current directory: " $(pwd)
+echo "Current node: " $(hostname)
+
+seqOutBias $genome ${name}.bam --no-scale --stranded --bed-stranded-positive \
+    --bw=$name.bigWig --bed=$name.bed --out-split-pairends --only-paired \
+    --tail-edge --read-size=$read_size
+```
+
 "PRO-seq_final-metrics_template.sh"
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /usr/bin/bash
@@ -587,8 +646,9 @@ done
 
 
 
+
 Cleanup
-```
+```{r engine='bash', eval=F, echo=TRUE}
 rm ${name}_PE1_short.fastq
 rm ${name}_PE2_short.fastq
 rm ${name}_PE1_noadap.fastq
