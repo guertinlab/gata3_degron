@@ -1,0 +1,613 @@
+# Intro
+Following the commands outlined in the nascent RNA methods PDF found here: 
+https://github.com/guertinlab/Nascent_RNA_Methods
+
+## Load modules and download files
+```{r engine='bash', eval=F, echo=TRUE}
+module load bowtie2
+module load bedtools 
+module load fastqc
+module load fastx
+module load seqtk
+module load cutadapt 
+
+```
+Other R scripts and software is located in /home/FCAM/jdong/software
+Rust (required for some of the non-module software) was installed on the cluster
+with the following command:
+```{r engine='bash', eval=F, echo=TRUE}
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+Note: as of June 6, 2022, seqOutBias requires loading genometools/v1.5.10 
+
+# Build reference genome
+Submit following script to sbatch:
+"get_build_hg38.sh"
+```{r engine='bash', eval=F, echo=TRUE}
+#! /usr/bin/bash
+
+#SBATCH --job-name=hg38_rDNA_build
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 32               
+#SBATCH -p himem
+#SBATCH --qos=himem       
+#SBATCH --mem=256G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%u_%x_%j.out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%u_%x_%j.err
+
+module load bowtie2
+
+cd /home/FCAM/jdong
+echo "Current Directory: " $(pwd)
+
+echo "Downloading and Building hg38"
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz 
+gunzip hg38.fa.gz
+bowtie2-build hg38.fa hg38
+
+echo "Downloading and Building rDNA reference"
+wget https://github.com/databio/ref_decoy/raw/master/human_rDNA.fa.gz 
+gunzip human_rDNA.fa.gz
+bowtie2-build human_rDNA.fa human_rDNA
+
+echo "Building Complete"
+```
+
+
+# Reference gene annotation
+Latest ENSEMBL release as of May 27, 2022 is 106 (released April 2022).
+```{r engine='bash', eval=F, echo=TRUE}
+release=106
+wget http://ftp.ensembl.org/pub/release-${release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
+gunzip Homo_sapiens.GRCh38.${release}.chr.gtf.gz
+
+# extract all exon 1 annotations and reformat to .bed
+grep 'exon_number "1"' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+	sed 's/ˆ/chr/' | \
+	awk '{OFS="\t";} {print $1,$4,$5,$14,$20,$7}' | \
+	sed 's/";//g' | \
+	sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.tss.bed
+	
+#extract all exons
+grep 'exon_number' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+	sed 's/ˆ/chr/' | \
+	awk '{OFS="\t";} {print $1,$4,$5,$14,$20,$7}' | \
+	sed 's/";//g' | \
+	sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.all.exons.bed
+	
+#extract all complete gene annotations
+awk '$3 == "gene"' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+	sed 's/ˆ/chr/' | \
+	awk '{OFS="\t";} {print $1,$4,$5,$10,$14,$7}' | \
+	sed 's/";//g' | \
+	sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+	sort -k5,5 > Homo_sapiens.GRCh38.${release}.bed
+	
+#merge exon intervals that overlap each other
+mergeBed -s -c 6 -o distinct -i Homo_sapiens.GRCh38.${release}.all.exons.bed | \
+	awk '{OFS="\t";} {print $1,$2,$3,$4,$2,$4}' | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.all.exons.merged.bed
+	
+#remove all first exons (so pause region is excluded from exon / intron density ratio)
+subtractBed -s -a Homo_sapiens.GRCh38.${release}.all.exons.merged.bed -b Homo_sapiens.GRCh38.${release}.tss.bed | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.no.first.exons.bed
+
+#extract gene names of exons
+intersectBed -s -wb -a Homo_sapiens.GRCh38.${release}.no.first.exons.bed -b Homo_sapiens.GRCh38.${release}.bed | \
+	awk '{OFS="\t";} {print $1,$2,$3,$11,$4,$4}' | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.no.first.exons.named.bed
+	
+#extract the pause region from the first exons, position 20 - 120 downstream of the TSS
+awk '{OFS="\t";} $6 == "+" {print $1,$2+20,$2 + 120,$4,$5,$6} \
+	$6 == "-" {print $1,$3 - 120,$3 - 20,$4,$5,$6}' Homo_sapiens.GRCh38.${release}.tss.bed | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.pause.bed
+	
+#define and name all introns
+subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${release}.all.exons.merged.bed | \
+	sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.introns.bed
+```
+
+
+# Processing PRO-seq data
+
+## Initialize variables
+General naming convention for files:
+cell-type_conditions_replicate_pairedend.fastq.gz
+
+Bash variables:
+directory: path to sequencing files. This will also become the working directory.
+filename: name of paired end 1 .fastq.gz
+name: basename of the type of sample being processed
+annotation_prefix: Ensembl gene annotation GTF prefix. May change depending on release version used.
+UMI_length: (a mystery...! but should be either 6 or 8?)
+read_size: read length minus UMI length
+cores: number of cores for parallel processing
+genome: path to genome FASTA
+genome_index: path + basename of genome index files
+prealign_rdna_index: path + basename of prealign rDNA index files
+
+For example:
+```{r engine='bash', eval=F, echo=TRUE}
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+filename=HEK_DMSO_rep1_PE1.fastq.gz
+name=$(echo $filename | awk -F "_PE1.fastq.gz" '{print $1}')
+annotation_prefix=Homo_sapiens.GRCh38.106
+UMI_length= (a mystery...!)
+read_size= 
+cores=6
+genome=/home/FCAM/jdong/human38/hg38.fa
+genome_index=/home/FCAM/jdong/human38/hg38
+prealign_rdna_index=/home/FCAM/jdong/hum_rDNA/human_rDNA
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+# Unzip all FASTQ in $directory
+gunzip *.fastq.gz
+```
+
+### UMI detour: determining UMI length empirically
+Basic principle: trim from the start of PE1 reads one base at a time from 1 to n bases
+and align. Taking a sample of reads from one file, apply this trimming method and 
+observe when the biggest increase in alignment rate happens. 
+
+I also ran fastqc on all the files and confirmed that the adapter sequences match 
+those used in the "Nascent RNA Methods" linked at the beginning of this document.
+
+```{r engine='bash', eval=F, echo=TRUE}
+# Take subset of reads from a PE1 file
+head -n 40000000 ${name}_PE1.fastq > UMI_test.fastq
+
+cat UMI_test.fastq | fastx_clipper -Q 33 -a TGGAATTCTCGGGTGCCAAGG -o UMI_test_clipped.fastq
+
+# Trim by 1 base at a time
+for n in {1..9}
+	do
+	fastx_trimmer -f $(expr $n + 1) -i UMI_test_clipped.fastq -o UMI_test_clipped_trim$n.fastq
+	done
+
+# Alignments
+#trying out just the original fastq in interactive session with 4GB RAM and 2 cores
+bowtie2 -p 2 -t -x ${genome_index} -U UMI_test.fastq -S UMI_test.sam 2> UMI_test_stderr.txt
+
+#running rest of test files in a script
+```
+
+Script("UMI_test.sh"):
+```{r engine='bash', eval=F, echo=TRUE}
+#! /usr/bin/bash
+
+#SBATCH --job-name=UMI_test_alignments
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 4                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=8G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%u_%x_%j.out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%u_%x_%j.err
+
+# variables and modules
+module load bowtie2
+genome_index=/home/FCAM/jdong/human38/hg38
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+
+cd $directory
+
+# simple alignment with bowtie2
+for x in UMI_test_clipped*.fastq
+	do
+	name=$(echo $x | awk -F "_.fastq" '{print $1}')
+	echo "Now aligning $name"
+	bowtie2 -p 4 -t -x ${genome_index} -U ${x} -S ${name}.sam
+	done 2> UMI_test_clipped_stderr.txt
+```
+Ways to determine UMI length:
+1. count samtools aligned reads from:
+     -- trim 1 bp at a time until n+1 (n=suspected UMI length) and align
+2. run cutadapt with "-m 1" (or empty) and look at insert sizes 
+3. fastqc "adapter content" graph
+
+#### Method 1
+To check alignment rates, assuming files were processed alphabetically:
+```{r engine='bash', eval=F, echo=TRUE}
+grep -i "alignment rate" UMI_test_clipped_stderr.txt
+```
+Results: 
+0_unclipped: 49.29% overall alignment rate
+0: 70.07% overall alignment rate
+1: 76.95% overall alignment rate
+2: 83.51% overall alignment rate
+3: 87.23% overall alignment rate
+4: 88.90% overall alignment rate
+5: 90.01% overall alignment rate
+6: 91.40% overall alignment rate
+7: 77.51% overall alignment rate
+8: 96.40% overall alignment rate
+9: 96.90% overall alignment rate
+
+Double-checking with samtools:
+```{r engine='bash', eval=F, echo=TRUE}
+for x in UMI_test_clipped_*.sam
+do
+echo "Alignment for "$x " (unmapped, then total number of reads)"
+samtools view -c -F 0x04 ${x}
+samtools view -c ${x}
+done 2>&1 | tee "UMI_test_sam_output.txt"
+```
+(after some arithmetic the alignment rates match up)
+
+#### Method 2
+```{r engine='bash', eval=F, echo=TRUE}
+cutadapt --cores=2 -m 1 -O 1 -a TGGAATTCTCGGGTGCCAAGG UMI_test.fastq \
+	-o UMI_test_noadapt.fastq > UMI_test_cutadapt.txt
+	
+grep -A 13 "Overview" UMI_test_cutadapt.txt
+```
+Output:
+Overview of removed sequences
+length  count   expect  max.err error counts
+1       2278353 2500000.0       0       2278353
+2       643190  625000.0        0       643190
+3       267371  156250.0        0       267371
+4       61355   39062.5 0       61355
+5       3802    9765.6  0       3802
+6       53037   2441.4  0       53037
+7       52384   610.4   0       52384
+8       48733   152.6   0       48733
+9       49398   38.1    0       48657 741
+10      49342   9.5     1       46789 2553
+11      47167   2.4     1       44989 2178
+12      45335   0.6     1       43125 2210
+
+So this means the length is 8? 
+
+#### Method 3
+"Adapter content" graph for PE1 read files show rapid increase at position 9,
+or 8 base pairs into the sequence. Implying UMI length = 8. 
+
+## Process reads
+Make sure all FASTQ files are unzipped!
+
+script("PRO-seq_preprocess_template.sh"):
+```{r engine='bash', eval=F, echo=TRUE}
+#! /usr/bin/bash
+
+#SBATCH --job-name=ZNF143_dTAG_PROseq_preprocess_XXXXXXX
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 4                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=24G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%u_%x_%j.out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%u_%x_%j.err
+
+# Modules and variables
+module load cutadapt seqtk
+
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+cores=4
+UMI_length=8
+filename=XXXXXXX
+
+
+cd $directory
+echo "Current directory: " $(pwd)
+echo "Current node: " $(hostname)
+
+name=$(echo $filename | awk -F "_PE1.fastq" '{print $1}')
+echo "Now running this file: " ${name}
+
+# [4.3] Processing reads
+echo "Removing adapters from ${name}_PE1 reads"
+cutadapt --cores=$cores \
+	-m $((UMI_length+2)) \
+	-O 1 \
+	-a TGGAATTCTCGGGTGCCAAGG ${name}_PE1.fastq \
+	-o ${name}_PE1_noadap.fastq \
+	--too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt
+
+echo "Removing adapters from ${name}_PE2 reads"
+cutadapt --cores=$cores \
+	-m $((UMI_length+10)) \
+	-O 1 \
+	-a GATCGTCGGACTGTAGAACTCTGAAC ${name}_PE2.fastq \
+	-o ${name}_PE2_noadap.fastq \
+	--too-short-output ${name}_PE2_short.fastq > ${name}_PE2_cutadapt.txt
+
+# QC metrics
+echo "Calculating preprocessing QC metrics for ${name}"
+PE1_total=$(wc -l ${name}_PE1.fastq | awk '{print $1/4}')
+PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk '{print $1/4}')
+AAligation=$(echo "scale=2 ; $PE1_w_Adapter / $PE1_total" | bc)
+
+echo -e "value\texperiment\tthreshold\tmetric" > ${name}_QC_metrics.txt
+echo -e "$AAligation\t$name\t0.80\tAdapter/Adapter" >> ${name}_QC_metrics.txt
+
+# Reverse complement and remove reads shorter than 10 bases
+echo "Reverse complementing ${name}_PE1 reads"
+seqtk seq -L $((UMI_length+10)) -r ${name}_PE1_noadap.fastq > ${name}_PE1_noadap_trimmed.fastq
+
+#remove PCR duplicates
+echo "Removing PCR duplicates for ${name}"
+fqdedup -i ${name}_PE1_noadap_trimmed.fastq -o ${name}_PE1_dedup.fastq
+
+#this variable is a near-optimal table size value for fastq_pair:
+PE1_noAdapter=$(wc -l ${name}_PE1_noadap.fastq | awk '{print $1/4}')
+
+#pair FASTQ files
+echo "Pairing FASTQ files for ${name}"
+fastq_pair -t $PE1_noAdapter ${name}_PE1_noadap.fastq ${name}_PE2_noadap.fastq
+
+# [4.4 RNA degradation ratio score]
+echo "Measuring RNA degradation for ${name}"
+flash -q --compress-prog=gzip --suffix=gz ${name}_PE1_noadap.fastq.paired.fq \
+	${name}_PE2_noadap.fastq.paired.fq -o ${name}
+insert_size.R ${name}.hist ${UMI_length}
+
+# [4.5 Processing for alignment]
+echo "Removing UMI sequences and reverse complementing ${name}_PE2"
+seqtk trimfq -e ${UMI_length} ${name}_PE1_dedup.fastq > ${name}_PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} ${name}_PE2_noadap.fastq | seqtk seq -r - > ${name}_PE2_processed.fastq
+
+```
+
+Above script was used as template for swarming the cluster
+with the following interactive loop (run in directory with fastq files):
+```{r engine='bash', eval=F, echo=TRUE}
+file=PRO-seq_preprocess_template.sh
+SCRIPTS=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/scripts
+
+for i in *PE1.fastq
+do
+    nm=$(echo $i | rev | cut -f 1 -d '/' | rev | cut -f 1 -d '.')
+    fq=$(echo $i | rev | cut -f 1 -d '/' | rev)
+    echo $nm
+    echo $fq
+    sed -e "s/XXXXXXX/${fq}/g" "${SCRIPTS}/${file}" > ${SCRIPTS}/${nm}_PRO-seq_preprocess.sh
+    sbatch ${SCRIPTS}/${nm}_PRO-seq_preprocess.sh
+done
+```
+
+## Remove rDNA-aligned reads and align to genome
+
+"PRO-seq_alignment_template.sh"
+```{r engine='bash', eval=F, echo=TRUE}
+#! /usr/bin/bash
+
+#SBATCH --job-name=PROseq_alignment_XXXXXXX
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 16                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=12G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%u_%x_%j.all_out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%u_%x_%j.all_out
+
+# Modules and variables
+module load bowtie2 samtools
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+cores=16
+prealign_rdna_index=/home/FCAM/jdong/hum_rDNA/human_rDNA
+genome_index=/home/FCAM/jdong/human38/hg38
+filename=XXXXXXX
+
+
+cd $directory
+echo "Current directory: " $(pwd)
+echo "Current node: " $(hostname)
+
+name=$(echo $filename | awk -F "_PE1.fastq" '{print $1}')
+echo "Now working on this sample: " ${name}
+
+# Align to rDNA and extract reads that align
+echo "Aligning ${name}_PE1 to rDNA"
+bowtie2 -p $cores -x $prealign_rdna_index -U ${name}_PE1_processed.fastq 2>${name}_bowtie2_rDNA.log | \
+	samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
+	
+# Remove PE2-aligned reads with a rDNA-aligned mate
+echo "Removing PE2 reads with rDNA-aligned mate for ${name}"
+reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
+
+# Align to genome!
+echo "Aligning ${name} to human genome"
+bowtie2 -p $cores --maxins 1000 -x $genome_index --rf -1 ${name}_PE1.rDNA.fastq.paired.fq \
+	-2 ${name}_PE2_processed.fastq.paired.fq 2>${name}_bowtie2.log | samtools view -b - | \
+	samtools sort - -o ${name}.bam
+```
+
+Interactive loop to swarm alignments:
+**Note: during first run of ZNF143 data I mistakenly ran the loop with batch scripts named
+${nm}_PRO-seq_preprocess.sh but for any subsequent runs of this pipeline use the 
+corrected names below.**
+```{r engine='bash', eval=F, echo=TRUE}
+file=PRO-seq_alignment_template.sh
+SCRIPTS=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/scripts
+
+for i in *PE1.fastq
+do
+    nm=$(echo $i | rev | cut -f 1 -d '/' | rev | cut -f 1 -d '.')
+    fq=$(echo $i | rev | cut -f 1 -d '/' | rev)
+    echo $nm
+    echo $fq
+    sed -e "s/XXXXXXX/${fq}/g" "${SCRIPTS}/${file}" > ${SCRIPTS}/${nm}_PRO-seq_alignments.sh
+    sbatch ${SCRIPTS}/${nm}_PRO-seq_alignments.sh
+done
+```
+
+## Metrics and stats up to the complexity step
+
+"PRO-seq_final-metrics_template.sh"
+```{r engine='bash', eval=F, echo=TRUE}
+#! /usr/bin/bash
+
+#SBATCH --job-name=PROseq_final-metrics_XXXXXXX
+#SBATCH -N 1                    
+#SBATCH -n 1                  
+#SBATCH -c 2                          
+#SBATCH -p general
+#SBATCH --qos=general       
+#SBATCH --mem=16G                    
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jdong@uchc.edu
+#SBATCH -o /home/FCAM/jdong/slurm_out/%x_%j.all_out
+#SBATCH -e /home/FCAM/jdong/slurm_out/%x_%j.all_out
+
+# Modules and variables
+module load samtools bedtools seqtk
+module load genometools/1.5.10
+directory=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/data
+genome=/home/FCAM/jdong/human38/hg38.fa
+readsize=38
+annotation_prefix=Homo_sapiens.GRCh38.106
+filename=XXXXXXX
+
+cd $directory
+echo "Current directory: " $(pwd)
+echo "Current node: " $(hostname)
+
+name=$(echo $filename | awk -F "_PE1.fastq" '{print $1}')
+echo "Now working on this sample: " ${name}
+
+# calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l ${name}_PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))")
+
+# calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 ${name}.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+
+# rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+
+echo "***** Reporting rDNA alignment rate *****"
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> ${name}_QC_metrics.txt
+
+# Mappability rate
+map_pe1=$(samtools view -c -f 0x42 ${name}.bam)
+pre_alignment=$(wc -l ${name}_PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+
+echo "***** Reporting mappability rate *****"
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> ${name}_QC_metrics.txt
+
+# Complexity
+echo "***** Calculating complexity and theoretical read depth *****"
+
+# run with no factors (requires seqtk)
+fqComplexity -i ${name}_PE1_noadap_trimmed.fastq
+
+# calculate factors X and Y
+PE1_total=$(wc -l ${name}_PE1.fastq | awk '{print $1/4}')
+PE1_noadap_trimmed=$(wc -l ${name}_PE1_noadap_trimmed.fastq | awk '{print $1/4}')
+
+factorX=$(echo "scale=2 ; $PE1_noadap_trimmed / $PE1_total" | bc)
+
+echo "Fraction of reads that are not adapter/adapter ligation products or below 10 base inserts:"
+echo $factorX
+
+# calculate PE1 deduplicated reads
+PE1_dedup=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
+
+# divide
+factorY=$(echo "scale=2 ; $concordant_pe1 / $PE1_dedup" | bc)
+
+# re-run with factors
+fqComplexity -i ${name}_PE1_noadap_trimmed.fastq -x $factorX -y $factorY
+
+#convert to bigWig and BED6
+echo "***** Converting to bigWig and BED6 *****"
+seqOutBias $genome ${name}.bam --no-scale --stranded --bed-stranded-positive \
+	--bw=$name.bigWig --bed=$name.bed --out-split-pairends --only-paired \
+	--tail-edge --read-size=$read_size
+
+echo "***** Calculating pause indices *****"
+#counts reads in pause region
+coverageBed -counts -s -a $annotation_prefix.pause.bed -b ${name}_not_scaled_PE1.bed | \
+	awk '$7>0' | sort -k5,5 -k7,7nr | sort -k5,5 -u > ${name}_pause.bed
+
+# discard anything with chr and strand inconsistencies
+join -1 5 -2 5 ${name}_pause.bed $annotation_prefix.bed | \
+	awk '{OFS="\t";} $2==$8 && $6==$12 {print $2, $3, $4, $1, $6, $7, $9, $10}' | \
+	awk '{OFS="\t";} $5 == "+" {print $1,$2+480,$8,$4,$6,$5} $5 == "-" {print $1,$7,$2 - 380,$4,$6,$5}' | \
+	awk '{OFS="\t";} $3>$2 {print $1,$2,$3,$4,$5,$6}' > ${name}_pause_counts_body_coordinates.bed
+
+# column ten is Pause index
+coverageBed -counts -s -a ${name}_pause_counts_body_coordinates.bed \
+	-b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+	awk '{OFS="\t";} {print $1,$2,$3,$4,$5,$6,$7,$5/100,$7/($3 - $2)}' | \
+	awk '{OFS="\t";} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$8/$9}' > ${name}_pause_body.bed
+
+# Calculate pause indices and plot as PDF
+pause_index.R ${name}_pause_body.bed
+
+echo "***** Estimating nascent RNA purity with exon/intron density ratio *****"
+coverageBed -counts -s -a $annotation_prefix.introns.bed \
+	-b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+	awk '{OFS="\t";} {print $1,$2,$3,$5,$5,$6,$7,($3 - $2)}' > ${name}_intron_counts.bed
+
+coverageBed -counts -s -a $annotation_prefix.no.first.exons.named.bed \
+	-b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+	awk '{OFS="\t";} {print $1,$2,$3,$4,$4,$6,$7,($3 - $2)}' > ${name}_exon_counts.bed
+
+exon_intron_ratio.R ${name}_exon_counts.bed ${name}_intron_counts.bed
+
+echo "***** Script complete *****"
+```
+
+Interactive (run in $directory):
+```{r engine='bash', eval=F, echo=TRUE}
+file=PRO-seq_final-metrics_template.sh
+SCRIPTS=/home/FCAM/jdong/ZNF143_dTAG13_PROseq_analysis/scripts
+
+for i in *PE1.fastq
+do
+    nm=$(echo $i | rev | cut -f 1 -d '/' | rev | cut -f 1 -d '.')
+    fq=$(echo $i | rev | cut -f 1 -d '/' | rev)
+    echo $nm
+    echo $fq
+    sed -e "s/XXXXXXX/${fq}/g" "${SCRIPTS}/${file}" > ${SCRIPTS}/${nm}_PRO-seq_final-metrics.sh
+    sbatch ${SCRIPTS}/${nm}_PRO-seq_final-metrics.sh
+done
+```
+
+
+
+Cleanup
+```
+rm ${name}_PE1_short.fastq
+rm ${name}_PE2_short.fastq
+rm ${name}_PE1_noadap.fastq
+rm ${name}_PE2_noadap.fastq
+rm ${name}_PE1_noadap_trimmed.fastq
+rm ${name}_PE1_dedup.fastq
+rm ${name}_PE1_processed.fastq
+rm ${name}_PE2_processed.fastq
+rm ${name}_PE1_noadap.fastq.paired.fq
+rm ${name}_PE2_noadap.fastq.paired.fq
+rm ${name}_PE1_noadap.fastq.single.fq
+rm ${name}_PE2_noadap.fastq.single.fq
+rm ${name}_PE1.rDNA.fastq.paired.fq
+rm ${name}_PE1.rDNA.fastq.single.fq
+rm ${name}_PE2_processed.fastq.paired.fq
+rm ${name}_PE2_processed.fastq.single.fq
+rm ${name}.extendedFrags.fastq.gz
+rm ${name}.notCombined_1.fastq.gz
+rm ${name}.notCombined_2.fastq.gz
+gzip ${name}_PE1.fastq
+gzip ${name}_PE2.fastq
+```
