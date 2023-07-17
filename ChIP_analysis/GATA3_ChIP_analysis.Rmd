@@ -32,7 +32,6 @@ the alternative of trying to salvage poorly controlled experiments.
 
 # ChIP-seq analysis
 
-
 First we name the experiments with the trailing name being `PE1` or
 `PE` for paired end data. 
 
