@@ -7,7 +7,7 @@ header-includes:
 - \usepackage{color}
 - \usepackage{float}
 - \DeclareUnicodeCharacter{2212}{-}
-date: "July 16, 2023"
+date: "`r Sys.Date()`"
 output:
   bookdown::html_document2:
     toc: true
