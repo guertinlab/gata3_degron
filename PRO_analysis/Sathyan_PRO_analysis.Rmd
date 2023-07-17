@@ -1,5 +1,8 @@
 ---
-title: \sf PRO-seq analysis
+title: PRO-seq analysis
+author:
+- Jinhong Dong
+- Michael J. Guertin
 header-includes:
 - \usepackage{color}
 - \usepackage{float}
