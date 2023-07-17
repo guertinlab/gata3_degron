@@ -2,7 +2,7 @@
 title: PRO-seq analysis
 author:
 - Jinhong Dong
-- Michael J. Guertin
+- Michael J. Guertin 
 header-includes:
 - \usepackage{color}
 - \usepackage{float}
