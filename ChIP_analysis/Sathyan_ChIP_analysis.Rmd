@@ -737,7 +737,7 @@ done
 
 ## make a composite PSWM of motif 1 and motif 2 from the functional peaks
 
-## make a composite FIMO motif signal at TSSs
+## make a composite FIMO motif signal at peak summits
 
 ## de novo motif analysis on other (non-functional peaks)
 
