@@ -25,6 +25,6 @@ jobs:
           sudo Rscript -e "rmarkdown::render(input = 'PRO_analysis/Sathyan_PRO_analysis.Rmd', BiocStyle::html_document())"
       - name: Commit and push changes
         run: |
-          git add ChIP_analysis/Sathyan_PRO_analysis.html
+          git add PRO_analysis/Sathyan_PRO_analysis.html
           git commit -m "Render Sathyan_PRO_analysis.Rmd to HTML"
           git push origin HEAD:main
