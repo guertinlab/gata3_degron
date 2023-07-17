@@ -1,7 +1,7 @@
 ---
 title: ChIP-seq analysis 
 author:
-- Jinhong Dong
+- Siyu Sun
 - Michael J. Guertin
 header-includes:
 - \usepackage{color}
