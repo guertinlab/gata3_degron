@@ -19,7 +19,6 @@ geometry: margin=1in
 ```{r engine='bash', eval=F, echo=TRUE}
 cd /labs/Guertin/ZNF143_PRO
 
-
 for i in *_dep1_*.fastq.gz
 do
 	echo $i
@@ -35,7 +34,6 @@ done
 
 
 ```{r engine='bash', eval=F, echo=TRUE}
-
 module load bowtie2/2.5.0
 module load genometools/1.5.10
 module load bedtools/2.29.0
