@@ -969,16 +969,6 @@ densityplot(~log(strength, base = 10), data=motif.strength,
 
 ```
 
-
-<!--
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
-library(knitr)
-knitr::include_graphics("MA_plot_ZNF143_30min_degradation_SF.png") 
-```
--->
-
-# peak cut off is: 167.44365
-
  don't use below 0.7 quantile
 
 62 fold dynamic range, there is littel evidence of PRO changes near
