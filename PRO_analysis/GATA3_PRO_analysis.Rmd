@@ -17,7 +17,7 @@ geometry: margin=1in
 
 # PRO-seq analysis
 ```{r engine='bash', eval=F, echo=TRUE}
-cd /labs/Guertin/ZNF143_PRO
+cd /labs/Guertin/GATA3_PRO
 
 for i in *_dep1_*.fastq.gz
 do
