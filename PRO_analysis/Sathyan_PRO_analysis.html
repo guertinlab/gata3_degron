@@ -9,8 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Jinhong Dong" />
+<meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-16" />
+<meta name="date" content="2023-07-17" />
 
 <title>PRO-seq analysis</title>
 
@@ -508,6 +510,10 @@ code > span.paren { color: #000000;}
 padding-left: 65px;
 }
 
+.references {
+padding-right: 150px;
+}
+
 .margin-toggle {
 display: none;
 }
@@ -521,6 +527,8 @@ width: auto;
 p {
 padding-left: 0;
 padding-right: 0;
+}
+.references { padding-right: 0;
 }
 h1, h2, h3, h4, h5, h6 {
 width: 100%;
@@ -695,7 +703,8 @@ function toggle_visibility(id1) {
 
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
-<h4 class="date">July 16, 2023</h4>
+<p class="author-name">Jinhong Dong and Michael J. Guertin</p>
+<h4 class="date">2023-07-17</h4>
 
 </div>
 
@@ -725,6 +734,7 @@ function toggle_visibility(id1) {
 <div id="pro-seq-analysis" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> PRO-seq analysis</h1>
 <pre class="bash"><code>cd /labs/Guertin/ZNF143_PRO
+
 
 for i in *_dep1_*.fastq.gz
 do
