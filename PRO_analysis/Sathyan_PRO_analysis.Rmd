@@ -1,0 +1,922 @@
+---
+title: \sf PRO-seq analysis
+header-includes:
+- \usepackage{color}
+- \usepackage{float}
+- \DeclareUnicodeCharacter{2212}{-}
+date: "July 16, 2023"
+output:
+  bookdown::html_document2:
+    toc: true
+fontsize: 14pt
+geometry: margin=1in
+---
+
+# PRO-seq analysis
+```{r engine='bash', eval=F, echo=TRUE}
+cd /labs/Guertin/ZNF143_PRO
+
+for i in *_dep1_*.fastq.gz
+do
+	echo $i
+	pre=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_" '{print $1}')
+	suf=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_" '{print $2}')
+	x=$(echo $suf |  awk -F".fastq" '{print $1}')
+	echo $pre
+	echo $suf
+	echo $x
+	cat $i ${pre}_dep2_${suf} > ${pre}_${x}_final.fastq.gz
+done 
+```
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+
+module load bowtie2/2.5.0
+module load genometools/1.5.10
+module load bedtools/2.29.0
+module load ucsc_genome/2012.05.22
+module load rust 
+
+release=109
+
+wget https://raw.githubusercontent.com/guertinlab/fqComplexity/main/fqComplexity
+wget https://raw.githubusercontent.com/guertinlab/fqComplexity/main/complexity_pro.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/insert_size.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/pause_index.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/exon_intron_ratio.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/plot_all_metrics.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/differential_expression.R
+
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/PRO_normalization
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/normalization_factor.R
+wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/normalize_bedGraph.py
+
+chmod +x insert_size.R
+chmod +x fqComplexity
+chmod +x complexity_pro.R
+chmod +x pause_index.R
+chmod +x exon_intron_ratio.R
+chmod +x plot_all_metrics.R
+chmod +x differential_expression.R
+
+chmod +x normalize_bedGraph.py
+chmod +x normalization_factor.R
+chmod +x PRO_normalization
+
+wget https://github.com/guertinlab/fqdedup/archive/refs/tags/v1.0.0.tar.gz
+gunzip v1.0.0.tar.gz
+tar -xvf v1.0.0.tar
+cd fqdedup-1.0.0/ 
+cargo build --release
+
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz
+gunzip hg38.fa.gz
+bowtie2-build hg38.fa hg38
+
+wget https://github.com/databio/ref_decoy/raw/master/human_rDNA.fa.gz
+gunzip human_rDNA.fa.gz
+bowtie2-build human_rDNA.fa human_rDNA
+
+#Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
+#This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
+#install from source, if oyu have issues: guertin@uchc.edu
+
+/home/FCAM/mguertin/software/seqOutBias seqtable hg38.fa --read-size=62
+
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
+
+wget http://ftp.ensembl.org/pub/release-${release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
+gunzip Homo_sapiens.GRCh38.${release}.chr.gtf.gz
+
+#extract all exon 1 annotations
+grep 'exon_number "1"' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+    sed 's/^/chr/' | \
+    awk '{OFS="\t";} {print $1,$4,$5,$14,$20,$7}' | \
+    sed 's/";//g' | \
+    sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.tss.bed
+
+#extract all exons
+grep 'exon_number' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+    sed 's/^/chr/' | \
+    awk '{OFS="\t";} {print $1,$4,$5,$14,$20,$7}' | \
+    sed 's/";//g' | \
+    sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.all.exons.bed
+
+#extract all complete gene annotations, sorted for use with join
+awk '$3 == "gene"' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+    sed 's/^/chr/' | \
+    awk '{OFS="\t";} {print $1,$4,$5,$10,$14,$7}' | \
+    sed 's/";//g' | \
+    sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+    sort -k5,5 > Homo_sapiens.GRCh38.${release}.bed
+    
+#extract all complete gene annotations, sorted for use with bedtools map
+awk '$3 == "gene"' Homo_sapiens.GRCh38.${release}.chr.gtf | \
+    sed 's/^/chr/' | \
+    awk '{OFS="\t";} {print $1,$4,$5,$10,$14,$7}' | \
+    sed 's/";//g' | \
+    sed 's/"//g' | sed 's/chrMT/chrM/g' | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}_sorted.bed
+ 
+#merge exon intervals that overlap each other
+mergeBed -s -c 6 -o distinct -i Homo_sapiens.GRCh38.${release}.all.exons.bed | \
+    awk '{OFS="\t";} {print $1,$2,$3,$4,$2,$4}' | 
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.all.exons.merged.bed
+
+#remove all first exons (so pause region is excluded from exon / intron density ratio)
+subtractBed -s -a Homo_sapiens.GRCh38.${release}.all.exons.merged.bed -b Homo_sapiens.GRCh38.${release}.tss.bed | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.no.first.exons.bed
+
+#extract gene names of exons
+intersectBed -s -wb -a Homo_sapiens.GRCh38.${release}.no.first.exons.bed -b Homo_sapiens.GRCh38.${release}.bed | \
+    awk '{OFS="\t";} {print $1,$2,$3,$11,$4,$4}' | \
+    sort -k1,1 -k2,2n >  Homo_sapiens.GRCh38.${release}.no.first.exons.named.bed
+
+#extract the pause region from the first exons, position 20 - 120 downstream of the TSS
+awk  '{OFS="\t";} $6 == "+" {print $1,$2+20,$2 + 120,$4,$5,$6} \
+    $6 == "-" {print $1,$3 - 120,$3 - 20,$4,$5,$6}' Homo_sapiens.GRCh38.${release}.tss.bed  | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.pause.bed 
+
+#define and name all introns 
+subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${release}.all.exons.merged.bed | \
+    sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.introns.bed 
+```
+
+
+# Edit this for PRO alignment and parallelization:
+
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+
+#SBATCH --job-name=pro_processing_XXXXXXX.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 10                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=guertin@uchc.edu
+#SBATCH -o pro_processing_XXXXXXX.sh_%j.out
+#SBATCH -e pro_processing_XXXXXXX.sh_%j.err
+
+hostname
+
+name=XXXXXXX
+
+module load cutadapt/3.5
+module load seqtk/1.3
+seqOutBias=/home/FCAM/mguertin/software/seqOutBias
+fqdedup=/home/FCAM/mguertin/ZNF143_PRO/fqdedup-1.0.0/target/release/fqdedup
+flash=/home/FCAM/mguertin/software/flash
+module load fastq-pair/1.0
+module load samtools/1.16.1
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+module load bowtie2
+module load bedtools
+
+sizes=hg38.chrom.sizes
+annotation_prefix=Homo_sapiens.GRCh38.109 
+UMI_length=8
+read_size=62
+cores=10
+genome=hg38.fa
+genome_index=hg38
+prealign_rdna_index=human_rDNA
+tallymer=hg38.tal_${read_size}.gtTxt.gz
+table=hg38_${read_size}.4.2.2.tbl
+
+gunzip ${name}_PE1_final.fastq.gz
+gunzip ${name}_PE2_final.fastq.gz
+
+echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+
+cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_PE1_final.fastq \
+        -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt
+cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_PE2_final.fastq \
+        -o ${name}_PE2_noadap.fastq --too-short-output ${name}_PE2_short.fastq > ${name}_PE2_cutadapt.txt
+
+PE1_total=$(wc -l ${name}_PE1_final.fastq | awk '{print $1/4}')
+PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk '{print $1/4}')
+AAligation=$(echo "scale=2 ; $PE1_w_Adapter / $PE1_total" | bc)
+echo -e  "value\texperiment\tthreshold\tmetric" > ${name}_QC_metrics.txt
+echo -e "$AAligation\t$name\t0.80\tAdapter/Adapter" >> ${name}_QC_metrics.txt
+echo 'removing short RNA insertions in' $name
+seqtk seq -L $((UMI_length+10)) ${name}_PE1_noadap.fastq > ${name}_PE1_noadap_trimmed.fastq 
+echo 'removing PCR duplicates from' $name
+
+fqdedup -i ${name}_PE1_noadap_trimmed.fastq -o ${name}_PE1_dedup.fastq
+
+PE1_noAdapter=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
+
+fastq_pair -t $PE1_noAdapter ${name}_PE1_dedup.fastq ${name}_PE2_noadap.fastq
+
+echo 'calculating and plotting RNA insert sizes from' $name
+
+flash -q --compress-prog=gzip --suffix=gz ${name}_PE1_dedup.fastq.paired.fq \
+        ${name}_PE2_noadap.fastq.paired.fq -o ${name}
+
+insert_size.R ${name}.hist ${UMI_length}
+echo 'trimming off the UMI from' $name
+seqtk trimfq -b ${UMI_length} ${name}_PE1_dedup.fastq | seqtk seq -r - > ${name}_PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} ${name}_PE2_noadap.fastq | seqtk seq -r - > ${name}_PE2_processed.fastq
+echo 'aligning' $name 'to rDNA and removing aligned reads'
+    
+bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U ${name}_PE1_processed.fastq 2>${name}_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
+reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
+echo 'aligning' $name 'to the genome'
+
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 ${name}_PE1.rDNA.fastq.paired.fq \
+        -2 ${name}_PE2_processed.fastq.paired.fq 2>${name}_bowtie2.log | samtools view -b - | \
+        samtools sort - -o ${name}.bam
+
+PE1_prior_rDNA=$(wc -l ${name}_PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+concordant_pe1=$(samtools view -c -f 0x42 ${name}.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> ${name}_QC_metrics.txt
+map_pe1=$(samtools view -c -f 0x42 ${name}.bam)
+pre_alignment=$(wc -l ${name}_PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> ${name}_QC_metrics.txt
+echo 'plotting and calculating complexity for' $name
+
+fqComplexity -i ${name}_PE1_noadap_trimmed.fastq
+
+echo 'calculating and plotting theoretical sequencing depth' 
+echo 'to achieve a defined number of concordantly aligned reads for' $name
+PE1_total=$(wc -l ${name}_PE1_final.fastq | awk '{print $1/4}')
+PE1_noadap_trimmed=$(wc -l ${name}_PE1_noadap_trimmed.fastq | awk '{print $1/4}')
+factorX=$(echo "scale=2 ; $PE1_noadap_trimmed / $PE1_total" | bc)
+echo fraction of reads that are not adapter/adapter ligation products or below 10 base inserts
+echo $factorX 
+PE1_dedup=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
+factorY=$(echo "scale=2 ; $concordant_pe1 / $PE1_dedup" | bc)
+    
+fqComplexity -i ${name}_PE1_noadap_trimmed.fastq -x $factorX -y $factorY
+echo 'Separating paired end reads and creating genomic BED and bigWig intensity files for' $name
+
+seqOutBias scale $table ${name}.bam --no-scale --stranded --bed-stranded-positive \
+        --bw=$name.bigWig --bed=$name.bed --out-split-pairends --only-paired \
+        --tail-edge --read-size=$read_size --tallymer=$tallymer
+
+grep -v "random" ${name}_not_scaled_PE1.bed | grep -v "chrUn" | grep -v "chrEBV" | sort -k1,1 -k2,2n > ${name}_tmp.txt 
+mv ${name}_tmp.txt ${name}_not_scaled_PE1.bed 
+
+mapBed -null "0" -s -a $annotation_prefix.pause.bed -b ${name}_not_scaled_PE1.bed | \
+awk '$7>0' | sort -k5,5 -k7,7nr | sort -k5,5 -u > ${name}_pause.bed
+
+join -1 5 -2 5 ${name}_pause.bed $annotation_prefix.bed | \
+        awk '{OFS="\t";} $2==$8 && $6==$12 {print $2, $3, $4, $1, $6, $7, $9, $10}' | \
+        awk '{OFS="\t";} $5 == "+" {print $1,$2+480,$8,$4,$6,$5} $5 == "-" {print $1,$7,$2 - 380,$4,$6,$5}' | \
+        awk  '{OFS="\t";} $3>$2 {print $1,$2,$3,$4,$5,$6}' | sort -k1,1 -k2,2n  > ${name}_pause_counts_body_coordinates.bed
+mapBed -null "0" -s -a ${name}_pause_counts_body_coordinates.bed \
+        -b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+        awk '{OFS="\t";} {print $1,$2,$3,$4,$5,$6,$7,$5/100,$7/($3 - $2)}' | \
+        awk '{OFS="\t";} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$8/$9}' > ${name}_pause_body.bed
+
+pause_index.R ${name}_pause_body.bed
+echo 'Calculating exon density / intron density as a metric for nascent RNA purity for' $name
+mapBed -null "0" -s -a $annotation_prefix.introns.bed \
+        -b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+        awk '{OFS="\t";} {print $1,$2,$3,$5,$5,$6,$7,($3 - $2)}' > ${name}_intron_counts.bed
+mapBed -null "0" -s -a $annotation_prefix.no.first.exons.named.bed \
+        -b ${name}_not_scaled_PE1.bed | awk '$7>0' | \
+        awk '{OFS="\t";} {print $1,$2,$3,$4,$4,$6,$7,($3 - $2)}' > ${name}_exon_counts.bed
+
+exon_intron_ratio.R ${name}_exon_counts.bed ${name}_intron_counts.bed
+rm ${name}_PE1_short.fastq
+rm ${name}_PE2_short.fastq
+rm ${name}_PE1_noadap.fastq
+rm ${name}_PE2_noadap.fastq
+rm ${name}_PE1_noadap_trimmed.fastq
+rm ${name}_PE1_dedup.fastq
+rm ${name}_PE1_processed.fastq
+rm ${name}_PE2_processed.fastq
+rm ${name}_PE1_dedup.fastq.paired.fq   
+rm ${name}_PE2_noadap.fastq.paired.fq
+rm ${name}_PE1_dedup.fastq.single.fq
+rm ${name}_PE2_noadap.fastq.single.fq
+rm ${name}_PE1.rDNA.fastq.paired.fq
+rm ${name}_PE1.rDNA.fastq.single.fq
+rm ${name}_PE2_processed.fastq.paired.fq
+rm ${name}_PE2_processed.fastq.single.fq
+rm ${name}.extendedFrags.fastq.gz
+rm ${name}.notCombined_1.fastq.gz
+rm ${name}.notCombined_2.fastq.gz
+
+```
+
+
+
+## Run the previous chunk in parallel 
+
+```{r engine='bash', eval=F, echo=TRUE}
+
+file=pro_processing.sh
+
+for i in *_PE1_final.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1_final.fastq.gz" '{print $1}')
+    echo $nm
+    sed -e "s/XXXXXXX/${nm}/g" "$file" > pro_processing_${nm}.sh
+    sbatch pro_processing_${nm}.sh
+    sleep 1
+done
+
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
+
+./plot_all_metrics.R project_QC_metrics.txt ZNF143_degron_PRO
+```
+
+
+
+# Input for pTA
+Using this code to get the merged bigWigs for primaryTranscriptAnnotation
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+PRO_normalization -c hg38.chrom.sizes
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+reps=8
+pair="_PE1"
+name="HEK_CloneZD29_30min"
+chrSizes="hg38.chrom.sizes" # path to chromosome sizes file
+
+plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
+bigWigMerge $plusfiles tmpPlus${pair}.bg
+minusfiles=$(ls ${name}_*rep*_minus${pair}_scaled.bigWig)
+bigWigMerge -threshold=-10000000000 $minusfiles tmpMinus${pair}.bg
+scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
+normalize_bedGraph.py -i tmpPlus${pair}.bg -s $scaleall -o ${name}_plus${pair}_scaled.bg
+normalize_bedGraph.py -i tmpMinus${pair}.bg -s $scaleall -o ${name}_minus${pair}_scaled.bg
+sort -k1,1 -k2,2n ${name}_plus${pair}_scaled.bg > ${name}_plus${pair}_scaled_sorted.bg
+sort -k1,1 -k2,2n ${name}_minus${pair}_scaled.bg > ${name}_minus${pair}_scaled_sorted.bg
+bedGraphToBigWig ${name}_plus${pair}_scaled_sorted.bg $chrSizes ${name}_plus${pair}_scaled.bigWig 
+bedGraphToBigWig ${name}_minus${pair}_scaled_sorted.bg $chrSizes ${name}_minus${pair}_scaled.bigWig
+
+rm ${name}_plus${pair}_scaled.bg
+rm ${name}_minus${pair}_scaled.bg
+rm ${name}_plus${pair}_scaled_sorted.bg
+rm ${name}_minus${pair}_scaled_sorted.bg
+rm tmpPlus${pair}.bg
+rm tmpMinus${pair}.bg
+```
+
+# TSSInference inputs
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+PRO_normalization -c hg38.chrom.sizes
+```
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+reps=8
+pair="_PE2"
+name="HEK_CloneZD29_30min"
+chrSizes="hg38.chrom.sizes" # path to chromosome sizes file
+
+plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
+bigWigMerge $plusfiles tmpPlus${pair}.bg
+minusfiles=$(ls ${name}_*rep*_minus${pair}_scaled.bigWig)
+bigWigMerge -threshold=-10000000000 $minusfiles tmpMinus${pair}.bg
+scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
+normalize_bedGraph.py -i tmpPlus${pair}.bg -s $scaleall -o ${name}_plus${pair}_scaled.bg
+normalize_bedGraph.py -i tmpMinus${pair}.bg -s $scaleall -o ${name}_minus${pair}_scaled.bg
+sort -k1,1 -k2,2n ${name}_plus${pair}_scaled.bg > ${name}_plus${pair}_scaled_sorted.bg
+sort -k1,1 -k2,2n ${name}_minus${pair}_scaled.bg > ${name}_minus${pair}_scaled_sorted.bg
+bedGraphToBigWig ${name}_plus${pair}_scaled_sorted.bg $chrSizes ${name}_plus${pair}_scaled.bigWig 
+bedGraphToBigWig ${name}_minus${pair}_scaled_sorted.bg $chrSizes ${name}_minus${pair}_scaled.bigWig
+
+rm ${name}_plus${pair}_scaled.bg
+rm ${name}_minus${pair}_scaled.bg
+rm ${name}_plus${pair}_scaled_sorted.bg
+rm ${name}_minus${pair}_scaled_sorted.bg
+rm tmpPlus${pair}.bg
+rm tmpMinus${pair}.bg
+```
+
+## Annotations
+
+```{r engine='R', eval=F, echo=TRUE}
+grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
+    grep -v 'tag "readthrough_transcript"' | \
+    grep -v 'tag "RNA_Seq_supported_only"' | \
+    grep -v 'tag "RNA_Seq_supported_partial"' | \
+    awk '{if($3=="exon"){print $0}} ' | \
+    grep -w "exon_number 1" | \
+    cut -f1,4,5,7,9 | tr ";" "\t" | \
+    awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
+    tr " " "\t" | tr -d '"' | \
+    grep -v "\tENSG" > gencode.hg38.v42.basic.firstExon.latest.filtered.bed
+
+```
+
+
+
+# TSSInference
+
+```{r engine='R', eval=F, echo=TRUE}
+library(bigWig)
+# source TSSinference functions
+source("TSSinference.R")
+# prepare annotation file
+gene.exon1 = parse.bed.exon1("gencode.hg38.v42.basic.firstExon.latest.filtered.bed")
+# assign bigWig variables
+# These two are the ones with control + experimental merged
+bw.plus='HEK_CloneZD29_30min_plus_PE2_scaled.bigWig'
+bw.minus='HEK_CloneZD29_30min_minus_PE2_scaled.bigWig'
+
+#swap minus and plus
+potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
+
+```
+
+
+# primaryTranscriptAnnotation
+
+```{r engine='bash', eval=F, echo=TRUE}
+
+gunzip gencode.v42.basic.annotation.gtf.gz
+
+grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
+   awk '{if($3=="exon"){print $0}}' | \
+   grep -w "exon_number 1" | \
+   cut -f1,4,5,7,9 | tr ";" "\t" | \
+   awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
+   tr " " "\t" | tr -d '"' > gencode.v42.firstExon.bed
+   
+grep 'transcript_type "protein_coding"' gencode.v42.annotation.gtf | \
+    awk '{if($3=="transcript"){print $0}} ' | \
+    cut -f1,4,5,7,9 | tr ";" "\t" | \
+    awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
+    tr " " "\t" | tr -d '"' > gencode.v42.transcript.bed
+
+```
+
+
+```{r engine='R', eval=F, echo=TRUE}
+
+fname = "gencode.v42.firstExon.bed"
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
+dat0 = unique(dat0)
+gencode.firstExon = dat0
+# import data for all transcripts, annotate, and remove duplicate transcripts
+fname = "gencode.v42.transcript.bed"
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
+dat0 = unique(dat0)
+gencode.transcript = dat0
+
+chrom.sizes = read.table("hg38.chrom.sizes",stringsAsFactors=F,header=F) 
+names(chrom.sizes) = c("chr","size")
+
+
+
+plus.file = "HEK_CloneZD29_30min_plus_PE1_scaled.bigWig" 
+minus.file = "HEK_CloneZD29_30min_minus_PE1_scaled.bigWig" 
+bw.plus = load.bigWig(plus.file)
+bw.minus = load.bigWig(minus.file)
+
+
+library(NMF)
+library(dplyr)
+library(bigWig)
+library(pracma) 
+library(RColorBrewer) 
+library(primaryTranscriptAnnotation)
+
+
+largest.interval.bed = get.largest.interval(bed=gencode.transcript)
+transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
+
+par(mfrow=c(1,2)) 
+
+hist(log(transcript.reads$density), breaks=200,
+col="black",xlab="log read density",main="") 
+
+hist(log(transcript.reads$counts), breaks=200,
+     col="black",xlab="log read count",main="")
+
+
+den.cut = -8
+cnt.cut = 1
+ind.cut.den = which(log(transcript.reads$density) < den.cut) 
+
+ind.cut.cnt = which(log(transcript.reads$counts) < cnt.cut) 
+
+ind.cut = union(ind.cut.den, ind.cut.cnt)
+par(mfrow=c(1,2))
+hist(log(transcript.reads$density), breaks=200,
+col="black",xlab="log read density",main="") 
+abline(v=den.cut, col="red") 
+hist(log(transcript.reads$counts), breaks=200,
+col="black",xlab="log read count",main="") 
+abline(v=cnt.cut, col="red")
+
+
+unexp = names(transcript.reads$counts)[ind.cut]
+largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]
+
+
+# from TSSInference
+tss.interval.bed = merge(potential.tss2, largest.interval.expr.bed, by.x="gene", by.y="gene")
+
+
+tss.interval.bed$end.x[tss.interval.bed$strand.x == "+"] <- tss.interval.bed$end.y[tss.interval.bed$strand.x == "+"]
+tss.interval.bed$start.x[tss.interval.bed$strand.x == "-"] <- tss.interval.bed$start.y[tss.interval.bed$strand.x == "-"]
+
+tss.interval.bed= tss.interval.bed[,c(2:5, 7, 6)]
+colnames(tss.interval.bed) = c('chr', 'start', 'end', 'gene', 'xy', 'strand')
+tss.interval.bed$xy <- 0
+
+#remove gene overlaps
+
+overlap.data = gene.overlaps( bed = tss.interval.bed ) 
+
+filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
+overlaps=overlap.data$cases, 
+transcripts=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus, by="den")
+
+
+# TTS
+add.to.end = 100000
+fraction.end = 0.2
+dist.from.start = 50
+bed.for.tts.eval = get.end.intervals(bed=filtered.id.overlaps,
+                                     add.to.end=add.to.end,
+                                     fraction.end=fraction.end,
+                                     dist.from.start=dist.from.start)
+add.to.end = max(bed.for.tts.eval$xy) 
+knot.div = 40
+pk.thresh = 0.05
+bp.bin = 50
+knot.thresh = 5
+
+cnt.thresh = 5
+tau.dist = 50000
+frac.max = 1
+frac.min = 0.3
+
+inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
+                          bw.plus=bw.plus, bw.minus=bw.minus,
+                          bp.bin=bp.bin, add.to.end=add.to.end,
+                          pk.thresh=pk.thresh, knot.thresh=knot.thresh,
+                          cnt.thresh=cnt.thresh, tau.dist=tau.dist,
+                          frac.max=frac.max, frac.min=frac.min,
+						  knot.div=knot.div)
+						  
+
+final.coords = inferred.coords$bed		
+
+write.table(final.coords, file = "HEK_ZNF143_gene_annotations.bed",
+sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+```
+
+
+
+# Differential expression analysis 
+
+```{r engine='R', eval=F, echo=TRUE}
+library(bigWig)
+library(lattice)
+library(DESeq2)
+library(MatchIt)
+library(data.table)
+
+source('https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R')
+source('https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R')
+
+get.raw.counts.interval <- function(df, path.to.bigWig, file.prefix = 'M') {
+    vec.names = c()
+    inten.df=data.frame(matrix(ncol = 0, nrow = nrow(df)))
+    
+    for (mod.bigWig in Sys.glob(file.path(path.to.bigWig, paste(file.prefix, "*plus_PE1.bigWig", sep ='')))) {
+        factor.name = strsplit(strsplit(mod.bigWig, "/")[[1]][length(strsplit(mod.bigWig, "/")[[1]])], '_plus')[[1]][1]
+        print(factor.name)
+        vec.names = c(vec.names, factor.name)
+        loaded.bw.plus = load.bigWig(mod.bigWig)
+        print(mod.bigWig)
+        print(paste(path.to.bigWig,'/',factor.name, '_minus.bigWig', sep=''))
+        loaded.bw.minus = load.bigWig(paste(path.to.bigWig,'/',factor.name, '_minus_PE1.bigWig', sep=''))
+        mod.inten = bed6.region.bpQuery.bigWig(loaded.bw.plus, loaded.bw.minus, df)
+        inten.df = cbind(inten.df, mod.inten)
+    }
+    colnames(inten.df) = vec.names
+    r.names = paste(df[,1], ':', df[,2], '-', df[,3],'_', df[,4], sep='')
+    row.names(inten.df) = r.names
+    return(inten.df)
+}
+
+plotPCAlattice <- function(df, file = 'PCA_lattice.pdf') {  
+  perVar = round(100 * attr(df, "percentVar"))
+  df = data.frame(cbind(df, sapply(strsplit(as.character(df$name), '_rep'), '[', 1)))
+  colnames(df) = c(colnames(df)[1:(ncol(df)-1)], 'unique_condition')
+  print(df)
+  #get colors and take away the hex transparency
+  color.x = substring(rainbow(length(unique(df$unique_condition))), 1,7) 
+  
+  df$color = NA
+  df$alpha.x = NA
+  df$alpha.y = NA
+  df$colpal = NA
+  
+  for (i in 1:length(unique(df$unique_condition))) {
+    
+    df[df$unique_condition == unique(df$unique_condition)[[i]],]$color = color.x[i]   
+    #gives replicates for unique condition
+    reps_col<- df[df$unique_condition == unique(df$unique_condition)[[i]],]
+    #gives number of replicates in unique condition
+    replicates.x = nrow(reps_col)
+    alx <- rev(seq(0.2, 1, length.out = replicates.x))
+    
+    #count transparency(alx), convert alx to hex(aly), combain color and transparency(cp)
+    for(rep in 1:replicates.x) {
+    
+      na <- reps_col[rep, ]$name
+      df[df$name == na, ]$alpha.x = alx[rep]
+      aly = as.hexmode(round(alx * 255))
+      df[df$name == na, ]$alpha.y = aly[rep]
+      cp = paste0(color.x[i], aly)
+      df[df$name == na, ]$colpal = cp[rep]
+      #print(df)
+    }
+  }
+  colpal = df$colpal
+  df$name = gsub('_', ' ', df$name)
+  pdf(file, width=6, height=6, useDingbats=FALSE)
+  print(xyplot(PC2 ~ PC1, groups = name, data=df,
+               xlab = paste('PC1: ', perVar[1], '% variance', sep = ''),
+               ylab = paste('PC2: ', perVar[2], '% variance', sep = ''),
+               par.settings = list(superpose.symbol = list(pch = c(20), col=colpal)),
+               pch = 20, cex = 1.7,
+               auto.key = TRUE,
+               col = colpal))
+  dev.off()
+}
+
+
+
+run.deseq.list <- function(mat, untreated = 4, treated=4) {
+  sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
+  
+  
+  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
+  dds = DESeq(deseq.counts.table);
+  res = results(dds);
+  #res = res[order(res$padj),];
+  return(res)
+}
+
+
+run.deseq.list.dds <- function(mat) {
+  sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))        
+  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
+  dds = DESeq(deseq.counts.table);
+  #res = results(dds);
+  #res = res[order(res$padj),];
+  return(dds)
+}
+
+
+tighten_summit_window <- function(res.deseq) {
+  chr = sapply(strsplit(rownames(res.deseq), ':'), '[', 1)
+  start = as.numeric(sapply(strsplit(sapply(strsplit(rownames(res.deseq), ':'), '[', 2), "-"), "[", 1))
+  x=sapply(strsplit(sapply(strsplit(rownames(res.deseq), ':'), '[', 2), "-"), "[", 2)
+  end = as.numeric(sapply(strsplit(x, "_"), "[", 1))
+  gene = sapply(strsplit(x, "_"), "[", 2)
+  df = cbind.data.frame(chr, start, end, gene)
+  return(df)
+}
+
+
+inferred.coords=read.table('HEK_ZNF143_gene_annotations.bed', header =FALSE)
+
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/Users/guertinlab/Desktop/ZNF143_ChIP/bigWigs/", file.prefix = "H"))
+
+estimateSizeFactorsForMatrix(counts.df)
+
+
+#PCA for experiments
+
+dds = run.deseq.list.dds(counts.df)
+rld <- rlog(dds)
+
+plotPCA(rld)
+
+pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
+pca.plot$sample.conditions = rownames(pca.plot)
+plotPCAlattice(pca.plot, file = 'PCA_ZNF143_PRO.pdf')
+
+rep = factor(sapply(strsplit(colnames(counts.df), 'rep'), '[', 2))
+sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, cbind.data.frame(sample.conditions, rep), ~ rep + sample.conditions)
+deseq.df = DESeq(deseq.df)
+
+for (i in levels(sample.conditions)[-1]) {
+  res.deseq = results(deseq.df, contrast = c("sample.conditions", i, "untreated"))
+  sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
+  
+  activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+  write.table(cbind(tighten_summit_window(activated), "Activated"), file = paste0(i, '_activated_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+  unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+  #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+  unchanged$treatment = 0
+  activated$treatment = 1
+  df.deseq.effects.lattice = rbind(unchanged, activated)
+  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+  write.table(cbind(tighten_summit_window(unchanged), "Matched to Activated"), file = paste0(i, '_activated_matched_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  unchanged$treatment = "Matched to Activated"
+  activated$treatment = "Activated"
+  df.x = rbind(activated, unchanged)
+  
+  repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+  write.table(cbind(tighten_summit_window(repressed), "Repressed"), file = paste0(i, '_repressed_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+
+  # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+   unchanged$treatment = 0
+  repressed$treatment = 1
+  df.deseq.effects.lattice = rbind(unchanged, repressed)
+  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+  write.table(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), file = paste0(i, '_repressed_matched_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  unchanged$treatment = "Matched to Repressed"
+  repressed$treatment = "Repressed"
+  df.x = rbind(df.x, unchanged)
+  df.x = rbind(df.x, repressed)
+}
+
+
+
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+
+library(latticeExtra)
+
+cdf.deseq.df <- function(df, genes = gene.file, chip.peaks = chip.peaks) {
+  bed.tss.activated = filter.deseq.into.bed(df, genes, cat = "Repressed")
+  bed.tss.unchanged = filter.deseq.into.bed(df, genes, cat = "Matched to Repressed")
+  act.distance = bedTools.closest(bed1 = bed.tss.activated, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
+  unreg.distance = bedTools.closest(bed1 = bed.tss.unchanged, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
+
+  df.up.can = cbind(act.distance[,c(4, 10)], "Repressed")
+  df.un.can = cbind(unreg.distance[,c(4, 10)], "Matched to Repressed")
+
+  colnames(df.up.can) = c(colnames(df.up.can)[1:2], 'status')
+  colnames(df.un.can) = c(colnames(df.up.can)[1:2], 'status')
+
+  df.all = rbind(df.up.can, df.un.can)
+  df.all$status = factor(df.all$status, levels = c("Repressed", "Matched to Repressed"))
+  return(df.all)
+}
+
+filter.deseq.into.bed <- function(deseq.df, gene.file, cat = 'R1881 Activated') {
+  deseq.df = deseq.df[deseq.df$treatment == cat,]
+  #print(dim(deseq.df))
+  #scientific notation was messing this up occasionally
+  x = gene.file$V4
+  #print(length(x))
+  y = gene.file[x %in% rownames(deseq.df),]
+  #print(dim(y))
+  z = get.tss(y)
+  #print(dim(z))
+  return(z)
+}
+
+col.lines = c("#FF0000", "grey60")
+
+bedTools.closest <- function(functionstring="/Users/guertinlab/Downloads/bedtools2/bin/closestBed",bed1,bed2,opt.string="") {
+  
+  options(scipen =99) # not to use scientific notation when writing out
+  
+  #write bed formatted dataframes to tempfile
+  write.table(bed1,file= 'a.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
+  write.table(bed2,file= 'b.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
+  
+  # create the command string and call the command using system()
+  command1=paste('sort -k1,1 -k2,2n', 'a.file.bed', '> a.file.sorted.bed')
+  cat(command1,"\n")
+  try(system(command1))
+  command2=paste('sort -k1,1 -k2,2n', 'b.file.bed', '> b.file.sorted.bed')
+  cat(command2,"\n")
+  try(system(command2))
+  
+  command=paste(functionstring, opt.string,"-a",'a.file.sorted.bed',"-b",'b.file.sorted.bed',">",'out.file.bed',sep=" ")
+  cat(command,"\n")
+  try(system(command))
+  
+  res=read.table('out.file.bed',header=F, comment.char='')
+  
+  command3=paste('rm', 'a.file.bed', 'b.file.bed', 'a.file.sorted.bed', 'b.file.sorted.bed', 'out.file.bed')
+  cat(command3,"\n")
+  try(system(command3))
+  
+  colnames(res) = c(colnames(bed1), colnames(bed2), 'dis' )
+  return(res)
+}
+
+
+filter.deseq.into.bed <- function(deseq.df, gene.file, cat = 'R1881 Activated') {
+  deseq.df = deseq.df[deseq.df$treatment == cat,]
+  print(dim(deseq.df))
+  #scientific notation was messing this up occasionally
+  x = gene.file$V4
+  print(length(x))
+  xy=sapply(strsplit(sapply(strsplit(rownames(deseq.df), ':'), '[', 2), "-"), "[", 2)
+  gene = sapply(strsplit(xy, "_"), "[", 2)
+  y = gene.file[x %in% gene,]
+  #print(dim(y))
+  z = get.tss(y)
+  #print(dim(z))
+  return(z)
+}
+
+gene.file=read.table(file = "/Users/guertinlab/Desktop/ZNF143_ChIP/HEK_ZNF143_gene_annotations.bed", sep="\t", header=FALSE)
+df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table('/Users/guertinlab/Desktop/ZNF143_ChIP/quantile1.bed', header=FALSE))
+
+plot_cdf <- function(df.all, tf="quantile", col.lines = c("#ce228e", "grey60", "#2290cf","grey90"), line.type = c(1)) {
+pdf(paste0(tf, "FIG_cdf_compare_Reg_classes.pdf"), width=6.2, height=3.83) 
+	print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
+         auto.key = list(lines=TRUE, points=FALSE),
+         col = col.lines,
+         aspect = 1,
+                                        #xlim = c(0, 50000),
+         scales=list(relation="free",alternating=c(1,1,1,1)),
+         ylab = 'Cumulative Distribution Function',
+         xlab = expression('log'[10]~'ZNF143 Distance from TSS'),
+                                        #index.cond = list(c(2,1)),
+         between=list(y=1.0),
+         type = 'a',
+         xlim = c(0,8),
+         lwd=2,
+		 lty=line.type,
+         par.settings = list(superpose.line = list(col = col.lines, lwd=3), strip.background=list(col="grey85")),
+         panel = function(...) {
+             panel.abline(v= 200, lty =2)
+             panel.ecdfplot(...)
+         }))
+	dev.off()
+}
+
+
+#make sure that the "cdf.deseq.df" function is the one from above, not sourced
+for (chip.peak in Sys.glob(file.path("/Users/guertinlab/Desktop/ZNF143_ChIP/quantile*bed"))) {
+	print(chip.peak)
+	quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+	print(quantile.name)
+	df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE))
+    plot_cdf(df.all, tf = quantile.name)
+	}
+	
+df.cdf = data.frame(matrix(nrow = 0, ncol = 3)) 	
+colnames(df.cdf) = c("V4", "dis", "status")
+for (chip.peak in Sys.glob(file.path("/Users/guertinlab/Desktop/ZNF143_ChIP/quantile*bed"))) {
+	print(chip.peak)
+	quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+	print(quantile.name)
+	df.all = cdf.deseq.df(df = df.x, genes = gene.file,
+    chip.peaks=read.table(chip.peak, header=FALSE))
+	x = paste(as.character(df.all[,3]), quantile.name)
+	df.all[,3] = x
+	df.cdf = rbind(df.cdf, df.all)
+    #plot_cdf(df.all, tf = quantile)
+	
+	}
+plot_cdf(df.cdf, tf = "ZNF143", col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(13),colorRampPalette(c("blue", "light blue"))(7)), line.type = c(rep(2, 20), rep(1,20)))
+```
+
+
+# Jinhong: to do
+
+## Plot an MA plot for activated and repressed and unchanged
+
+
+Unchanged can be the combine matched genes (match a set for act and a
+set for repressed).
