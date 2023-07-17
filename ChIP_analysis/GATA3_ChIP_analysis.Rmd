@@ -1,5 +1,5 @@
 ---
-title: ChIP-seq analysis 
+title: GATA3 ChIP-seq analysis 
 author:
 - Siyu Sun
 - Michael J. Guertin
