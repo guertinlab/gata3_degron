@@ -9,6 +9,8 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Jinhong Dong" />
+<meta name="author" content="Michael J. Guertin" />
 
 <meta name="date" content="2023-07-16" />
 
@@ -508,6 +510,10 @@ code > span.paren { color: #000000;}
 padding-left: 65px;
 }
 
+.references {
+padding-right: 150px;
+}
+
 .margin-toggle {
 display: none;
 }
@@ -521,6 +527,8 @@ width: auto;
 p {
 padding-left: 0;
 padding-right: 0;
+}
+.references { padding-right: 0;
 }
 h1, h2, h3, h4, h5, h6 {
 width: 100%;
@@ -695,6 +703,7 @@ function toggle_visibility(id1) {
 
 
 <h1 class="title toc-ignore">ChIP-seq analysis</h1>
+<p class="author-name">Jinhong Dong and Michael J. Guertin</p>
 <h4 class="date">July 16, 2023</h4>
 
 </div>
@@ -1635,16 +1644,6 @@ densityplot(~log(strength, base = 10), data=motif.strength,
 #just calculate sizeFactors from read depth
 #use aligned read depth
 ```
-
-
-
-<div class="figure" style="text-align: center">
-<img src="MA_plot_ZNF143_30min_degradation_SF.png" alt="MA plot" width="100%" />
-<p class="caption">(\#fig:unnamed-chunk-19)MA plot</p>
-</div>
-
-
-# peak cut off is: 167.44365
 
  don't use below 0.7 quantile
 
