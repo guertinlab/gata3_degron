@@ -735,7 +735,6 @@ function toggle_visibility(id1) {
 <h1><span class="header-section-number">1</span> PRO-seq analysis</h1>
 <pre class="bash"><code>cd /labs/Guertin/ZNF143_PRO
 
-
 for i in *_dep1_*.fastq.gz
 do
     echo $i
@@ -747,8 +746,7 @@ do
     echo $x
     cat $i ${pre}_dep2_${suf} &gt; ${pre}_${x}_final.fastq.gz
 done </code></pre>
-<pre class="bash"><code>
-module load bowtie2/2.5.0
+<pre class="bash"><code>module load bowtie2/2.5.0
 module load genometools/1.5.10
 module load bedtools/2.29.0
 module load ucsc_genome/2012.05.22
