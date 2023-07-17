@@ -1,5 +1,5 @@
 ---
-title: ChIP-seq analysis
+title: ChIP-seq analysis 
 author:
 - Jinhong Dong
 - Michael J. Guertin
