@@ -27,7 +27,7 @@ available.
 Controls are important.  An IgG (or mock) IP is superior to input as
 a control. I am happy to discuss the design of ChIP-seq experiments 
 with you **before** you generate any data. It is much easier to design
-the proper experiemtns and controls and analyze the data compared to
+the proper experiments and controls and analyze the data compared to
 the alternative of trying to salvage poorly controlled experiments.
 
 # ChIP-seq analysis
