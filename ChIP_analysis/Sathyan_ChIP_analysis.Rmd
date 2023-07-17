@@ -1,0 +1,1317 @@
+---
+title: \sf ChIP-seq analysis
+header-includes:
+- \usepackage{color}
+- \usepackage{float}
+- \DeclareUnicodeCharacter{2212}{-}
+date: "July 16, 2023"
+output:
+  bookdown::html_document2:
+    toc: true
+fontsize: 14pt
+geometry: margin=1in
+---
+
+
+# ChIP-seq experiments
+
+ChIP-seq measures protein abundance on DNA and one can quantify
+protein modifications if an antibody to the modification is
+available. 
+
+# ChIP-seq experimental design
+
+Controls are important.  An IgG (or mock) IP is superior to input as
+a control. I am happy to discuss the design of ChIP-seq experiments 
+with you **before** you generate any data. It is much easier to design
+the proper experiemtns and controls and analyze the data compared to
+the alternative of trying to salvage poorly controlled experiments.
+
+# ChIP-seq analysis
+
+
+First we name the experiments with the trailing name being `PE1` or
+`PE` for paired end data. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *_S*R1_001.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    echo $nm
+	two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq.gz" '{print $1}')
+	mv $i ${nm}_PE1.fastq.gz
+	mv ${two}R2_001.fastq.gz ${nm}_PE2.fastq.gz
+done
+```
+
+
+
+First we name the experiments with the trailing name being `PE1` or
+`PE` for paired end data. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *_S*R1_001.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    echo $nm
+	two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq.gz" '{print $1}')
+	mv $i ${nm}_PE1.fastq.gz
+	mv ${two}R2_001.fastq.gz ${nm}_PE2.fastq.gz
+done
+```
+
+
+## Cut off the adapter with `cutadapt`
+
+In our daily workflow in the lab we use
+`cutadapt` to remove adapeter sequences. The options we use below are `-j` for the number of cores
+to use, `-m` specifies the minimal lenght of a read to keep after
+adapter sequence removal, and `-O` is the number of bases to trim off the
+end of the read if it overlaps with the adapter sequence. If the
+genome is 25% of each base, then you would expect one quarter of the
+reads that have no adapter to have the trailing base
+trimmed. Likewise, approximately 1/16 of the remaining
+reads without the adapter will have the final two bases
+trimmed. Technically these values are not exact, because the reads with
+matches to longer trailing k-mers (in this case 19-mers) would be
+removed first, then 18-mer matches removed, etcetera... The `-a` and `-A`
+options are the adapter sequences of the PE1 and PE2 reads.  The
+output file is `-o` (PE1) and `-p` PE2. The last two positional
+areguments are the input `fastq` files. Of course we save the output
+to a log file
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load cutadapt
+for i in *PE1.fastq.gz
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+	echo $name
+	echo unzipping $i
+	gunzip $i
+	echo unzipping ${name}_PE2.fastq.gz
+	gunzip ${name}_PE2.fastq.gz
+	cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT -j 8 -m 10 -O 1 -o ${name}_PE1_no_adapt.fastq -p ${name}_PE2_no_adapt.fastq ${name}_PE1.fastq ${name}_PE2.fastq 2>&1 | tee ${name}_cutadapt.log
+done
+```
+
+## Align to the human genome
+
+Now we are aligning to the `hg38.fa` genome just as we have previously
+for ChIP-seq, the difference is that the libraries are paired end. Note the `-1` and
+`-2` options for the respective paired-end `fastq` files. There is no
+need to save the output `sam` file, so the output is piped to
+`samtools` to convert to `bam`, then sorted by name (`-n`) so paired
+end reads are adjacent in the file, then piped to `samtools fixmate`
+which adds information about the fragment length by comparing the PE1
+and PE2 coordinates, then the files are sorted by coordinate, then
+piped to `samtools markdup` to remove duplicate reads. Duplicate reads
+have the same PE1 and PE2 ends. This is very unlikely to happen by
+chance unless you sequence to very high read depth, so these reads are
+considered PCR amplicon duplicates. The `fixmate` step is necessary to
+pipe to `markdup`. We use the entire DNA fragment for making the
+browser tracks, which is accomplished by converted the paired-end
+`bam` file to a `bed12` and taking out discordant reads. We also
+normalize to read depth. 
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+
+#SBATCH --job-name=chip_alignment1_XXXXXXX.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 32                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=guertin@uchc.edu
+#SBATCH -o chip_alignment_XXXXXXX.sh_%j.out
+#SBATCH -e chip_alignment_XXXXXXX.sh_%j.err
+
+hostname
+
+name=XXXXXXX
+seqOutBias=/home/FCAM/meds5420/software/seqOutBias_v1.4.0.bin.linux.x86_64/seqOutBias
+module load samtools/1.16.1
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+module load bowtie2
+module load bedtools
+sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+genome_index=/home/FCAM/meds5420/genomes/hg38_bt2/hg38
+bowtie2 -p 30 --maxins 800 -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools sort -@ 30 -n -o ${name}.bw.bam
+gzip ${name}_PE1_no_adapt.fastq
+gzip ${name}_PE2_no_adapt.fastq
+gzip ${name}_PE2.fastq
+gzip ${name}_PE1.fastq
+samtools fixmate -m ${name}.bw.bam - | samtools sort -@ $ncore - | samtools markdup -s -r - ${name}.hg38.bam
+seqOutBias ${genome} ${name}.hg38.bam --shift-counts --no-scale --bw=${name}.bigWig --read-size=42 2>&1 | tee ${name}_seqOutBias.log
+samtools sort -@ 30 -n -o ${name}.sorted.bam ${name}.hg38.bam
+bedtools bamtobed -i ${name}.sorted.bam -bedpe > ${name}_bed12.bed
+awk '$1==$4 {print $0}' ${name}_bed12.bed | awk '{OFS="\t";} {print $1, $2, $6}' | awk '$1!="." && $3>$2 && (($3 - $2)<2000) {print $0}' | sort -k1,1 -k2,2n > ${name}_read_span.bed
+genomeCoverageBed -bg -i ${name}_read_span.bed -g $sizes > ${name}.bedGraph
+depth=`awk -F'\t' '{sum+=$5;}END{print sum;}' ${name}.hg38_not_scaled.bed`
+scaled=$(bc <<< "scale=3 ; 10000000 / $depth")
+echo $scaled
+awk -v scaled="$scaled" '{OFS="\t";} {print $1, $2, $3, $4*scaled}' ${name}.bedGraph > ${name}_normalized.bedGraph
+wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+```
+
+## Run the previous chunk in parallel 
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bowtie2
+
+cp /home/FCAM/meds5420/genomes/chroms/chrM.fa ./
+bowtie2-build chrM.fa chrM
+cp /home/FCAM/meds5420/data/atac/tallymer/hg38* ./
+
+file=chip_alignment.sh
+
+for i in *IgG*_PE1.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1.fastq.gz" '{print $1}')
+    fq=$(echo $i | rev | cut -f 1 -d '/' | rev)
+    echo $nm
+    echo $fq
+    sed -e "s/XXXXXXX/${nm}/g" "$file" > chip_alignment6_${nm}.sh
+    sbatch chip_alignment6_${nm}.sh
+    sleep 1
+done
+
+```
+
+# Combining replicates for the genome browser
+
+Usually we combine replicates into a single track for visualization
+and we compare the tracks between conditions. It is important that we
+read-depth normalize before we combine the signal from each
+replicate. Otherwise, we would be weighting replicates differently;
+for example, if a library is sequenced to twice the read depth and we
+combine first then read depth normalize, then the more high coverage
+data is weighted twice as much in the final visualization. All the
+relevant track files are here:
+[http://guertinlab.cam.uchc.edu/znf143_hub/](http://guertinlab.cam.uchc.edu/znf143_hub/)
+
+```{r engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+module load ucsc_genome/2012.05.22
+sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+
+for i in *ZNF*rep1_PE1.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1.fastq.gz" '{print $1}')
+    name=$(echo $nm | awk -F"_rep1" '{print $1}')
+    echo $name
+    reps=$(ls ${name}_rep*normalized.bigWig | wc -w | bc)
+	echo $reps
+    files=$(ls ${name}_rep*normalized.bigWig)
+	echo $files
+    bigWigMerge $files tmp.bg
+    scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
+    echo scale:
+    echo $scaleall
+    awk -v scaleall="$scaleall" '{OFS="\t";} {print $1, $2, $3, $4*scaleall}' tmp.bg > ${name}_normalized.bedGraph
+	rm tmp.bg
+	wigToBigWig ${name}_normalized.bedGraph $sizes ${name}.bigWig
+    #awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,0,0"}  { print $0}' ${name}_normalized.bedGraph > ${name}_header_normalized.bedGraph
+    #gzip ${name}_header_normalized.bedGraph
+done
+
+for i in *ZNF*PE1.fastq.gz
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1.fastq.gz" '{print $1}')
+	mv ${name}* ./${name}_files
+done
+```
+
+# Peak calling
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=chip_peak_calling.sh     # name for job
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 2
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=guertin@uchc.edu
+#SBATCH -o chip_peak_calling.sh_%j.out
+#SBATCH -e chip_peak_calling.sh_%j.err
+
+hostname
+
+module load macs3
+
+mkdir temp_macs
+macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+macs3 callpeak --call-summits -t *cont_HA_*bam -c *IgG*bam -n ZNF143_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+```
+
+## Removing peaks on contigs and within blacklisted regions
+
+
+You can Google "blacklisted genomic regions" to find a
+set of region in the genome in `bed` format that have an over-representation of
+reads regardless of the experiment. Recall this is even more necessary
+because we do not have a control data set. We can also remove peaks on non-canonical chromosomes with
+`grep -v`. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load deeptools/3.5.0
+module load bedtools
+wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+gunzip hg38-blacklist.v2.bed.gz
+blacklist=hg38-blacklist.v2.bed
+sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+
+
+for i in *_summits.bed
+do
+	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_summits.bed" '{print $1}')
+	echo $name
+	grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ${name}_summits_final.bed
+	slopBed -b 70 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
+   	slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
+done
+
+```
+
+# Size factors from library 
+
+```{r engine='bash', eval=F, echo=TRUE}
+
+#size factors
+
+module load samtools/1.12
+for i in HA
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in HEK_ZNF-dTAG*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+```
+
+## Differential binding and read count in peaks
+
+Recall that this version of `R` on Xanadu has many of our libraries
+preinstalled. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load R/4.1.2
+
+R
+```
+
+
+## things to do for the ZNF143
+
+Using the parallel factor ChIP analysis does not work well because
+ZNF143 is ablated on chromatin upon degradation. So size factors
+cannot be accurately estimated between ZNF143 ChIP degron and
+ZNF143/CTCF parallel factor ChIP degron. What is the point of the PF
+then? well, we can see that by our peak calling threshold, that all
+peaks decrease intensity and are likely true positives when we use
+read depth to normalize. 
+
+## Counting reads in peaks and differential binding 
+
+```{r, engine='R', eval=F, echo=T}
+#libraries
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(bigWig)
+
+#functions on github
+source('https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R')
+
+#new functions
+get.counts.interval <- function(df, path.to.bigWig, file.prefix = 'H') {
+    vec.names = c()
+    inten.df=data.frame(matrix(ncol = 0, nrow = nrow(df)))
+    
+    for (mod.bigWig in Sys.glob(file.path(path.to.bigWig, paste(file.prefix, "*.bigWig", sep ='')))) {
+        factor.name = strsplit(strsplit(mod.bigWig, "/")[[1]][length(strsplit(mod.bigWig, "/")[[1]])], '.bigWig')[[1]][1]
+        print(factor.name)
+        vec.names = c(vec.names, factor.name)
+        loaded.bw = load.bigWig(mod.bigWig)
+        print(mod.bigWig)
+        mod.inten = bed.region.bpQuery.bigWig(loaded.bw, df, abs.value = TRUE)
+        inten.df = cbind(inten.df, mod.inten)
+    }
+    colnames(inten.df) = vec.names
+    r.names = paste(df[,1], ':', df[,2], '-', df[,3], sep='')
+    row.names(inten.df) = r.names
+    return(inten.df)
+}
+
+ma.plot.lattice <- function(ma.df, filename = 'file.name', 
+         title.main = "Differential ATAC-seq Accessibility", ymin = -4,
+         ymax=4,
+         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
+  {
+  pdf(paste("MA_plot_", filename, ".pdf", sep=''), 
+      useDingbats = FALSE, width=3.83, height=3.83);
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$response,
+               col= col, ylim=c(ymin,ymax),
+                main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylab=expression("log"[2]~"ChIP-seq change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+  }
+
+
+
+
+
+categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
+= 'Auxin') {
+
+     df.activated = data.frame(matrix(nrow = 0, ncol = 0))
+     df.repressed = data.frame(matrix(nrow = 0, ncol = 0))
+	 df.unchanged = data.frame(matrix(nrow = 0, ncol = 0))
+     df.dregs = data.frame(matrix(nrow = 0, ncol = 0))
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]) != 0) {
+     	df.activated = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]
+	df.activated$response = paste(treat, 'Activated')
+	}
+
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]) != 0) {
+     	df.repressed = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]
+	df.repressed$response = paste(treat, 'Repressed')
+	}
+    
+    if (nrow(df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]) != 0) {
+	df.unchanged = df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]
+    df.unchanged$response = paste(treat, 'Unchanged')
+	}
+
+    if (nrow(df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]) != 0) {
+	df.dregs = df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]
+	df.dregs$response = paste(treat, 'All Other Genes')
+	}
+	print(head(df.repressed))
+	print(head(df.activated))
+	print(head(df.dregs))
+	print(head(df.unchanged))
+    df.effects.lattice = df.repressed
+    #rbind(df.activated, 
+    #      df.unchanged, 
+    #      df.repressed, 
+    #      df.dregs)
+	print(head(df.effects.lattice))
+    #df.effects.lattice$response = factor(df.effects.lattice$response)
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'Unchanged'))
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'All Other Genes'))
+    return(df.effects.lattice)
+}
+
+
+#things to do:
+# 
+
+
+
+#ZNF143 size factors from read depth
+
+
+x = read.table('CTCF_ChIP_summit_400window_isolated.bed', sep = "\t", header=FALSE)
+y = read.table('ZNF143_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+
+#normalized signal
+znf.signal.df = get.counts.interval(y, "/Users/guertinlab/Desktop/ZNF143_ChIP/normalized_bigWig")
+
+#likewise for CTCF
+ctcf.signal.df = get.counts.interval(x, "/Users/guertinlab/Desktop/ZNF143_ChIP/normalized_bigWig")
+
+
+ctcf.counts.df = get.counts.interval(x, "/Users/guertinlab/Desktop/ZNF143_ChIP")
+znf143.counts.df = get.counts.interval(y, "/Users/guertinlab/Desktop/ZNF143_ChIP")
+
+#
+
+HA.SF <- read.table("HA_reads.txt", sep = '\t', header = TRUE)[,-1]
+
+HA.size.factors = estimateSizeFactorsForMatrix(HA.SF)
+
+
+
+#first step is get sizefactors for CTCFHA degron, CTCFHA ctrl, CTCF degron, CTCF ctrl
+#next step is identify ZNF143 peaks distal to any CTCF peak
+#get sizefactors of HA ctrl and HACTCF ctrl for these peaks
+#get sizefactors of HA degron and HACTCF degron for these peaks 
+#use the HACTCF degron and HACTCF ctrl to get normalized size factors between all conditions 
+
+all.regions = rbind(ctcf.counts.df, znf143.counts.df)
+
+#ctcf.all.regions=all.regions[,grepl("CTCF",colnames(all.regions))]
+#sample.conditions = factor(sapply(strsplit(colnames(ctcf.all.regions), '_rep'), '[', 1))
+
+#deseq.counts.table = DESeqDataSetFromMatrix(countData = ctcf.all.regions,
+#                colData = as.data.frame(sample.conditions), 
+#                design = ~ sample.conditions)
+				
+#dds <- estimateSizeFactors(deseq.counts.table , controlGenes=rownames(deseq.counts.table) %in% rownames(ctcf.counts.df))
+#dds <- DESeq(dds)
+#anchor.SF = dds$sizeFactor
+
+
+#
+znf143.analysis.regions=all.regions[,grepl("_HA_",colnames(all.regions))]
+
+znf143.analysis.regions = znf143.analysis.regions[rownames(znf143.analysis.regions) %in% rownames(znf143.counts.df),]
+
+
+znf143.analysis.SF = HA.size.factors
+
+sample.conditions = factor(sapply(strsplit(colnames(znf143.analysis.regions), '_rep'), '[', 1))
+
+deseq.counts.table.4 = DESeqDataSetFromMatrix(countData = znf143.analysis.regions,
+                colData = as.data.frame(sample.conditions),
+                design = ~ sample.conditions)
+		
+		
+#deseq.counts.table.4$colnames
+#HA.sf.final = rep(NA, 6)
+#HA.sf = read.table(i, sep = '\t', header = FALSE, check.names=FALSE)[,-1]
+#HA.sf=t(HA.sf)
+
+#factors <- read.table("ATAC_sizeFactor.txt")
+#HA.sf.final[1:6] = as.numeric(HA.sf[2,1:6])
+#names(HA.sf.final) = HA.sf[1,]
+#sizeFactors(deseq.df) <- size_factors
+
+
+#sizeFactors(deseq.counts.table.4) <- HA.sf.final/mean(HA.sf.final)
+
+sizeFactors(deseq.counts.table.4) <- znf143.analysis.SF
+
+dds.4 <- DESeq(deseq.counts.table.4)
+
+
+
+DE.results = results(dds.4)
+#DE.results.lattice = 
+#    categorize.deseq.df.repressed(DE.results, 
+#                        fdr = 0.1, log2fold = 0.0, treat =
+#						'ZNF143_degron_30min')
+						
+#DE.results.lattice = 
+#    categorize.deseq.df(DE.results, 
+#                        fdr = 0.1, log2fold = 0.0, treat =
+#						'ZNF143_degron_30min')
+						
+						
+normalized.counts.znf143 = counts(dds.4, normalized=TRUE)
+peak.intensities = rowMeans(normalized.counts.znf143[,1:3])
+
+names(peak.intensities) = rownames(normalized.counts.znf143)
+chr = sapply(strsplit(names(peak.intensities), ":"), "[", 1)
+rnge = sapply(strsplit(names(peak.intensities), ":"), "[", 2)
+start =	as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 100
+
+quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))
+
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+for (i in quantile(peak.intensities, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+write.table(file = paste0('quantile', as.character(q[count]), '.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start[peak.intensities > j & peak.intensities <= i], end[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+j = i
+}
+
+```
+
+
+# Now switch over to the PRO-seq vignette to determine the functional peaks
+
+```{r, engine='R', eval=F, echo=T}
+
+
+length(peak.intensities[peak.intensities >= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]])
+
+func.znf143.peaks = peak.intensities[peak.intensities >= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]
+
+other.znf143.peaks = peak.intensities[peak.intensities < quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]
+
+```
+
+
+# motif analysis of other and functional ZNF143 peaks
+
+
+```{r, engine='R', eval=F, echo=T}
+
+chr = sapply(strsplit(names(func.znf143.peaks), ":"), "[", 1)
+rnge = sapply(strsplit(names(func.znf143.peaks), ":"), "[", 2)
+start =	as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 200
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 200
+
+write.table(cbind(chr, start, end), file = "ZNF143_functional_peaks.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+
+chr = sapply(strsplit(names(other.znf143.peaks), ":"), "[", 1)
+rnge = sapply(strsplit(names(other.znf143.peaks), ":"), "[", 2)
+start =	as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 200
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 200
+
+write.table(cbind(chr, start, end), file = "ZNF143_other_peaks.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+```
+
+
+# deeptools heatmap of ZNF143 functional and non-functional peaks
+
+```{r, engine='bash', eval=F, echo=T}
+
+module load deeptools/3.5.0
+module load bedtools
+
+#Make the matrix (this can be used for a composite profile as well)
+computeMatrix reference-point --referencePoint center -b 500 -a 500 -p 2 --missingDataAsZero \
+  -R ZNF143_functional_peaks.bed \
+  -S HEK_ZNF-dTAG_cont_HA.bigWig \
+  HEK_ZNF-dTAG_dTAGV_HA.bigWig \
+  -o matrix_HA_ChIP_ZNF143_peaks.gz --outFileSortedRegions ZNF143_peaks_sorted_for_heatmap.bed
+  
+#Make the heatmap
+plotHeatmap -m matrix_HA_ChIP_ZNF143_peaks.gz -out heatmap_HA_ChIP_ZNF143_peaks.pdf --heatmapHeight 7 \
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 300 --whatToShow "heatmap and colorbar" 
+   
+   
+   #Make the matrix (this can be used for a composite profile as well)
+computeMatrix reference-point --referencePoint center -b 500 -a 500 -p 2 --missingDataAsZero \
+  -R ZNF143_other_peaks.bed \
+  -S HEK_ZNF-dTAG_cont_HA.bigWig \
+  HEK_ZNF-dTAG_dTAGV_HA.bigWig \
+  -o all_matrix_HA_ChIP_ZNF143_peaks.gz --outFileSortedRegions other_ZNF143_peaks_sorted_for_heatmap.bed
+  
+#Make the heatmap
+plotHeatmap -m all_matrix_HA_ChIP_ZNF143_peaks.gz -out other_heatmap_HA_ChIP_ZNF143_peaks.pdf --heatmapHeight 7 \
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 300 --whatToShow "heatmap and colorbar" 
+
+#so we can see peaks
+plotHeatmap -m all_matrix_HA_ChIP_ZNF143_peaks.gz -out other_heatmap_HA_ChIP_ZNF143_peaks_scaled.pdf --heatmapHeight 7 \
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 13 --whatToShow "heatmap and colorbar" 
+```
+
+
+# De novo motif analysis of ZNF143 peaks
+
+I am brute forcing my way through an iterative and exhaustive motif
+analysis. This should be written into a systematic loop. The reason I
+did not is because I am manualy looking at the top hit to ensure that
+it is a ZNF143 motif variant before going on to the next
+iteration. Any student using this for their work needs to put in the
+work to automate systematic iterative exhaustive de novo motif
+analysis. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+
+for i in ZNF143_*_peaks.bed
+do
+	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
+	echo $name
+	slopBed -b 70 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
+   	slopBed -b 200 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
+	fastaFromBed -fi $genome -bed ${name}_summit_140window.bed -fo ${name}_summit_140window.fasta
+done
+
+for i in ZNF143_*_peaks.bed
+do
+	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
+	echo $name
+	meme -p 16 -oc ${name}_motif_functional.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_140window.fasta
+done
+
+
+fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional.fimo_output ZNF143_functional_motif_functional.meme_output/meme.txt $genome
+
+tail -n +2 ZNF143_functional_motif_functional.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round1.bed
+
+intersectBed -v -wa -a ZNF143_functional_summit_140window.bed -b fimo_ZNF143_functional_round1.bed > ZNF143_ChIP_summit_140window_no_func_motif_1.bed
+
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1.fasta
+
+meme -p 16 -oc ZNF143_functional_motif_functional_second.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_func_motif_1.fasta
+
+fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional_second.fimo_output ZNF143_functional_motif_functional_second.meme_output/meme.txt $genome
+
+tail -n +2 ZNF143_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round2.bed
+
+intersectBed -v -wa -a ZNF143_ChIP_summit_140window_no_func_motif_1.bed -b fimo_ZNF143_functional_round2.bed > ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
+
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.fasta
+
+meme -p 16 -oc ZNF143_functional_motif_functional_third.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.fasta
+
+#this returned garbage
+
+wc -l ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
+wc -l ZNF143_functional_summit_140window.bed
+
+#96% have either motif
+# what comparison comparison set of regions can we use as a control?
+```
+
+<!--
+# make a barchart for fraction of peaks with motifs 
+
+```{r engine='bash', eval=F, echo=TRUE}
+#input for barchart
+
+rm barchart.txt
+for i in quantile*.bed
+do
+	name=$(echo $i | awk -F"quantile" '{print $NF}' | awk -F".bed" '{print $1}')
+	sort -k1,1 -k2,2n $i > tmp.bed
+	echo $name 
+	intersectBed -u -wa -a tmp.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed > overlap_${name}_znf143.bed
+	num=`wc -l overlap_${name}_znf143.bed | cut -f1 -d 'o'`
+	tot=`wc -l $i | cut -f1 -d 'q'`
+	echo ${num} pos ${name} ZNF143 >> barchart.txt
+	neg=$(expr ${tot} - ${num})
+	echo ${neg} neg ${name} ZNF143 >> barchart.txt
+done
+
+
+```
+
+
+-->
+
+# Jinhong: To do
+
+## run through the entire vignette and add context paragraphs and include figures
+
+## make a composite PSWM of motif 1 and motif 2 from the functional peaks
+
+## make a composite FIMO motif signal at TSSs
+
+## de novo motif analysis on other (non-functional peaks)
+
+## Calculate the fraction of reads in peaks (FRiP) score for:
+
+### the full set of ZNF143 narrowPeaks
+
+### functional peaks (use narrowPeaks file)
+
+### other (non-func) peaks (use narrowPeaks file)
+
+<!--
+
+```{r engine='R', eval=F, echo=TRUE}
+
+
+plot.barchart <- function(df.barchart, filename = "~/Desktop/barchart.beds.broadPeaks.pdf") {
+  pdf(filename, width=12.83, height=6)
+
+  polycol <- trellis.par.get("superpose.polygon")
+  polycol$col <- c("red", "grey40")
+  trellis.par.set("superpose.polygon",polycol)
+
+
+  print(barchart(as.numeric(as.character(fraction))~factor, data = df.barchart, groups=p_n,
+                 stack=TRUE,
+                 as.table=TRUE,
+                 layout=c(1,1),
+               #auto.key = list(title = "",rows=3,fill=colors,just="bottom"),
+                 main="H3R26Cit Peaks",
+               #xlab = "HSF1 or HSF2 Peaks",
+                 ylab="Fraction Enriched Red",
+                 cex.axis=1.2,
+                 between=list(y=0.5, x=0.5),
+                 font.axis=1,
+                 par.settings=list(par.xlab.text=list(cex=1.0,font=1),
+                   par.ylab.text=list(cex=1.0,font=1),
+                   axis.text=list(cex=1,font=1),
+                   strip.background=list(col="#ecdaf5"),
+                   par.main.text=list(cex=1.2, font=1)),
+                                        #aspect = 1,
+                 scales=list(x=list(alternating=c(1,1,1,0,0,0),rot=45),
+                   y=list(alternating=c(1,1)))))
+  
+  dev.off()
+}
+
+```
+
+
+
+
+
+
+
+
+```{r, engine='R', eval=F, echo=T}
+
+DE.results = results(dds.4)
+
+
+
+categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
+= 'Auxin') {
+
+     df.activated = data.frame(matrix(nrow = 0, ncol = 0))
+     df.repressed = data.frame(matrix(nrow = 0, ncol = 0))
+	 df.unchanged = data.frame(matrix(nrow = 0, ncol = 0))
+     df.dregs = data.frame(matrix(nrow = 0, ncol = 0))
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]) != 0) {
+     	df.activated = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]
+	df.activated$response = paste(treat, 'Activated')
+	}
+
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]) != 0) {
+     	df.repressed = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]
+	df.repressed$response = paste(treat, 'Repressed')
+	}
+    
+    if (nrow(df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]) != 0) {
+	df.unchanged = df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]
+    df.unchanged$response = paste(treat, 'Unchanged')
+	}
+
+    if (nrow(df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]) != 0) {
+	df.dregs = df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]
+	df.dregs$response = paste(treat, 'All Other Genes')
+	}
+	print(head(df.repressed))
+	print(head(df.activated))
+	print(head(df.dregs))
+	print(head(df.unchanged))
+    df.effects.lattice = df.repressed
+    #rbind(df.activated, 
+    #      df.unchanged, 
+    #      df.repressed, 
+    #      df.dregs)
+	print(head(df.effects.lattice))
+    #df.effects.lattice$response = factor(df.effects.lattice$response)
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'Unchanged'))
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'All Other Genes'))
+    return(df.effects.lattice)
+}
+
+
+
+
+
+
+DE.results.lattice = 
+    categorize.deseq.df(DE.results, 
+                        fdr = 0.1, log2fold = 0.0, treat =
+						'ZNF143_degron_30min')
+						
+DE.results.lattice = 
+    categorize.deseq.df.repressed(DE.results, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min')						
+						
+head(DE.results.lattice)
+repressed.all = DE.results.lattice[DE.results.lattice$response == 
+                                             'ZNF143_degron_30min Repressed',]
+dim(repressed.all)
+
+activated.all = DE.results.lattice[DE.results.lattice$response == 
+                                             'ZNF143_degron_30min Activated',]
+dim(activated.all)
+# what is happening in these 213 regions? likely no ZNF143 motif
+
+ma.plot.lattice(DE.results.lattice, filename = 'ZNF143_30min_degradation_SF', 
+        title.main = "Differential Binding", ymin=-12, ymax=4)		
+		
+
+DE.results = results(dds.4)
+# also get un normalized ZNF143 MA plot.
+
+#NEXT FOR EACH QUANTILE PLOT THE FRACTION THAT SIGNIFICANTLY DECREASE INTENSITY
+
+#goal is to use a combination of peaks with motifs in each quantile
+and sensitivity to depleteion to get a peak cut off.
+STOPPED HERE
+
+
+#make a MA plot without normalized SF to show theimportance of PF chip
+# de novo motif analysi sof the NOT ACTIVATED to see if the ZNF143
+#motif comes out. If so we are being too conservative in the
+#differntial binding analysis and recommend moving to aligned Reads as
+#size factors
+
+DE.results = results(dds)
+
+head(DE.results)
+
+DE.results.lattice = 
+    categorize.deseq.df(DE.results, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min')
+
+head(DE.results.lattice)
+
+
+repressed.all = DE.results.lattice[DE.results.lattice$response == 
+                                             'ZNF143_degron_30min Repressed',]
+
+dim(repressed.all)
+
+
+ma.plot.lattice(DE.results.lattice, filename = 'ZNF143_30min_degradation', 
+        title.main = "Differential Binding")		
+		
+#we are not ranking by fold change, so no need for shrinkage
+
+#lets export a smaller genomic interval for each region for subsequent motif analysis
+
+chr = sapply(strsplit(rownames(activated.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(activated.all), ":"), "[", 2)
+start =	as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 100
+
+write.table(cbind(chr, start, end), file = "ATAC_increase_TRPS1_degron.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+
+unchanged.all = DE.results.lattice[DE.results.lattice$response == 
+                                             'TRPS1_degron_30min Unchanged',]
+											 
+chr.un = sapply(strsplit(rownames(unchanged.all), ":"), "[", 1)
+rnge.un = sapply(strsplit(rownames(unchanged.all), ":"), "[", 2)
+start.un =	as.numeric(sapply(strsplit(rnge.un, "-"), "[", 1)) + 100
+end.un = as.numeric(sapply(strsplit(rnge.un, "-"), "[", 2)) - 100
+
+write.table(cbind(chr.un, start.un, end.un), file = "ATAC_unchanged_TRPS1_degron.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+
+
+#motifs
+with.motif = read.table('ZNF143_ChIP_summit_140window_w_motifs.bed', sep = "\t", header=FALSE)
+no.motif = read.table('ZNF143_ChIP_summit_140window_no_motifs.bed', sep = "\t", header=FALSE)
+with.motif = cbind(with.motif, 'ZNF143 Motif')
+no.motif = cbind(no.motif, 'No Motif')
+
+colnames(with.motif) = c('chr', 'start', 'end', 'peak', 'strength', 'category')
+colnames(no.motif) = c('chr', 'start', 'end', 'peak', 'strength', 'category')
+
+motif.strength = rbind(with.motif, no.motif)
+
+densityplot(~log(strength, base = 10), data=motif.strength,
+	groups = category,
+       xlab="Peak Intensity",
+        scales="free",
+		par.settings = list(superpose.line = list(col = c("#5304a0","#0e930a"))),
+   aspect=1, lwd =3,
+       plot.points=FALSE,auto.key=TRUE,
+	   panel=function(x,...){
+      panel.densityplot(x,...)
+      panel.abline(v=1, col.line="red", lty = 2) 
+    })
+#remove those with intensities less than 10 (no motif)
+
+#data processing and plotting
+#just calculate sizeFactors from read depth
+#use aligned read depth
+
+
+```
+
+
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
+library(knitr)
+knitr::include_graphics("MA_plot_ZNF143_30min_degradation_SF.png") 
+```
+
+
+# peak cut off is: 167.44365
+
+ don't use below 0.7 quantile
+
+62 fold dynamic range, there is littel evidence of PRO changes near
+genes below 1.6% of the max peak height
+
+
+
+
+
+
+
+
+# DID NOT DO THIS YET De novo motif analysis of differential peaks
+
+Lastly, we perform _de novo_ motif analysis as we have previously with
+`meme`. We can also determine the fraction of regions with immediate
+increases in accessibility have the underlying motif. However, this
+value is meaningless without a comparison. We could compare to
+`TRPS1_degron_30min Unchanged` region set.
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+#NEXT 
+#do meme on those without a canonical ZNF143
+
+rm barchart.txt
+for i in quantile*.bed
+do
+	name=$(echo $i | awk -F"quantile" '{print $NF}' | awk -F".bed" '{print $1}')
+	sort -k1,1 -k2,2n $i > tmp.bed
+	echo $name 
+	intersectBed -u -wa -a tmp.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed > overlap_${name}_znf143.bed
+	num=`wc -l overlap_${name}_znf143.bed | cut -f1 -d 'o'`
+	tot=`wc -l $i | cut -f1 -d 'q'`
+	echo ${num} pos ${name} ZNF143 >> barchart.txt
+	neg=$(expr ${tot} - ${num})
+	echo ${neg} neg ${name} ZNF143 >> barchart.txt
+done
+
+num	p_n	b_f	factor	fraction
+66	pos	bottom	BEAF_70	  .04737975
+0	neg	bottom	BEAF_70	  0
+1327	neu	bottom	BEAF_70	  .95262025
+
+```
+
+
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+module load bedtools
+
+for i in quantile*.bed
+do
+	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F".bed" '{print $1}')
+	echo $name
+	fastaFromBed -fi $genome -bed $i -fo $name.fasta
+done
+
+DO MAST IN THESE WITH THE TOP DE NOVO MOTIF.
+
+```
+
+
+-->
+
+<!-- 
+```{r engine='bash', eval=F, echo=TRUE}
+
+#Defined functional TRPS1 peaks by MACS2 q-value < 10^(-30)
+awk '$5 > 30' /scratch/ts2hx/ChIP/results/macs2/HA_DMSO_vs_dTAG_summits.bed > \
+  Functional_TRPS1_summits.bed
+
+#Make the matrix (this can be used for a composite profile as well)
+computeMatrix reference-point --referencePoint center -b 500 -a 500 -p 20 --missingDataAsZero \
+  -R ZNF143_ChIP_summits_final.bed \
+  -S HEK_ZNF-dTAG_cont_HA.bigWig \
+  HEK_ZNF-dTAG_dTAGV_HA.bigWig \
+  -o matrix_HA_ChIP_ZNF143_peaks.gz --outFileSortedRegions ZNF143_peaks_sorted_for_heatmap.bed
+  
+#Make the heatmap
+plotHeatmap -m matrix_HA_ChIP_ZNF143_peaks.gz -out heatmap_HA_ChIP_ZNF143_peaks.pdf --heatmapHeight 14 \
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples --whatToShow "heatmap and colorbar" 
+
+```
+
+Now we want to identify all CTCF peaks that are distal to ZNF143
+binding sites and identify all ZNF143 peaks.
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+intersectBed -wa -v -a ZNF143_ChIP_peaks.narrowPeak -b CTCF_ChIP_peaks.narrowPeak > ZNF_away_CTCF.narrowPeak
+intersectBed -wa -v -a CTCF_ChIP_peaks.narrowPeak -b ZNF143_ChIP_peaks.narrowPeak > CTCF_away_ZNF.narrowPeak
+intersectBed -wa -a CTCF_ChIP_summit_400window.bed -b CTCF_away_ZNF.narrowPeak | sort -k1,1 -k2,2n | uniq > CTCF_ChIP_summit_400window_isolated.bed
+
+
+closestBed -d -a ZNF143_ChIP_summit_400window.bed -b CTCF_ChIP_summits_final.bed | awk '{OFS="\t";} {print $1, $2, $3, $11}' > ZNF143_CTCFdistance.bed
+
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window.bed -fo ZNF143_ChIP_summit_140window.fasta
+
+# inputs to bigWig in R
+head CTCF_ChIP_summit_400window_isolated.bed
+head ZNF143_ChIP_summit_400window.bed
+
+
+#size factors
+
+module load samtools/1.12
+for i in HA
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in HEK_ZNF-dTAG*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+```
+
+
+
+# De novo motif analysis of ZNF143 peaks
+
+I am brute forcing my way through an iterative and exhaustive motif
+analysis. I need to write this into a systematic loop. The reason I
+did not is because I am manualy looking at the top hit to ensure that
+it is a ZNF143 motif variant before going on to the next iteration.
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load meme/5.4.1
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+
+meme -p 16 -oc ZNF143_motif1.meme_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window.fasta
+
+fimo --motif CTGGGAAATGTAGT --max-strand --max-stored-scores 10000000 --oc fimo_ZNF143 ZNF143_csites.meme_output/meme.txt $genome
+
+tail -n +2 fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v CTGGGAAATGTAGT | grep -v format | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143.bed
+ 
+intersectBed -v -wa -a ZNF143_ChIP_summit_140window.bed -b fimo_ZNF143.bed > ZNF143_ChIP_summit_140window_no_motif1.bed
+ 
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_motif1.bed -fo ZNF143_ChIP_summit_140window_no_motif1.fasta
+ 
+meme -p 16 -oc ZNF143_motif2.meme_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_motif1.fasta
+
+fimo --thresh 0.001 --motif YTCCCAGMATSCHYYGCG --max-strand --max-stored-scores 10000000 --oc fimo_ZNF143_motif1 ZNF143_motif2.meme_output/meme.txt $genome
+
+tail -n +2 fimo_ZNF143_motif1/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v YTCCCAGMATSCHYYGCG | grep -v format | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_motif2.bed
+ 
+intersectBed -v -wa -a ZNF143_ChIP_summit_140window.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed > ZNF143_ChIP_summit_140window_no_motifs.bed
+
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_motifs.bed -fo ZNF143_ChIP_summit_140window_no_motifs.fasta
+ 
+meme -p 16 -oc ZNF143_motif3.meme_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna
+-markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_motifs.fasta
+
+fimo --thresh 0.0001 --motif SMVVVNNVRRRACTACATTTCCCAG --max-strand --max-stored-scores 10000000 --oc fimo_ZNF143_motif3 ZNF143_motif3.meme_output/meme.txt $genome
+
+#stopped here
+
+tail -n +2 fimo_ZNF143_motif3/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v SMVVVNNVRRRACTACATTTCCCAG | grep -v format | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_motif3.bed
+
+
+#the above should be in some sort of loop, but at least rechecked, because I hacked it together
+
+intersectBed -v -a ZNF143_ChIP_summit_140window.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed fimo_ZNF143_motif3.bed > ZNF143_ChIP_summit_140window_no_motifs.bed
+
+intersectBed -wa -u -a ZNF143_ChIP_summit_140window.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed fimo_ZNF143_motif3.bed > ZNF143_ChIP_summit_140window_w_motifs.bed
+```
+
+
+
+x = read.table('CTCF_ChIP_summit_400window_isolated.bed', sep = "\t", header=FALSE)
+y = read.table('ZNF143_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+
+x = x[((ctcf.signal.df[,'HEK_ZNF-dTAG_cont_CTCF']/ctcf.signal.df[,'HEK_ZNF-dTAG_cont_IgG'])>10) & ctcf.signal.df[,'HEK_ZNF-dTAG_cont_CTCF'] > max(ctcf.signal.df[,'HEK_ZNF-dTAG_cont_CTCF']/200),]
+
+z = read.table('ZNF143_CTCFdistance.bed', sep = "\t", header=FALSE)
+
+z.regions=paste0(z[,1],z[,2])
+y.regions=paste0(y[,1],y[,2])
+
+z =z[z.regions %in% y.regions,]
+z.regions=paste0(z[,1],z[,2])
+z =z[!duplicated(z.regions),]
+
+distal.znf143 = z[z[,4]<2000,]
+
+
+intervals.znf = paste(distal.znf143[,1], ':', distal.znf143[,2], '-', distal.znf143[,3], sep='')
+distal.znf143 = distal.znf143[!duplicated(intervals.znf),]
+intervals.znf = intervals.znf[!duplicated(intervals.znf)]
+
+
+
+
+DE.results.1 = results(dds, contrast=c("sample.conditions","HEK_ZNF-dTAG_cont_CTCF","HEK_ZNF-dTAG_cont_HACTCF")) 
+
+DE.results.lattice.1 = 
+    categorize.deseq.df(DE.results.1, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min_CTCF')
+ma.plot.lattice(DE.results.lattice.1, filename = 'ZNF143_30min_degradation_CTCFpeaks_SFcont_CTCF_vs_HACTCF', 
+        title.main = "Differential Binding", ymin=-6, ymax=6)	
+
+#is every peak repressed on this near a ZNF143 binding site that we did not call?
+#motif analysis
+
+DE.results.11 = results(dds, contrast=c("sample.conditions","HEK_ZNF-dTAG_cont_CTCF","HEK_ZNF-dTAG_dTAGV_CTCF")) 
+
+DE.results.lattice.11 = 
+    categorize.deseq.df(DE.results.11, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min_CTCF')
+ma.plot.lattice(DE.results.lattice.11, filename = 'ZNF143_30min_degradation_CTCFpeaks_SF_CTCF_ctrl_degron', 
+        title.main = "Differential Binding", ymin=-6, ymax=6)	
+
+
+DE.results.12 = results(dds, contrast=c("sample.conditions","HEK_ZNF-dTAG_dTAGV_CTCF","HEK_ZNF-dTAG_dTAGV_HACTCF")) 
+
+DE.results.lattice.12 = 
+    categorize.deseq.df(DE.results.12, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min_CTCF')
+ma.plot.lattice(DE.results.lattice.12, filename = 'ZNF143_30min_degradation_CTCFpeaks_SF_CTCF_pf_degron', 
+        title.main = "Differential Binding", ymin=-6, ymax=6)	
+
+
+
+DE.results.13 = results(dds, contrast=c("sample.conditions","HEK_ZNF-dTAG_dTAGV_HACTCF","HEK_ZNF-dTAG_dTAGV_HACTCF")) 
+
+DE.results.lattice.13 = 
+    categorize.deseq.df(DE.results.13, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min_CTCF')
+ma.plot.lattice(DE.results.lattice.13, filename = 'ZNF143_30min_degradation_CTCFpeaks_SF_upon_degron_CTCF_vs_CTCF', 
+        title.main = "Differential Binding", ymin=-6, ymax=6)	
+
+
+
+#this needs to be filtered for ZNF143 peaks beign considered.
+#???--this is ALL FUCKED UP
+#control HA SF
+
+#FEM1A is a good pfChIP 
+
+ctrl.znf143 = c("chr5:173616547-173616948", "chr12:6852316-6852717", "chr1:156767180-156767581")
+
+contHA.all.regions=all.regions[,grepl("cont_HA",colnames(all.regions))]
+sample.conditions = factor(sapply(strsplit(colnames(contHA.all.regions), '_rep'), '[', 1))
+deseq.counts.table.2 = DESeqDataSetFromMatrix(countData = contHA.all.regions,
+                colData = as.data.frame(sample.conditions), 
+                design = ~ sample.conditions)
+
+#dds.2 <- estimateSizeFactors(deseq.counts.table.2, controlGenes=rownames(deseq.counts.table.2) %in% intervals.znf)
+dds.2 <- estimateSizeFactors(deseq.counts.table.2, controlGenes=rownames(deseq.counts.table.2) %in% ctrl.znf143)
+dds.2 <- DESeq(dds.2)
+
+znfpeaks.SF = dds.2$sizeFactor
+
+DE.results.2 = results(dds.2)
+DE.results.lattice.2 = 
+    categorize.deseq.df(DE.results.2, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min')
+ma.plot.lattice(DE.results.lattice.2, filename = 'ZNF143_30min_degradation_ZNFpeaks_SF', 
+        title.main = "Differential Binding", ymin=-6, ymax=6)		
+		
+#it is clear from this MA plot that the ZNF143 overlap CTCF somewhat.
+
+
+
+
+#degron HA SF
+dtagHA.all.regions=all.regions[,grepl("dTAGV_HA",colnames(all.regions))]
+sample.conditions = factor(sapply(strsplit(colnames(dtagHA.all.regions), '_rep'), '[', 1))
+deseq.counts.table.3 = DESeqDataSetFromMatrix(countData = dtagHA.all.regions,
+                colData = as.data.frame(sample.conditions), 
+                design = ~ sample.conditions)
+				
+
+#dds.3 <- estimateSizeFactors(deseq.counts.table.3, controlGenes=rownames(deseq.counts.table.3) %in% intervals.znf)
+dds.3 <- estimateSizeFactors(deseq.counts.table.3, controlGenes=rownames(deseq.counts.table.3) %in% ctrl.znf143)
+dds.3 <- DESeq(dds.3)
+
+
+DE.results.3 = results(dds.3)
+DE.results.lattice.3 = 
+    categorize.deseq.df(DE.results.3, 
+                        fdr = 0.1, log2fold = 0.0, treat = 'ZNF143_degron_30min')
+ma.plot.lattice(DE.results.lattice.3, filename = 'ZNF143_30min_degradation_ZNFpeaks_degron_SF', 
+        title.main = "Differential Binding", ymin=-8, ymax=8)		
+		
+
+
+
+
+degronpeaks.SF = dds.3$sizeFactor
+names(degronpeaks.SF)
+names(znfpeaks.SF)
+names(anchor.SF)
+
+anchor.SF[names(anchor.SF) %in% names(degronpeaks.SF)]
+degronpeaks.SF[names(degronpeaks.SF) %in% names(anchor.SF)]
+mean.anchor.SF = mean(anchor.SF[names(anchor.SF) %in% names(degronpeaks.SF)])
+mean.degron.SF = mean(degronpeaks.SF[names(degronpeaks.SF) %in% names(anchor.SF)])
+
+norm.degronpeaks.SF = degronpeaks.SF *(mean.anchor.SF/mean.degron.SF)
+
+
+
+anchor.SF[names(anchor.SF) %in% names(znfpeaks.SF)]
+znfpeaks.SF[names(znfpeaks.SF) %in% names(anchor.SF)]
+mean.anchor.SF = mean(anchor.SF[names(anchor.SF) %in% names(znfpeaks.SF)])
+mean.degron.SF = mean(znfpeaks.SF[names(znfpeaks.SF) %in% names(anchor.SF)])
+
+norm.znfpeaks.SF = znfpeaks.SF *(mean.anchor.SF/mean.degron.SF)
+
+#then maybe we average the common SF and incorporate these new ones and compare to read depth SF?
+
+all.SF = rep(NA, 21)
+all.SF[1:6] = anchor.SF[1:6]
+all.SF[4:6] = (anchor.SF[4:6]+norm.znfpeaks.SF[1:3])/2
+all.SF[7:9] = norm.znfpeaks.SF[4:6]
+#10:12 are IgG
+all.SF[13:15] = anchor.SF[7:9]
+all.SF[16:18] = (anchor.SF[10:12]+norm.degronpeaks.SF[1:3])/2
+all.SF[19:21] = norm.degronpeaks.SF[4:6]
+names(all.SF) = colnames(all.regions)
+
+-->
