@@ -30,6 +30,11 @@ with you **before** you generate any data. It is much easier to design
 the proper experiments and controls and analyze the data compared to
 the alternative of trying to salvage poorly controlled experiments.
 
+# Info about this experiment
+
+MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER deprived) treated under 3 conditions: 1) CC: null+null; 2) CE: null+ E2; 3) dE: dTAG+E2. \
+Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.
+
 # ChIP-seq analysis
 
 First we name the experiments with the trailing name being `PE1` or
