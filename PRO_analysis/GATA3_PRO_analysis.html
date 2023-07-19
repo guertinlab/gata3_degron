@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-17" />
+<meta name="date" content="2023-07-19" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-07-17</h4>
+<h4 class="date">2023-07-19</h4>
 
 </div>
 
@@ -1415,13 +1415,13 @@ for (i in levels(sample.conditions)[-1]) {
   df.deseq.effects.lattice = rbind(unchanged, activated)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), file = paste0(i, &#39;_activated_matched_peaks.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  write.table(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), file = paste0(i, &#39;_activated_matched_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
   unchanged$treatment = &quot;Matched to Activated&quot;
   activated$treatment = &quot;Activated&quot;
   df.x = rbind(activated, unchanged)
   
   repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
-  write.table(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), file = paste0(i, &#39;_repressed_peaks.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  write.table(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), file = paste0(i, &#39;_repressed_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
   unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
 
   # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
@@ -1430,7 +1430,7 @@ for (i in levels(sample.conditions)[-1]) {
   df.deseq.effects.lattice = rbind(unchanged, repressed)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), file = paste0(i, &#39;_repressed_matched_peaks.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  write.table(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), file = paste0(i, &#39;_repressed_matched_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
   unchanged$treatment = &quot;Matched to Repressed&quot;
   repressed$treatment = &quot;Repressed&quot;
   df.x = rbind(df.x, unchanged)
