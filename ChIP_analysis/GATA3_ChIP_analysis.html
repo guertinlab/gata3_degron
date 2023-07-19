@@ -713,38 +713,39 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#chip-seq-experiments" id="toc-chip-seq-experiments"><span class="toc-section-number">1</span> ChIP-seq experiments</a></li>
 <li><a href="#chip-seq-experimental-design" id="toc-chip-seq-experimental-design"><span class="toc-section-number">2</span> ChIP-seq experimental design</a></li>
-<li><a href="#chip-seq-analysis" id="toc-chip-seq-analysis"><span class="toc-section-number">3</span> ChIP-seq analysis</a>
+<li><a href="#info-about-this-experiment" id="toc-info-about-this-experiment"><span class="toc-section-number">3</span> Info about this experiment</a></li>
+<li><a href="#chip-seq-analysis" id="toc-chip-seq-analysis"><span class="toc-section-number">4</span> ChIP-seq analysis</a>
 <ul>
-<li><a href="#cut-off-the-adapter-with-cutadapt" id="toc-cut-off-the-adapter-with-cutadapt"><span class="toc-section-number">3.1</span> Cut off the adapter with <code>cutadapt</code></a></li>
-<li><a href="#align-to-the-human-genome" id="toc-align-to-the-human-genome"><span class="toc-section-number">3.2</span> Align to the human genome</a></li>
-<li><a href="#run-the-previous-chunk-in-parallel" id="toc-run-the-previous-chunk-in-parallel"><span class="toc-section-number">3.3</span> Run the previous chunk in parallel</a></li>
+<li><a href="#cut-off-the-adapter-with-cutadapt" id="toc-cut-off-the-adapter-with-cutadapt"><span class="toc-section-number">4.1</span> Cut off the adapter with <code>cutadapt</code></a></li>
+<li><a href="#align-to-the-human-genome" id="toc-align-to-the-human-genome"><span class="toc-section-number">4.2</span> Align to the human genome</a></li>
+<li><a href="#run-the-previous-chunk-in-parallel" id="toc-run-the-previous-chunk-in-parallel"><span class="toc-section-number">4.3</span> Run the previous chunk in parallel</a></li>
 </ul></li>
-<li><a href="#combining-replicates-for-the-genome-browser" id="toc-combining-replicates-for-the-genome-browser"><span class="toc-section-number">4</span> Combining replicates for the genome browser</a></li>
-<li><a href="#peak-calling" id="toc-peak-calling"><span class="toc-section-number">5</span> Peak calling</a>
+<li><a href="#combining-replicates-for-the-genome-browser" id="toc-combining-replicates-for-the-genome-browser"><span class="toc-section-number">5</span> Combining replicates for the genome browser</a></li>
+<li><a href="#peak-calling" id="toc-peak-calling"><span class="toc-section-number">6</span> Peak calling</a>
 <ul>
-<li><a href="#removing-peaks-on-contigs-and-within-blacklisted-regions" id="toc-removing-peaks-on-contigs-and-within-blacklisted-regions"><span class="toc-section-number">5.1</span> Removing peaks on contigs and within blacklisted regions</a></li>
+<li><a href="#removing-peaks-on-contigs-and-within-blacklisted-regions" id="toc-removing-peaks-on-contigs-and-within-blacklisted-regions"><span class="toc-section-number">6.1</span> Removing peaks on contigs and within blacklisted regions</a></li>
 </ul></li>
-<li><a href="#size-factors-from-library" id="toc-size-factors-from-library"><span class="toc-section-number">6</span> Size factors from library</a>
+<li><a href="#size-factors-from-library" id="toc-size-factors-from-library"><span class="toc-section-number">7</span> Size factors from library</a>
 <ul>
-<li><a href="#differential-binding-and-read-count-in-peaks" id="toc-differential-binding-and-read-count-in-peaks"><span class="toc-section-number">6.1</span> Differential binding and read count in peaks</a></li>
-<li><a href="#things-to-do-for-the-znf143" id="toc-things-to-do-for-the-znf143"><span class="toc-section-number">6.2</span> things to do for the ZNF143</a></li>
-<li><a href="#counting-reads-in-peaks-and-differential-binding" id="toc-counting-reads-in-peaks-and-differential-binding"><span class="toc-section-number">6.3</span> Counting reads in peaks and differential binding</a></li>
+<li><a href="#differential-binding-and-read-count-in-peaks" id="toc-differential-binding-and-read-count-in-peaks"><span class="toc-section-number">7.1</span> Differential binding and read count in peaks</a></li>
+<li><a href="#things-to-do-for-the-znf143" id="toc-things-to-do-for-the-znf143"><span class="toc-section-number">7.2</span> things to do for the ZNF143</a></li>
+<li><a href="#counting-reads-in-peaks-and-differential-binding" id="toc-counting-reads-in-peaks-and-differential-binding"><span class="toc-section-number">7.3</span> Counting reads in peaks and differential binding</a></li>
 </ul></li>
-<li><a href="#now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" id="toc-now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks"><span class="toc-section-number">7</span> Now switch over to the PRO-seq vignette to determine the functional peaks</a></li>
-<li><a href="#motif-analysis-of-other-and-functional-znf143-peaks" id="toc-motif-analysis-of-other-and-functional-znf143-peaks"><span class="toc-section-number">8</span> motif analysis of other and functional ZNF143 peaks</a></li>
-<li><a href="#deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" id="toc-deeptools-heatmap-of-znf143-functional-and-non-functional-peaks"><span class="toc-section-number">9</span> deeptools heatmap of ZNF143 functional and non-functional peaks</a></li>
-<li><a href="#de-novo-motif-analysis-of-znf143-peaks" id="toc-de-novo-motif-analysis-of-znf143-peaks"><span class="toc-section-number">10</span> De novo motif analysis of ZNF143 peaks</a></li>
-<li><a href="#jinhong-to-do" id="toc-jinhong-to-do"><span class="toc-section-number">11</span> Jinhong: To do</a>
+<li><a href="#now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" id="toc-now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks"><span class="toc-section-number">8</span> Now switch over to the PRO-seq vignette to determine the functional peaks</a></li>
+<li><a href="#motif-analysis-of-other-and-functional-znf143-peaks" id="toc-motif-analysis-of-other-and-functional-znf143-peaks"><span class="toc-section-number">9</span> motif analysis of other and functional ZNF143 peaks</a></li>
+<li><a href="#deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" id="toc-deeptools-heatmap-of-znf143-functional-and-non-functional-peaks"><span class="toc-section-number">10</span> deeptools heatmap of ZNF143 functional and non-functional peaks</a></li>
+<li><a href="#de-novo-motif-analysis-of-znf143-peaks" id="toc-de-novo-motif-analysis-of-znf143-peaks"><span class="toc-section-number">11</span> De novo motif analysis of ZNF143 peaks</a></li>
+<li><a href="#jinhong-to-do" id="toc-jinhong-to-do"><span class="toc-section-number">12</span> Jinhong: To do</a>
 <ul>
-<li><a href="#run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" id="toc-run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures"><span class="toc-section-number">11.1</span> run through the entire vignette and add context paragraphs and include figures</a></li>
-<li><a href="#make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" id="toc-make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks"><span class="toc-section-number">11.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</a></li>
-<li><a href="#make-a-composite-fimo-motif-signal-at-peak-summits" id="toc-make-a-composite-fimo-motif-signal-at-peak-summits"><span class="toc-section-number">11.3</span> make a composite FIMO motif signal at peak summits</a></li>
-<li><a href="#de-novo-motif-analysis-on-other-non-functional-peaks" id="toc-de-novo-motif-analysis-on-other-non-functional-peaks"><span class="toc-section-number">11.4</span> de novo motif analysis on other (non-functional peaks)</a></li>
-<li><a href="#calculate-the-fraction-of-reads-in-peaks-frip-score-for" id="toc-calculate-the-fraction-of-reads-in-peaks-frip-score-for"><span class="toc-section-number">11.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</a>
+<li><a href="#run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" id="toc-run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures"><span class="toc-section-number">12.1</span> run through the entire vignette and add context paragraphs and include figures</a></li>
+<li><a href="#make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" id="toc-make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks"><span class="toc-section-number">12.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</a></li>
+<li><a href="#make-a-composite-fimo-motif-signal-at-peak-summits" id="toc-make-a-composite-fimo-motif-signal-at-peak-summits"><span class="toc-section-number">12.3</span> make a composite FIMO motif signal at peak summits</a></li>
+<li><a href="#de-novo-motif-analysis-on-other-non-functional-peaks" id="toc-de-novo-motif-analysis-on-other-non-functional-peaks"><span class="toc-section-number">12.4</span> de novo motif analysis on other (non-functional peaks)</a></li>
+<li><a href="#calculate-the-fraction-of-reads-in-peaks-frip-score-for" id="toc-calculate-the-fraction-of-reads-in-peaks-frip-score-for"><span class="toc-section-number">12.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</a>
 <ul>
-<li><a href="#the-full-set-of-znf143-narrowpeaks" id="toc-the-full-set-of-znf143-narrowpeaks"><span class="toc-section-number">11.5.1</span> the full set of ZNF143 narrowPeaks</a></li>
-<li><a href="#functional-peaks-use-narrowpeaks-file" id="toc-functional-peaks-use-narrowpeaks-file"><span class="toc-section-number">11.5.2</span> functional peaks (use narrowPeaks file)</a></li>
-<li><a href="#other-non-func-peaks-use-narrowpeaks-file" id="toc-other-non-func-peaks-use-narrowpeaks-file"><span class="toc-section-number">11.5.3</span> other (non-func) peaks (use narrowPeaks file)</a></li>
+<li><a href="#the-full-set-of-znf143-narrowpeaks" id="toc-the-full-set-of-znf143-narrowpeaks"><span class="toc-section-number">12.5.1</span> the full set of ZNF143 narrowPeaks</a></li>
+<li><a href="#functional-peaks-use-narrowpeaks-file" id="toc-functional-peaks-use-narrowpeaks-file"><span class="toc-section-number">12.5.2</span> functional peaks (use narrowPeaks file)</a></li>
+<li><a href="#other-non-func-peaks-use-narrowpeaks-file" id="toc-other-non-func-peaks-use-narrowpeaks-file"><span class="toc-section-number">12.5.3</span> other (non-func) peaks (use narrowPeaks file)</a></li>
 </ul></li>
 </ul></li>
 </ul>
@@ -764,8 +765,13 @@ with you <strong>before</strong> you generate any data. It is much easier to des
 the proper experiments and controls and analyze the data compared to
 the alternative of trying to salvage poorly controlled experiments.</p>
 </div>
-<div id="chip-seq-analysis" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> ChIP-seq analysis</h1>
+<div id="info-about-this-experiment" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Info about this experiment</h1>
+<p>MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER deprived) treated under 3 conditions: 1) CC: null+null; 2) CE: null+ E2; 3) dE: dTAG+E2.<br />
+Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.</p>
+</div>
+<div id="chip-seq-analysis" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> ChIP-seq analysis</h1>
 <p>First we name the experiments with the trailing name being <code>PE1</code> or
 <code>PE</code> for paired end data.</p>
 <pre class="bash"><code>for i in *_S*R1_001.fastq.gz
@@ -786,8 +792,8 @@ do
     mv $i ${nm}_PE1.fastq.gz
     mv ${two}R2_001.fastq.gz ${nm}_PE2.fastq.gz
 done</code></pre>
-<div id="cut-off-the-adapter-with-cutadapt" class="section level2" number="3.1">
-<h2><span class="header-section-number">3.1</span> Cut off the adapter with <code>cutadapt</code></h2>
+<div id="cut-off-the-adapter-with-cutadapt" class="section level2" number="4.1">
+<h2><span class="header-section-number">4.1</span> Cut off the adapter with <code>cutadapt</code></h2>
 <p>In our daily workflow in the lab we use
 <code>cutadapt</code> to remove adapeter sequences. The options we use below are <code>-j</code> for the number of cores
 to use, <code>-m</code> specifies the minimal lenght of a read to keep after
@@ -816,8 +822,8 @@ do
     cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT -j 8 -m 10 -O 1 -o ${name}_PE1_no_adapt.fastq -p ${name}_PE2_no_adapt.fastq ${name}_PE1.fastq ${name}_PE2.fastq 2&gt;&amp;1 | tee ${name}_cutadapt.log
 done</code></pre>
 </div>
-<div id="align-to-the-human-genome" class="section level2" number="3.2">
-<h2><span class="header-section-number">3.2</span> Align to the human genome</h2>
+<div id="align-to-the-human-genome" class="section level2" number="4.2">
+<h2><span class="header-section-number">4.2</span> Align to the human genome</h2>
 <p>Now we are aligning to the <code>hg38.fa</code> genome just as we have previously
 for ChIP-seq, the difference is that the libraries are paired end. Note the <code>-1</code> and
 <code>-2</code> options for the respective paired-end <code>fastq</code> files. There is no
@@ -879,8 +885,8 @@ echo $scaled
 awk -v scaled=&quot;$scaled&quot; &#39;{OFS=&quot;\t&quot;;} {print $1, $2, $3, $4*scaled}&#39; ${name}.bedGraph &gt; ${name}_normalized.bedGraph
 wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig</code></pre>
 </div>
-<div id="run-the-previous-chunk-in-parallel" class="section level2" number="3.3">
-<h2><span class="header-section-number">3.3</span> Run the previous chunk in parallel</h2>
+<div id="run-the-previous-chunk-in-parallel" class="section level2" number="4.3">
+<h2><span class="header-section-number">4.3</span> Run the previous chunk in parallel</h2>
 <pre class="bash"><code>module load bowtie2
 
 cp /home/FCAM/meds5420/genomes/chroms/chrM.fa ./
@@ -902,8 +908,8 @@ done
 </code></pre>
 </div>
 </div>
-<div id="combining-replicates-for-the-genome-browser" class="section level1" number="4">
-<h1><span class="header-section-number">4</span> Combining replicates for the genome browser</h1>
+<div id="combining-replicates-for-the-genome-browser" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Combining replicates for the genome browser</h1>
 <p>Usually we combine replicates into a single track for visualization
 and we compare the tracks between conditions. It is important that we
 read-depth normalize before we combine the signal from each
@@ -943,8 +949,8 @@ do
     mv ${name}* ./${name}_files
 done</code></pre>
 </div>
-<div id="peak-calling" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> Peak calling</h1>
+<div id="peak-calling" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> Peak calling</h1>
 <pre class="bash"><code>#! /bin/sh
 #SBATCH --job-name=chip_peak_calling.sh     # name for job
 #SBATCH -N 1
@@ -965,8 +971,8 @@ module load macs3
 mkdir temp_macs
 macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 macs3 callpeak --call-summits -t *cont_HA_*bam -c *IgG*bam -n ZNF143_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs</code></pre>
-<div id="removing-peaks-on-contigs-and-within-blacklisted-regions" class="section level2" number="5.1">
-<h2><span class="header-section-number">5.1</span> Removing peaks on contigs and within blacklisted regions</h2>
+<div id="removing-peaks-on-contigs-and-within-blacklisted-regions" class="section level2" number="6.1">
+<h2><span class="header-section-number">6.1</span> Removing peaks on contigs and within blacklisted regions</h2>
 <p>You can Google “blacklisted genomic regions” to find a
 set of region in the genome in <code>bed</code> format that have an over-representation of
 reads regardless of the experiment. Recall this is even more necessary
@@ -991,8 +997,8 @@ done
 </code></pre>
 </div>
 </div>
-<div id="size-factors-from-library" class="section level1" number="6">
-<h1><span class="header-section-number">6</span> Size factors from library</h1>
+<div id="size-factors-from-library" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> Size factors from library</h1>
 <pre class="bash"><code>
 #size factors
 
@@ -1017,16 +1023,16 @@ do
   rm ${i}_header.txt
 done 
 </code></pre>
-<div id="differential-binding-and-read-count-in-peaks" class="section level2" number="6.1">
-<h2><span class="header-section-number">6.1</span> Differential binding and read count in peaks</h2>
+<div id="differential-binding-and-read-count-in-peaks" class="section level2" number="7.1">
+<h2><span class="header-section-number">7.1</span> Differential binding and read count in peaks</h2>
 <p>Recall that this version of <code>R</code> on Xanadu has many of our libraries
 preinstalled.</p>
 <pre class="bash"><code>module load R/4.1.2
 
 R</code></pre>
 </div>
-<div id="things-to-do-for-the-znf143" class="section level2" number="6.2">
-<h2><span class="header-section-number">6.2</span> things to do for the ZNF143</h2>
+<div id="things-to-do-for-the-znf143" class="section level2" number="7.2">
+<h2><span class="header-section-number">7.2</span> things to do for the ZNF143</h2>
 <p>Using the parallel factor ChIP analysis does not work well because
 ZNF143 is ablated on chromatin upon degradation. So size factors
 cannot be accurately estimated between ZNF143 ChIP degron and
@@ -1035,8 +1041,8 @@ then? well, we can see that by our peak calling threshold, that all
 peaks decrease intensity and are likely true positives when we use
 read depth to normalize.</p>
 </div>
-<div id="counting-reads-in-peaks-and-differential-binding" class="section level2" number="6.3">
-<h2><span class="header-section-number">6.3</span> Counting reads in peaks and differential binding</h2>
+<div id="counting-reads-in-peaks-and-differential-binding" class="section level2" number="7.3">
+<h2><span class="header-section-number">7.3</span> Counting reads in peaks and differential binding</h2>
 <pre class="r"><code>#libraries
 library(DESeq2)
 library(lattice)
@@ -1258,16 +1264,16 @@ j = i
 }</code></pre>
 </div>
 </div>
-<div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="7">
-<h1><span class="header-section-number">7</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
+<div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="8">
+<h1><span class="header-section-number">8</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
 <pre class="r"><code>length(peak.intensities[peak.intensities &gt;= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]])
 
 func.znf143.peaks = peak.intensities[peak.intensities &gt;= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]
 
 other.znf143.peaks = peak.intensities[peak.intensities &lt; quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]</code></pre>
 </div>
-<div id="motif-analysis-of-other-and-functional-znf143-peaks" class="section level1" number="8">
-<h1><span class="header-section-number">8</span> motif analysis of other and functional ZNF143 peaks</h1>
+<div id="motif-analysis-of-other-and-functional-znf143-peaks" class="section level1" number="9">
+<h1><span class="header-section-number">9</span> motif analysis of other and functional ZNF143 peaks</h1>
 <pre class="r"><code>chr = sapply(strsplit(names(func.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 1)
 rnge = sapply(strsplit(names(func.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 2)
 start = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 1)) + 200
@@ -1285,8 +1291,8 @@ end = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 2)) - 200
 write.table(cbind(chr, start, end), file = &quot;ZNF143_other_peaks.bed&quot;, quote = FALSE,
 col.names =FALSE, row.names=FALSE, sep = &quot;\t&quot;)</code></pre>
 </div>
-<div id="deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" class="section level1" number="9">
-<h1><span class="header-section-number">9</span> deeptools heatmap of ZNF143 functional and non-functional peaks</h1>
+<div id="deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" class="section level1" number="10">
+<h1><span class="header-section-number">10</span> deeptools heatmap of ZNF143 functional and non-functional peaks</h1>
 <pre class="bash"><code>
 module load deeptools/3.5.0
 module load bedtools
@@ -1321,8 +1327,8 @@ plotHeatmap -m all_matrix_HA_ChIP_ZNF143_peaks.gz -out other_heatmap_HA_ChIP_ZNF
    --regionsLabel &quot;ZNF143 peaks&quot; --xAxisLabel &quot;Distance from summit&quot; \
    --samplesLabel &quot;DMSO&quot; &quot;dTAG&quot; --colorMap Purples -min 0 -max 13 --whatToShow &quot;heatmap and colorbar&quot; </code></pre>
 </div>
-<div id="de-novo-motif-analysis-of-znf143-peaks" class="section level1" number="10">
-<h1><span class="header-section-number">10</span> De novo motif analysis of ZNF143 peaks</h1>
+<div id="de-novo-motif-analysis-of-znf143-peaks" class="section level1" number="11">
+<h1><span class="header-section-number">11</span> De novo motif analysis of ZNF143 peaks</h1>
 <p>I am brute forcing my way through an iterative and exhaustive motif
 analysis. This should be written into a systematic loop. The reason I
 did not is because I am manualy looking at the top hit to ensure that
@@ -1406,30 +1412,30 @@ done
 
 -->
 </div>
-<div id="jinhong-to-do" class="section level1" number="11">
-<h1><span class="header-section-number">11</span> Jinhong: To do</h1>
-<div id="run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" class="section level2" number="11.1">
-<h2><span class="header-section-number">11.1</span> run through the entire vignette and add context paragraphs and include figures</h2>
+<div id="jinhong-to-do" class="section level1" number="12">
+<h1><span class="header-section-number">12</span> Jinhong: To do</h1>
+<div id="run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" class="section level2" number="12.1">
+<h2><span class="header-section-number">12.1</span> run through the entire vignette and add context paragraphs and include figures</h2>
 </div>
-<div id="make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" class="section level2" number="11.2">
-<h2><span class="header-section-number">11.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</h2>
+<div id="make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" class="section level2" number="12.2">
+<h2><span class="header-section-number">12.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</h2>
 </div>
-<div id="make-a-composite-fimo-motif-signal-at-peak-summits" class="section level2" number="11.3">
-<h2><span class="header-section-number">11.3</span> make a composite FIMO motif signal at peak summits</h2>
+<div id="make-a-composite-fimo-motif-signal-at-peak-summits" class="section level2" number="12.3">
+<h2><span class="header-section-number">12.3</span> make a composite FIMO motif signal at peak summits</h2>
 </div>
-<div id="de-novo-motif-analysis-on-other-non-functional-peaks" class="section level2" number="11.4">
-<h2><span class="header-section-number">11.4</span> de novo motif analysis on other (non-functional peaks)</h2>
+<div id="de-novo-motif-analysis-on-other-non-functional-peaks" class="section level2" number="12.4">
+<h2><span class="header-section-number">12.4</span> de novo motif analysis on other (non-functional peaks)</h2>
 </div>
-<div id="calculate-the-fraction-of-reads-in-peaks-frip-score-for" class="section level2" number="11.5">
-<h2><span class="header-section-number">11.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</h2>
-<div id="the-full-set-of-znf143-narrowpeaks" class="section level3" number="11.5.1">
-<h3><span class="header-section-number">11.5.1</span> the full set of ZNF143 narrowPeaks</h3>
+<div id="calculate-the-fraction-of-reads-in-peaks-frip-score-for" class="section level2" number="12.5">
+<h2><span class="header-section-number">12.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</h2>
+<div id="the-full-set-of-znf143-narrowpeaks" class="section level3" number="12.5.1">
+<h3><span class="header-section-number">12.5.1</span> the full set of ZNF143 narrowPeaks</h3>
 </div>
-<div id="functional-peaks-use-narrowpeaks-file" class="section level3" number="11.5.2">
-<h3><span class="header-section-number">11.5.2</span> functional peaks (use narrowPeaks file)</h3>
+<div id="functional-peaks-use-narrowpeaks-file" class="section level3" number="12.5.2">
+<h3><span class="header-section-number">12.5.2</span> functional peaks (use narrowPeaks file)</h3>
 </div>
-<div id="other-non-func-peaks-use-narrowpeaks-file" class="section level3" number="11.5.3">
-<h3><span class="header-section-number">11.5.3</span> other (non-func) peaks (use narrowPeaks file)</h3>
+<div id="other-non-func-peaks-use-narrowpeaks-file" class="section level3" number="12.5.3">
+<h3><span class="header-section-number">12.5.3</span> other (non-func) peaks (use narrowPeaks file)</h3>
 <!--
 
 
