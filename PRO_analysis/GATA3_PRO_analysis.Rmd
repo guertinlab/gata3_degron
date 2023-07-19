@@ -748,13 +748,13 @@ for (i in levels(sample.conditions)[-1]) {
   df.deseq.effects.lattice = rbind(unchanged, activated)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), "Matched to Activated"), file = paste0(i, '_activated_matched_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  write.table(cbind(tighten_summit_window(unchanged), "Matched to Activated"), file = paste0(i, '_activated_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged$treatment = "Matched to Activated"
   activated$treatment = "Activated"
   df.x = rbind(activated, unchanged)
   
   repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
-  write.table(cbind(tighten_summit_window(repressed), "Repressed"), file = paste0(i, '_repressed_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  write.table(cbind(tighten_summit_window(repressed), "Repressed"), file = paste0(i, '_repressed_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
 
   # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
@@ -763,7 +763,7 @@ for (i in levels(sample.conditions)[-1]) {
   df.deseq.effects.lattice = rbind(unchanged, repressed)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), file = paste0(i, '_repressed_matched_peaks.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  write.table(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), file = paste0(i, '_repressed_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged$treatment = "Matched to Repressed"
   repressed$treatment = "Repressed"
   df.x = rbind(df.x, unchanged)
