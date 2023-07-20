@@ -196,7 +196,7 @@ wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
 
 ## Run the previous chunk in parallel 
 
-generating tallymer files use seqOutBias:
+generating tallymer files and table use seqOutBias:
 ```{r engine='bash', eval=F, echo=TRUE}
 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
 #time-consuming but only need to run this one time
@@ -309,6 +309,10 @@ done
 
 # Peak calling
 
+We use Macs3 callpeaks to identify TF binding sites. It takes the treatment files against the control genomic input. \
+In the below chunk, I am merging files with same ChIP factor to account for all possible binding regions, these are my treatment file; I have one GATA ChIP with degradation treatment, this will be considerred seperatly as another treatment. \
+My control genomic input is my merged IgG file. \
+
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 #SBATCH --job-name=chip_peak_calling.sh     # name for job
@@ -319,21 +323,28 @@ done
 #SBATCH --qos=general
 #SBATCH --mem=32G
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=guertin@uchc.edu
+#SBATCH --mail-user=ssun@uchc.edu
 #SBATCH -o chip_peak_calling.sh_%j.out
 #SBATCH -e chip_peak_calling.sh_%j.err
 
 hostname
-
 module load macs3
 
 mkdir temp_macs
+
+# CTCF (merged from CTCF_CC_2files, CE, dE); my -c input: IgG (control, merged from IgG_dE,CE,CC)
 macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-macs3 callpeak --call-summits -t *cont_HA_*bam -c *IgG*bam -n ZNF143_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# ER (merged from ER_CE_2files,dE)
+macs3 callpeak --call-summits -t *_ER_*bam -c *IgG*bam -n ER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# GATA (merged from GATA_CC,CE)
+macs3 callpeak --call-summits -t *GATA_C*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# GATA_degrade (gata_dE)
+macs3 callpeak --call-summits -t *GATA_d*bam -c *IgG*bam -n GATAdegrade_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# CTER
+macs3 callpeak --call-summits -t *CTER_*bam -c *IgG*bam -n CTER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 ```
 
 ## Removing peaks on contigs and within blacklisted regions
-
 
 You can Google "blacklisted genomic regions" to find a
 set of region in the genome in `bed` format that have an over-representation of
