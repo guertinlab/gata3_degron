@@ -697,13 +697,12 @@ run.deseq.list.dds <- function(mat) {
   return(dds)
 }
 
-
 tighten_summit_window <- function(res.deseq) {
   chr = sapply(strsplit(rownames(res.deseq), ':'), '[', 1)
   start = as.numeric(sapply(strsplit(sapply(strsplit(rownames(res.deseq), ':'), '[', 2), "-"), "[", 1))
   x=sapply(strsplit(sapply(strsplit(rownames(res.deseq), ':'), '[', 2), "-"), "[", 2)
   end = as.numeric(sapply(strsplit(x, "_"), "[", 1))
-  gene = sapply(strsplit(x, "_"), "[", 2)
+  gene = sapply(strsplit(rownames(res.deseq), "_"), "[", 2)
   df = cbind.data.frame(chr, start, end, gene)
   return(df)
 }
@@ -739,22 +738,27 @@ for (i in levels(sample.conditions)[-1]) {
   sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
   
   activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
-  write.table(cbind(tighten_summit_window(activated), "Activated"), file = paste0(i, '_activated_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+  write.table(activated.strand, file = paste0(i, '_activated_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   
   unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+
   #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
   unchanged$treatment = 0
   activated$treatment = 1
   df.deseq.effects.lattice = rbind(unchanged, activated)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), "Matched to Activated"), file = paste0(i, '_activated_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+
+  write.table(unchanged.strand, file = paste0(i, '_activated_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged$treatment = "Matched to Activated"
   activated$treatment = "Activated"
   df.x = rbind(activated, unchanged)
   
   repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
-  write.table(cbind(tighten_summit_window(repressed), "Repressed"), file = paste0(i, '_repressed_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+  write.table(repressed.strand, file = paste0(i, '_repressed_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
 
   # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
@@ -763,16 +767,14 @@ for (i in levels(sample.conditions)[-1]) {
   df.deseq.effects.lattice = rbind(unchanged, repressed)
   out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
   unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  write.table(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), file = paste0(i, '_repressed_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+
+  write.table(unchanged.strand, file = paste0(i, '_repressed_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   unchanged$treatment = "Matched to Repressed"
   repressed$treatment = "Repressed"
   df.x = rbind(df.x, unchanged)
   df.x = rbind(df.x, repressed)
 }
-
-
-
-
 ```
 
 
