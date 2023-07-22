@@ -814,25 +814,7 @@ done</code></pre>
 </div>
 <div id="align-to-the-human-genome" class="section level2" number="4.2">
 <h2><span class="header-section-number">4.2</span> Align to the human genome</h2>
-<p>Now we are aligning to the <code>hg38.fa</code> genome just as we have previously
-for ChIP-seq, the difference is that the libraries are paired end. Note the <code>-1</code> and
-<code>-2</code> options for the respective paired-end <code>fastq</code> files. There is no
-need to save the output <code>sam</code> file, so the output is piped to
-<code>samtools</code> to convert to <code>bam</code>, then sorted by name (<code>-n</code>) so paired
-end reads are adjacent in the file, then piped to <code>samtools fixmate</code>
-which adds information about the fragment length by comparing the PE1
-and PE2 coordinates, then the files are sorted by coordinate, then
-piped to <code>samtools markdup</code> to remove duplicate reads. Duplicate reads
-have the same PE1 and PE2 ends. This is very unlikely to happen by
-chance unless you sequence to very high read depth, so these reads are
-considered PCR amplicon duplicates. The <code>fixmate</code> step is necessary to
-pipe to <code>markdup</code>. We use the entire DNA fragment for making the
-browser tracks, which is accomplished by converted the paired-end
-<code>bam</code> file to a <code>bed12</code> and taking out discordant reads. We also
-normalize to read depth.<br />
-</p>
-<p>First we are getting reference genome and build the genome index<br />
-</p>
+<p>First we want to generate a folder in the convenient directory and name it as Genome. We will save all the genome files here. <code>cd</code> to this working directory, we are getting reference genome and chrom.sizes file from the USCS genome server, and build the genome index with <code>bowtie2-build</code>.</p>
 <pre class="bash"><code>#! /bin/sh
 
 #SBATCH --job-name=getrefgenome.sh     # name for job
@@ -856,7 +838,21 @@ gunzip hg38.fa.gz
 bowtie2-build hg38.fa hg38
 
 wget https://hgdownload-test.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes</code></pre>
-<p>This is the chip_alignment_230718.sh file content:<br />
+<p>Now we are aligning to the <code>hg38.fa</code> genome. The difference between ChIPseq data and PRO is that the ChIP libraries are paired end. Note the <code>-1</code> and
+<code>-2</code> options for the respective paired-end <code>fastq</code> files. There is no
+need to save the output <code>sam</code> file, so the output is piped to
+<code>samtools</code> to convert to <code>bam</code>, then sorted by name (<code>-n</code>) so paired
+end reads are adjacent in the file, then piped to <code>samtools fixmate</code>
+which adds information about the fragment length by comparing the PE1
+and PE2 coordinates, then the files are sorted by coordinate, then
+piped to <code>samtools markdup</code> to remove duplicate reads. Duplicate reads
+have the same PE1 and PE2 ends. This is very unlikely to happen by
+chance unless you sequence to very high read depth, so these reads are
+considered PCR amplicon duplicates. The <code>fixmate</code> step is necessary to
+pipe to <code>markdup</code>. We use the entire DNA fragment for making the
+browser tracks, which is accomplished by converted the paired-end
+<code>bam</code> file to a <code>bed12</code> and taking out discordant reads. We also
+normalize to read depth.<br />
 </p>
 <pre class="bash"><code>#!/bin/bash
 #SBATCH --job-name=chip_alignment_230718.sh     # name for job
@@ -918,11 +914,12 @@ wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig</
 </div>
 <div id="run-the-previous-chunk-in-parallel" class="section level2" number="4.3">
 <h2><span class="header-section-number">4.3</span> Run the previous chunk in parallel</h2>
-<p>generating tallymer files and table use seqOutBias:</p>
+<p>Generating tallymer files and table use seqOutBias, and run the previous chunk in parallel.</p>
 <pre class="bash"><code>#Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
 #time-consuming but only need to run this one time
-seqOutBias seqtable hg38.fa --read-size=42</code></pre>
-<pre class="bash"><code>file=chip_alignment_230718.sh 
+seqOutBias seqtable hg38.fa --read-size=42
+
+file=chip_alignment_230718.sh 
 
 for i in *_PE1.fastq
 do
@@ -1014,9 +1011,9 @@ done</code></pre>
 </div>
 <div id="peak-calling" class="section level1" number="6">
 <h1><span class="header-section-number">6</span> Peak calling</h1>
-<p>We use Macs3 callpeaks to identify TF binding sites. It takes the treatment files against the control genomic input.<br />
-In the below chunk, I am merging files with same ChIP factor to account for all possible binding regions, these are my treatment file; I have one GATA ChIP with degradation treatment, this will be considerred seperatly as another treatment.<br />
-My control genomic input is my merged IgG file.<br />
+<p>We use <code>Macs3 callpeaks</code> to identify TF binding sites. It takes the treatment files against the control genomic input.<br />
+In the below chunk, I am merging files with same ChIP factor to account for all possible binding regions, these are my treatment file; I have one GATA ChIP with degradation treatment, this will be considerred seperatly as a seperate treatment.<br />
+My control genomic input is all the IgG file.<br />
 </p>
 <pre class="bash"><code>#! /bin/sh
 #SBATCH --job-name=chip_peak_calling.sh     # name for job
