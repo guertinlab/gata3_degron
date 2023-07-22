@@ -88,25 +88,8 @@ done
 
 ## Align to the human genome
 
-Now we are aligning to the `hg38.fa` genome just as we have previously
-for ChIP-seq, the difference is that the libraries are paired end. Note the `-1` and
-`-2` options for the respective paired-end `fastq` files. There is no
-need to save the output `sam` file, so the output is piped to
-`samtools` to convert to `bam`, then sorted by name (`-n`) so paired
-end reads are adjacent in the file, then piped to `samtools fixmate`
-which adds information about the fragment length by comparing the PE1
-and PE2 coordinates, then the files are sorted by coordinate, then
-piped to `samtools markdup` to remove duplicate reads. Duplicate reads
-have the same PE1 and PE2 ends. This is very unlikely to happen by
-chance unless you sequence to very high read depth, so these reads are
-considered PCR amplicon duplicates. The `fixmate` step is necessary to
-pipe to `markdup`. We use the entire DNA fragment for making the
-browser tracks, which is accomplished by converted the paired-end
-`bam` file to a `bed12` and taking out discordant reads. We also
-normalize to read depth. \
+First we want to generate a folder in the convenient directory and name it as Genome. We will save all the genome files here. `cd` to this working directory, we are getting reference genome and chrom.sizes file from the USCS genome server, and build the genome index with `bowtie2-build`.
 
-
-First we are getting reference genome and build the genome index \
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
@@ -133,7 +116,21 @@ bowtie2-build hg38.fa hg38
 wget https://hgdownload-test.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
 ```
 
-This is the chip_alignment_230718.sh file content: \
+Now we are aligning to the `hg38.fa` genome. The difference between ChIPseq data and PRO is that the ChIP libraries are paired end. Note the `-1` and
+`-2` options for the respective paired-end `fastq` files. There is no
+need to save the output `sam` file, so the output is piped to
+`samtools` to convert to `bam`, then sorted by name (`-n`) so paired
+end reads are adjacent in the file, then piped to `samtools fixmate`
+which adds information about the fragment length by comparing the PE1
+and PE2 coordinates, then the files are sorted by coordinate, then
+piped to `samtools markdup` to remove duplicate reads. Duplicate reads
+have the same PE1 and PE2 ends. This is very unlikely to happen by
+chance unless you sequence to very high read depth, so these reads are
+considered PCR amplicon duplicates. The `fixmate` step is necessary to
+pipe to `markdup`. We use the entire DNA fragment for making the
+browser tracks, which is accomplished by converted the paired-end
+`bam` file to a `bed12` and taking out discordant reads. We also
+normalize to read depth. \
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=chip_alignment_230718.sh     # name for job
@@ -196,15 +193,12 @@ wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
 
 ## Run the previous chunk in parallel 
 
-generating tallymer files and table use seqOutBias:
+Generating tallymer files and table use seqOutBias, and run the previous chunk in parallel.
 ```{r engine='bash', eval=F, echo=TRUE}
 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
 #time-consuming but only need to run this one time
 seqOutBias seqtable hg38.fa --read-size=42
-```
 
-
-```{r engine='bash', eval=F, echo=TRUE}
 file=chip_alignment_230718.sh 
 
 for i in *_PE1.fastq
@@ -309,9 +303,9 @@ done
 
 # Peak calling
 
-We use Macs3 callpeaks to identify TF binding sites. It takes the treatment files against the control genomic input. \
-In the below chunk, I am merging files with same ChIP factor to account for all possible binding regions, these are my treatment file; I have one GATA ChIP with degradation treatment, this will be considerred seperatly as another treatment. \
-My control genomic input is my merged IgG file. \
+We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment files against the control genomic input. \
+In the below chunk, I am merging files with same ChIP factor to account for all possible binding regions, these are my treatment file; I have one GATA ChIP with degradation treatment, this will be considerred seperatly as a seperate treatment. \
+My control genomic input is all the IgG file. \
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
