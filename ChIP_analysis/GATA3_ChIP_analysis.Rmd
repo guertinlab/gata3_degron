@@ -353,12 +353,24 @@ because we do not have a control data set. We can also remove peaks on non-canon
 `grep -v`. 
 
 ```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=remove_peak.sh     # name for job
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 2
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o remove_peak.sh_%j.out
+#SBATCH -e remove_peak.sh_%j.err
 module load deeptools/3.5.0
 module load bedtools
 wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
 gunzip hg38-blacklist.v2.bed.gz
 blacklist=hg38-blacklist.v2.bed
-sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
 
 for i in *_summits.bed
