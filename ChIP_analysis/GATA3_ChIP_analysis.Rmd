@@ -380,17 +380,101 @@ done
 
 # Size factors from library 
 
+Here we use `samtools` to count the read size of each library. The Flag is user-defined, the flag `0x3` in the command means read paired and read mapped in proper pair. We can use this website: https://broadinstitute.github.io/picard/explain-flags.html to understand what property and what flag we want to specify.
+
 ```{r engine='bash', eval=F, echo=TRUE}
 
-#size factors
+#calculate the size factors of each library
 
 module load samtools/1.12
-for i in HA
+for i in ER
 do
   echo $i
   > ${i}_header.txt
   > ${i}_reads.txt
-  for j in HEK_ZNF-dTAG*_${i}_*.bam
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+for i in GATA
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+for i in CTCF
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+
+for i in CTER 
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+
+
+for i in IgG
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
   do
     echo $j
     name=$(echo $j | awk -F".sorted.bam" '{print $1}')
