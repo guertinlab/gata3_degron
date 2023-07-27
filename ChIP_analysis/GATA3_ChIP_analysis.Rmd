@@ -636,7 +636,7 @@ e = read.table('CTER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 
 #normalized signal
 GATA.signal.df= get.counts.interval(a, "/normalized_bw","MCF")
-ER.signal.df= get.counts.interval(b, "/normalized_bw","MCF")
+GATAdegrade.signal.df= get.counts.interval(b, "/normalized_bw","MCF")
 CTCF.signal.df= get.counts.interval(c, "/normalized_bw","MCF")
 IgG.signal.df= get.counts.interval(d, "/normalized_bw","MCF")
 CTER.signal.df= get.counts.interval(e, "/normalized_bw","MCF")
