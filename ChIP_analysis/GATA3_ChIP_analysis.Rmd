@@ -307,7 +307,7 @@ trackhub link: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 # Peak calling
 
 We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment files against the control genomic input. \
-In the below chunk, I am taking all files with same ChIP factor as my input (`-t`) to account for all possible binding regions; I have one GATA ChIP with degradation treatment, this will be considered separatly as one treatment. My control genomic input is all the IgG file. \
+In the below chunk, I am taking all files with same ChIP factor as my input (`-t`) to account for all possible binding regions; I have one GATA ChIP with degradation treatment, this will be considered separatly as one treatment. My control genomic input is all the IgG file (`-c`). \
 The reason we want to call peaks on all files of same ChIP factors is that: taking intersection of peaks between replicates/conditions will result in high false negative rates. We may lose important binding regions for transcription factor analysis. Here we are doing a compromise to call every peaks on all files and later in downstream analysis we will decide the functional peaks. \
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -343,11 +343,12 @@ macs3 callpeak --call-summits -t *CTER_*bam -c *IgG*bam -n CTER_ChIP -g hs -q 0.
 
 ## Removing peaks on contigs and within blacklisted regions
 
-You can Google "blacklisted genomic regions" to find a
+Google "blacklisted genomic regions" we can find a
 set of region in the genome in `bed` format that have an over-representation of
-reads regardless of the experiment. Recall this is even more necessary
-because we do not have a control data set. We can also remove peaks on non-canonical chromosomes with
-`grep -v`. 
+reads regardless of the experiment. We also remove peaks on non-canonical chromosomes with
+`grep -v`. \
+
+We use `bedtools slop` to change boundaries by adding a fixed number of bases in each direction (`-b`). 
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
@@ -382,6 +383,8 @@ done
 ```
 
 # Size factors from library 
+
+## Counting size factors 
 
 Here we use `samtools` to count the read size of each library. The Flag is user-defined, the flag `0x3` in the command means read paired and read mapped in proper pair. We can use this website: https://broadinstitute.github.io/picard/explain-flags.html to understand what property and what flag we want to specify.
 
@@ -494,31 +497,34 @@ done
 
 ```
 
-
-
-## Differential binding and read count in peaks
-
-Recall that this version of `R` on Xanadu has many of our libraries
-preinstalled. 
+In the previous chunk we have created read size table of library with same ChIP factor. Now we are use a `DESeq2` function `estimateSizeFactorsForMatrix` to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
 
 ```{r engine='bash', eval=F, echo=TRUE}
-module load R/4.1.2
+module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
 
-R
+R 
+
+library(DESeq2)
+
+#GATA3
+GATA.SF <- read.table("GATA_reads.txt", sep = '\t', header = TRUE)[,-1]
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
+#ER
+ER.SF <- read.table("ER_reads.txt", sep = '\t', header = TRUE)[,-1]
+ER.size.factors = estimateSizeFactorsForMatrix(ER.SF)
+#CTCF
+CTCF.SF <- read.table("CTCF_reads.txt", sep = '\t', header = TRUE)[,-1]
+CTCF.size.factors = estimateSizeFactorsForMatrix(CTCF.SF)
+#IgG
+IgG.SF <- read.table("IgG_reads.txt", sep = '\t', header = TRUE)[,-1]
+IgG.size.factors = estimateSizeFactorsForMatrix(IgG.SF)
+#CTER
+CTER.SF <- read.table("CTER_reads.txt", sep = '\t', header = TRUE)[,-1]
+CTER.size.factors = estimateSizeFactorsForMatrix(CTER.SF)
 ```
 
 
-## things to do for the ZNF143
-
-Using the parallel factor ChIP analysis does not work well because
-ZNF143 is ablated on chromatin upon degradation. So size factors
-cannot be accurately estimated between ZNF143 ChIP degron and
-ZNF143/CTCF parallel factor ChIP degron. What is the point of the PF
-then? well, we can see that by our peak calling threshold, that all
-peaks decrease intensity and are likely true positives when we use
-read depth to normalize. 
-
-## Counting reads in peaks and differential binding 
+## Counting reads in peaks 
 
 ```{r, engine='R', eval=F, echo=T}
 #libraries
@@ -553,7 +559,7 @@ get.counts.interval <- function(df, path.to.bigWig, file.prefix = 'H') {
 }
 
 ma.plot.lattice <- function(ma.df, filename = 'file.name', 
-         title.main = "Differential ATAC-seq Accessibility", ymin = -4,
+         title.main = "Differential ChIP-seq Accessibility", ymin = -4,
          ymax=4,
          col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
   {
@@ -569,9 +575,6 @@ ma.plot.lattice <- function(ma.df, filename = 'file.name',
                                  par.ylab.text=list(cex=1.1,font=2))));
   dev.off()
   }
-
-
-
 
 
 categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
@@ -621,37 +624,28 @@ categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
 	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'All Other Genes'))
     return(df.effects.lattice)
 }
+```
 
-
-#things to do:
-# 
-
-
-
-#ZNF143 size factors from read depth
-
-
-x = read.table('CTCF_ChIP_summit_400window_isolated.bed', sep = "\t", header=FALSE)
-y = read.table('ZNF143_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+```{r, engine='R', eval=F, echo=T}
+# recall that these summit_XXXwindow.bed has the peak region info.
+a = read.table('GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+b = read.table('GATAdegrade_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+c = read.table('ER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+d = read.table('CTCF_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+e = read.table('CTER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 
 #normalized signal
-znf.signal.df = get.counts.interval(y, "/Users/guertinlab/Desktop/ZNF143_ChIP/normalized_bigWig")
+GATA.signal.df= get.counts.interval(a, "/normalized_bw","MCF")
+ER.signal.df= get.counts.interval(b, "/normalized_bw","MCF")
+CTCF.signal.df= get.counts.interval(c, "/normalized_bw","MCF")
+IgG.signal.df= get.counts.interval(d, "/normalized_bw","MCF")
+CTER.signal.df= get.counts.interval(e, "/normalized_bw","MCF")
 
-#likewise for CTCF
-ctcf.signal.df = get.counts.interval(x, "/Users/guertinlab/Desktop/ZNF143_ChIP/normalized_bigWig")
+```
 
+# Counting differential binding 
 
-ctcf.counts.df = get.counts.interval(x, "/Users/guertinlab/Desktop/ZNF143_ChIP")
-znf143.counts.df = get.counts.interval(y, "/Users/guertinlab/Desktop/ZNF143_ChIP")
-
-#
-
-HA.SF <- read.table("HA_reads.txt", sep = '\t', header = TRUE)[,-1]
-
-HA.size.factors = estimateSizeFactorsForMatrix(HA.SF)
-
-
-
+```{r, engine='R', eval=F, echo=T}
 #first step is get sizefactors for CTCFHA degron, CTCFHA ctrl, CTCF degron, CTCF ctrl
 #next step is identify ZNF143 peaks distal to any CTCF peak
 #get sizefactors of HA ctrl and HACTCF ctrl for these peaks
@@ -740,9 +734,7 @@ count = count +1
 write.table(file = paste0('quantile', as.character(q[count]), '.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start[peak.intensities > j & peak.intensities <= i], end[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
 j = i
 }
-
 ```
-
 
 # Now switch over to the PRO-seq vignette to determine the functional peaks
 
