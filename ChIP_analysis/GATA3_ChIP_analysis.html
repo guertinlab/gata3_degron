@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-27" />
+<meta name="date" content="2023-07-28" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-07-27</h4>
+<h4 class="date">2023-07-28</h4>
 
 </div>
 
@@ -1329,70 +1329,29 @@ d = read.table(&#39;CTCF_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, h
 e = read.table(&#39;CTER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 
 #normalized signal
-GATA.signal.df= get.counts.interval(a, &quot;/normalized_bw&quot;,&quot;MCF&quot;)
-ER.signal.df= get.counts.interval(b, &quot;/normalized_bw&quot;,&quot;MCF&quot;)
-CTCF.signal.df= get.counts.interval(c, &quot;/normalized_bw&quot;,&quot;MCF&quot;)
-IgG.signal.df= get.counts.interval(d, &quot;/normalized_bw&quot;,&quot;MCF&quot;)
-CTER.signal.df= get.counts.interval(e, &quot;/normalized_bw&quot;,&quot;MCF&quot;)</code></pre>
+GATA.signal.df= get.counts.interval(a, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+GATAdegrade.signal.df= get.counts.interval(b, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+CTCF.signal.df= get.counts.interval(d, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quot;)</code></pre>
 </div>
 </div>
 <div id="counting-differential-binding" class="section level1" number="8">
 <h1><span class="header-section-number">8</span> Counting differential binding</h1>
-<pre class="r"><code>#first step is get sizefactors for CTCFHA degron, CTCFHA ctrl, CTCF degron, CTCF ctrl
-#next step is identify ZNF143 peaks distal to any CTCF peak
-#get sizefactors of HA ctrl and HACTCF ctrl for these peaks
-#get sizefactors of HA degron and HACTCF degron for these peaks 
-#use the HACTCF degron and HACTCF ctrl to get normalized size factors between all conditions 
+<ol style="list-style-type: decimal">
+<li>GATA Analysis</li>
+</ol>
+<pre class="r"><code>GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.regions))]
+#GATAdegrade.signal.df
 
-all.regions = rbind(ctcf.counts.df, znf143.counts.df)
-
-#ctcf.all.regions=all.regions[,grepl(&quot;CTCF&quot;,colnames(all.regions))]
-#sample.conditions = factor(sapply(strsplit(colnames(ctcf.all.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
-
-#deseq.counts.table = DESeqDataSetFromMatrix(countData = ctcf.all.regions,
-#                colData = as.data.frame(sample.conditions), 
-#                design = ~ sample.conditions)
-                
-#dds &lt;- estimateSizeFactors(deseq.counts.table , controlGenes=rownames(deseq.counts.table) %in% rownames(ctcf.counts.df))
-#dds &lt;- DESeq(dds)
-#anchor.SF = dds$sizeFactor
-
-
-#
-znf143.analysis.regions=all.regions[,grepl(&quot;_HA_&quot;,colnames(all.regions))]
-
-znf143.analysis.regions = znf143.analysis.regions[rownames(znf143.analysis.regions) %in% rownames(znf143.counts.df),]
-
-
-znf143.analysis.SF = HA.size.factors
-
-sample.conditions = factor(sapply(strsplit(colnames(znf143.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
-
-deseq.counts.table.4 = DESeqDataSetFromMatrix(countData = znf143.analysis.regions,
+sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
+deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
-        
-        
-#deseq.counts.table.4$colnames
-#HA.sf.final = rep(NA, 6)
-#HA.sf = read.table(i, sep = &#39;\t&#39;, header = FALSE, check.names=FALSE)[,-1]
-#HA.sf=t(HA.sf)
-
-#factors &lt;- read.table(&quot;ATAC_sizeFactor.txt&quot;)
-#HA.sf.final[1:6] = as.numeric(HA.sf[2,1:6])
-#names(HA.sf.final) = HA.sf[1,]
-#sizeFactors(deseq.df) &lt;- size_factors
-
-
-#sizeFactors(deseq.counts.table.4) &lt;- HA.sf.final/mean(HA.sf.final)
-
-sizeFactors(deseq.counts.table.4) &lt;- znf143.analysis.SF
-
-dds.4 &lt;- DESeq(deseq.counts.table.4)
-
-
-
-DE.results = results(dds.4)
+GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;)
+sizeFactors(deseq.counts.table) &lt;- GATA.SF
+dds &lt;- DESeq(deseq.counts.table)
+DE.results = results(dds)
 #DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
 #                        fdr = 0.1, log2fold = 0.0, treat =
