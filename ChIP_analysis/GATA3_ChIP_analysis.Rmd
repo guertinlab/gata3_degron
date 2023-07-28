@@ -382,9 +382,9 @@ done
 
 ```
 
-# Size factors from library 
+# Differential expression analysis with DEseq2 
 
-## Counting size factors 
+## Counting size factors from libraries
 
 Here we use `samtools` to count the read size of each library. The Flag is user-defined, the flag `0x3` in the command means read paired and read mapped in proper pair. We can use this website: https://broadinstitute.github.io/picard/explain-flags.html to understand what property and what flag we want to specify.
 
@@ -497,36 +497,14 @@ done
 
 ```
 
-In the previous chunk we have created read size table of library with same ChIP factor. Now we are use a `DESeq2` function `estimateSizeFactorsForMatrix` to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
+## R
+Now we are moving to R section. We will load `R/4.1.2`, which has many pre-installed libraries on Xanadu. 
 
-```{r engine='bash', eval=F, echo=TRUE}
+```{r, engine='R', eval=F, echo=T}
 module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
 
 R 
 
-library(DESeq2)
-
-#GATA3
-GATA.SF <- read.table("GATA_reads.txt", sep = '\t', header = TRUE)[,-1]
-GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
-#ER
-ER.SF <- read.table("ER_reads.txt", sep = '\t', header = TRUE)[,-1]
-ER.size.factors = estimateSizeFactorsForMatrix(ER.SF)
-#CTCF
-CTCF.SF <- read.table("CTCF_reads.txt", sep = '\t', header = TRUE)[,-1]
-CTCF.size.factors = estimateSizeFactorsForMatrix(CTCF.SF)
-#IgG
-IgG.SF <- read.table("IgG_reads.txt", sep = '\t', header = TRUE)[,-1]
-IgG.size.factors = estimateSizeFactorsForMatrix(IgG.SF)
-#CTER
-CTER.SF <- read.table("CTER_reads.txt", sep = '\t', header = TRUE)[,-1]
-CTER.size.factors = estimateSizeFactorsForMatrix(CTER.SF)
-```
-
-
-## Counting reads in peaks 
-
-```{r, engine='R', eval=F, echo=T}
 #libraries
 library(DESeq2)
 library(lattice)
@@ -626,6 +604,19 @@ categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
 }
 ```
 
+In the previous chunk we have created read size table ("XX_reads.txt") of library with same ChIP factor. Another way to estimate read size is to use the `DESeq2` function `estimateSizeFactorsForMatrix` to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
+
+An example:
+
+```{r engine='bash', eval=F, echo=TRUE}
+#GATA3
+GATA.SF <- read.table("GATA_reads.txt", sep = '\t', header = TRUE)[,-1]
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
+```
+
+
+## Counting reads in peaks `
+
 ```{r, engine='R', eval=F, echo=T}
 # recall that these summit_XXXwindow.bed has the peak region info.
 a = read.table('GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
@@ -645,9 +636,10 @@ CTER.signal.df= get.counts.interval(e, "./normalized_bw","MCF")
 
 # Counting differential binding 
 
-1. GATA Analysis
-```{r, engine='R', eval=F, echo=T}
+Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used. \
 
+```{r, engine='R', eval=F, echo=T}
+# 1. GATA Analysis
 GATA.analysis.regions=GATA.signal.df[,grepl("_GATA_",colnames(all.regions))]
 #GATAdegrade.signal.df
 
@@ -655,8 +647,8 @@ sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_re
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
-GATA.SF <- read.table("GATA_reads.txt")
-sizeFactors(deseq.counts.table) <- GATA.SF
+GATA.SF <- read.table("GATA_reads.txt") # GATA size factors from read depth
+sizeFactors(deseq.counts.table) <- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 dds <- DESeq(deseq.counts.table)
 DE.results = results(dds)
 #DE.results.lattice = 
