@@ -1333,8 +1333,8 @@ CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quo
 <p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
 </p>
 <pre class="r"><code># 1. GATA Analysis
-GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.regions))]
-#GATAdegrade.signal.df
+all.GATA.signal.df =rbind(GATA.signal.df, GATAdegrade.signal.df)
+GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.GATA.signal.df))]
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
