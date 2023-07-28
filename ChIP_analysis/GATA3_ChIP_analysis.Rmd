@@ -641,8 +641,8 @@ Differential expression analysis is used to identify gene expression differences
 
 ```{r, engine='R', eval=F, echo=T}
 # 1. GATA Analysis
-GATA.analysis.regions=GATA.signal.df[,grepl("_GATA_",colnames(all.regions))]
-#GATAdegrade.signal.df
+all.GATA.signal.df =rbind(GATA.signal.df, GATAdegrade.signal.df)
+GATA.analysis.regions=GATA.signal.df[,grepl("_GATA_",colnames(all.GATA.signal.df))]
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_rep'), '[', 1))
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
