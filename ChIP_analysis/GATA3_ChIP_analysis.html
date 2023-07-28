@@ -1202,8 +1202,8 @@ done
 </div>
 <div id="r" class="section level2" number="7.2">
 <h2><span class="header-section-number">7.2</span> R</h2>
-<p>Now we are moving to R section. We will load <code>R/4.1.2</code>, which has many pre-installed libraries on Xanadu.</p>
-<pre class="r"><code>module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
+<p>Now we are moving to the R section. We will load <code>R/4.1.2</code>, which has many pre-installed libraries on Xanadu.</p>
+<pre class="r"><code>module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries pre-installed. 
 
 R 
 
@@ -1340,10 +1340,13 @@ sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
+
 GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;) # GATA size factors from read depth
 sizeFactors(deseq.counts.table) &lt;- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+
 dds &lt;- DESeq(deseq.counts.table)
 DE.results = results(dds)
+
 #DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
 #                        fdr = 0.1, log2fold = 0.0, treat =
@@ -1376,7 +1379,9 @@ count = count +1
 
 write.table(file = paste0(&#39;quantile&#39;, as.character(q[count]), &#39;.bed&#39;), data.frame(chr[peak.intensities &gt; j &amp; peak.intensities &lt;= i], start[peak.intensities &gt; j &amp; peak.intensities &lt;= i], end[peak.intensities &gt; j &amp; peak.intensities &lt;= i], peak.intensities[peak.intensities &gt; j &amp; peak.intensities &lt;= i]), sep = &#39;\t&#39;, quote=FALSE, col.names=FALSE, row.names=FALSE )
 j = i
-}</code></pre>
+}
+
+save.image</code></pre>
 </div>
 <div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="9">
 <h1><span class="header-section-number">9</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
