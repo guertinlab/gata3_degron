@@ -498,10 +498,11 @@ done
 ```
 
 ## R
-Now we are moving to R section. We will load `R/4.1.2`, which has many pre-installed libraries on Xanadu. 
+
+Now we are moving to the R section. We will load `R/4.1.2`, which has many pre-installed libraries on Xanadu. 
 
 ```{r, engine='R', eval=F, echo=T}
-module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
+module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries pre-installed. 
 
 R 
 
@@ -647,10 +648,13 @@ sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_re
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
+
 GATA.SF <- read.table("GATA_reads.txt") # GATA size factors from read depth
 sizeFactors(deseq.counts.table) <- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+
 dds <- DESeq(deseq.counts.table)
 DE.results = results(dds)
+
 #DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
 #                        fdr = 0.1, log2fold = 0.0, treat =
@@ -685,6 +689,7 @@ write.table(file = paste0('quantile', as.character(q[count]), '.bed'), data.fram
 j = i
 }
 
+save.image
 ```
 
 # Now switch over to the PRO-seq vignette to determine the functional peaks
