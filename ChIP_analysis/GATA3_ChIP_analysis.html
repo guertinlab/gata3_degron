@@ -725,10 +725,11 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#removing-peaks-on-contigs-and-within-blacklisted-regions" id="toc-removing-peaks-on-contigs-and-within-blacklisted-regions"><span class="toc-section-number">6.1</span> Removing peaks on contigs and within blacklisted regions</a></li>
 </ul></li>
-<li><a href="#size-factors-from-library" id="toc-size-factors-from-library"><span class="toc-section-number">7</span> Size factors from library</a>
+<li><a href="#differential-expression-analysis-with-deseq2" id="toc-differential-expression-analysis-with-deseq2"><span class="toc-section-number">7</span> Differential expression analysis with DEseq2</a>
 <ul>
-<li><a href="#counting-size-factors" id="toc-counting-size-factors"><span class="toc-section-number">7.1</span> Counting size factors</a></li>
-<li><a href="#counting-reads-in-peaks" id="toc-counting-reads-in-peaks"><span class="toc-section-number">7.2</span> Counting reads in peaks</a></li>
+<li><a href="#counting-size-factors-from-libraries" id="toc-counting-size-factors-from-libraries"><span class="toc-section-number">7.1</span> Counting size factors from libraries</a></li>
+<li><a href="#r" id="toc-r"><span class="toc-section-number">7.2</span> R</a></li>
+<li><a href="#counting-reads-in-peaks" id="toc-counting-reads-in-peaks"><span class="toc-section-number">7.3</span> Counting reads in peaks `</a></li>
 </ul></li>
 <li><a href="#counting-differential-binding" id="toc-counting-differential-binding"><span class="toc-section-number">8</span> Counting differential binding</a></li>
 <li><a href="#now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" id="toc-now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks"><span class="toc-section-number">9</span> Now switch over to the PRO-seq vignette to determine the functional peaks</a></li>
@@ -1087,10 +1088,10 @@ done
 </code></pre>
 </div>
 </div>
-<div id="size-factors-from-library" class="section level1" number="7">
-<h1><span class="header-section-number">7</span> Size factors from library</h1>
-<div id="counting-size-factors" class="section level2" number="7.1">
-<h2><span class="header-section-number">7.1</span> Counting size factors</h2>
+<div id="differential-expression-analysis-with-deseq2" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> Differential expression analysis with DEseq2</h1>
+<div id="counting-size-factors-from-libraries" class="section level2" number="7.1">
+<h2><span class="header-section-number">7.1</span> Counting size factors from libraries</h2>
 <p>Here we use <code>samtools</code> to count the read size of each library. The Flag is user-defined, the flag <code>0x3</code> in the command means read paired and read mapped in proper pair. We can use this website: <a href="https://broadinstitute.github.io/picard/explain-flags.html" class="uri">https://broadinstitute.github.io/picard/explain-flags.html</a> to understand what property and what flag we want to specify.</p>
 <pre class="bash"><code>
 #calculate the size factors of each library
@@ -1198,33 +1199,15 @@ do
   rm ${i}_header.txt
 done 
 </code></pre>
-<p>In the previous chunk we have created read size table of library with same ChIP factor. Now we are use a <code>DESeq2</code> function <code>estimateSizeFactorsForMatrix</code> to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column.<br />
-</p>
-<pre class="bash"><code>module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
+</div>
+<div id="r" class="section level2" number="7.2">
+<h2><span class="header-section-number">7.2</span> R</h2>
+<p>Now we are moving to R section. We will load <code>R/4.1.2</code>, which has many pre-installed libraries on Xanadu.</p>
+<pre class="r"><code>module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries preinstalled. 
 
 R 
 
-library(DESeq2)
-
-#GATA3
-GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
-GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
-#ER
-ER.SF &lt;- read.table(&quot;ER_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
-ER.size.factors = estimateSizeFactorsForMatrix(ER.SF)
-#CTCF
-CTCF.SF &lt;- read.table(&quot;CTCF_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
-CTCF.size.factors = estimateSizeFactorsForMatrix(CTCF.SF)
-#IgG
-IgG.SF &lt;- read.table(&quot;IgG_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
-IgG.size.factors = estimateSizeFactorsForMatrix(IgG.SF)
-#CTER
-CTER.SF &lt;- read.table(&quot;CTER_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
-CTER.size.factors = estimateSizeFactorsForMatrix(CTER.SF)</code></pre>
-</div>
-<div id="counting-reads-in-peaks" class="section level2" number="7.2">
-<h2><span class="header-section-number">7.2</span> Counting reads in peaks</h2>
-<pre class="r"><code>#libraries
+#libraries
 library(DESeq2)
 library(lattice)
 library(dplyr)
@@ -1321,6 +1304,15 @@ categorize.deseq.df.repressed &lt;- function(df, fdr = 0.1, log2fold = 0.0, trea
     #df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, &#39;All Other Genes&#39;))
     return(df.effects.lattice)
 }</code></pre>
+<p>In the previous chunk we have created read size table (“XX_reads.txt”) of library with same ChIP factor. Another way to estimate read size is to use the <code>DESeq2</code> function <code>estimateSizeFactorsForMatrix</code> to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column.<br />
+</p>
+<p>An example:</p>
+<pre class="bash"><code>#GATA3
+GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)</code></pre>
+</div>
+<div id="counting-reads-in-peaks" class="section level2" number="7.3">
+<h2><span class="header-section-number">7.3</span> Counting reads in peaks `</h2>
 <pre class="r"><code># recall that these summit_XXXwindow.bed has the peak region info.
 a = read.table(&#39;GATA_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 b = read.table(&#39;GATAdegrade_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
@@ -1338,18 +1330,18 @@ CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quo
 </div>
 <div id="counting-differential-binding" class="section level1" number="8">
 <h1><span class="header-section-number">8</span> Counting differential binding</h1>
-<ol style="list-style-type: decimal">
-<li>GATA Analysis</li>
-</ol>
-<pre class="r"><code>GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.regions))]
+<p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
+</p>
+<pre class="r"><code># 1. GATA Analysis
+GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.regions))]
 #GATAdegrade.signal.df
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
 deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
-GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;)
-sizeFactors(deseq.counts.table) &lt;- GATA.SF
+GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;) # GATA size factors from read depth
+sizeFactors(deseq.counts.table) &lt;- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 dds &lt;- DESeq(deseq.counts.table)
 DE.results = results(dds)
 #DE.results.lattice = 
