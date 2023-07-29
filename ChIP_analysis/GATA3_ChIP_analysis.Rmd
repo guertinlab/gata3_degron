@@ -333,10 +333,12 @@ mkdir temp_macs
 macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # ER (merged from ER_CE_2files,dE)
 macs3 callpeak --call-summits -t *_ER_*bam -c *IgG*bam -n ER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-# GATA (merged from GATA_CC,CE)
-macs3 callpeak --call-summits -t *GATA_C*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# GATA (merged from GATA_CC,CE,dE)
+macs3 callpeak --call-summits -t *GATA_C*bam -c *IgG*bam -n GATActrl_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # GATA_degrade (gata_dE)
 macs3 callpeak --call-summits -t *GATA_d*bam -c *IgG*bam -n GATAdegrade_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+# GATA all
+macs3 callpeak --call-summits -t *_GATA_*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # CTER
 macs3 callpeak --call-summits -t *CTER_*bam -c *IgG*bam -n CTER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 ```
@@ -376,7 +378,7 @@ do
 	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_summits.bed" '{print $1}')
 	echo $name
 	grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ${name}_summits_final.bed
-	slopBed -b 70 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
+	#slopBed -b 70 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
    	slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
 done
 
@@ -643,9 +645,10 @@ Differential expression analysis is used to identify gene expression differences
 # 1. GATA Analysis
 all.GATA.signal.df =rbind(GATA.signal.df, GATAdegrade.signal.df)
 GATA.analysis.regions=GATA.signal.df[,grepl("_GATA_",colnames(all.GATA.signal.df))]
+GATA.analysis.regions=GATA.analysis.regions[rownames(znf143.analysis.regions) %in% rownames(znf143.counts.df),]
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_rep'), '[', 1))
-deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions,
+deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
 
@@ -653,7 +656,7 @@ GATA.SF <- read.table("GATA_reads.txt") # GATA size factors from read depth
 sizeFactors(deseq.counts.table) <- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 
 dds <- DESeq(deseq.counts.table)
-DE.results = results(dds)
+DE.results = results(dds) # use `contrast` to compare any two groups
 
 #DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
