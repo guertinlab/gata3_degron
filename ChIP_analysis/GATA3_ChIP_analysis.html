@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-29" />
+<meta name="date" content="2023-07-30" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-07-29</h4>
+<h4 class="date">2023-07-30</h4>
 
 </div>
 
@@ -1316,18 +1316,31 @@ GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)</code></pre>
 <div id="counting-reads-in-peaks" class="section level2" number="7.3">
 <h2><span class="header-section-number">7.3</span> Counting reads in peaks `</h2>
 <pre class="r"><code># recall that these summit_XXXwindow.bed has the peak region info.
-a = read.table(&#39;GATA_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
-b = read.table(&#39;GATAdegrade_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
+a =  read.table(&#39;GATA_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
+
+b1 = read.table(&#39;GATActrl_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
+b2 = read.table(&#39;GATAdegrade_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 c = read.table(&#39;ER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 d = read.table(&#39;CTCF_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 e = read.table(&#39;CTER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 
 #normalized signal
 GATA.signal.df= get.counts.interval(a, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
-GATAdegrade.signal.df= get.counts.interval(b, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+
+GATActrl.signal.df= get.counts.interval(b1, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+GATAdegrade.signal.df= get.counts.interval(b2, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 CTCF.signal.df= get.counts.interval(d, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
-CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quot;)</code></pre>
+CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+
+#un-normalized counts
+GATA.counts.df= get.counts.interval(a, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+
+GATActrl.counts.df= get.counts.interval(b1, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+GATAdegrade.counts.df= get.counts.interval(b2, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+CTCF.counts.df= get.counts.interval(d, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)</code></pre>
 </div>
 </div>
 <div id="counting-differential-binding" class="section level1" number="8">
@@ -1335,17 +1348,21 @@ CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quo
 <p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
 </p>
 <pre class="r"><code># 1. GATA Analysis
-all.GATA.signal.df =rbind(GATA.signal.df, GATAdegrade.signal.df)
-GATA.analysis.regions=GATA.signal.df[,grepl(&quot;_GATA_&quot;,colnames(all.GATA.signal.df))]
-GATA.analysis.regions=GATA.analysis.regions[rownames(znf143.analysis.regions) %in% rownames(znf143.counts.df),]
+GATA.analysis.regions=GATA.signals.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.signals.df))]
+# identical(rownames(GATA.analysis.regions),rownames(GATA.signal.df))
+# [1] TRUE
+GATA.analysis.regions2=GATA.counts.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.counts.df))] 
+
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
-deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers
+deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers, it would be okay to round the data if they are not been normalized...
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
 
 GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;) # GATA size factors from read depth
-sizeFactors(deseq.counts.table) &lt;- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller numbers
+
+sizeFactors(deseq.counts.table) &lt;- GATA.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 
 dds &lt;- DESeq(deseq.counts.table)
 DE.results = results(dds) # use `contrast` to compare any two groups
