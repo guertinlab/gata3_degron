@@ -622,19 +622,31 @@ GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
 
 ```{r, engine='R', eval=F, echo=T}
 # recall that these summit_XXXwindow.bed has the peak region info.
-a = read.table('GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
-b = read.table('GATAdegrade_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+a =  read.table('GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+
+b1 = read.table('GATActrl_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+b2 = read.table('GATAdegrade_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 c = read.table('ER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 d = read.table('CTCF_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 e = read.table('CTER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 
 #normalized signal
 GATA.signal.df= get.counts.interval(a, "./normalized_bw","MCF")
-GATAdegrade.signal.df= get.counts.interval(b, "./normalized_bw","MCF")
+
+GATActrl.signal.df= get.counts.interval(b1, "./normalized_bw","MCF")
+GATAdegrade.signal.df= get.counts.interval(b2, "./normalized_bw","MCF")
 ER.signal.df= get.counts.interval(c, "./normalized_bw","MCF")
 CTCF.signal.df= get.counts.interval(d, "./normalized_bw","MCF")
 CTER.signal.df= get.counts.interval(e, "./normalized_bw","MCF")
 
+#un-normalized counts
+GATA.counts.df= get.counts.interval(a, "./non_normalized_bw","MCF")
+
+GATActrl.counts.df= get.counts.interval(b1, "./non_normalized_bw","MCF")
+GATAdegrade.counts.df= get.counts.interval(b2, "./non_normalized_bw","MCF")
+ER.counts.df= get.counts.interval(c, "./non_normalized_bw","MCF")
+CTCF.counts.df= get.counts.interval(d, "./non_normalized_bw","MCF")
+CTER.counts.df= get.counts.interval(e, "./non_normalized_bw","MCF")
 ```
 
 # Counting differential binding 
@@ -643,17 +655,21 @@ Differential expression analysis is used to identify gene expression differences
 
 ```{r, engine='R', eval=F, echo=T}
 # 1. GATA Analysis
-all.GATA.signal.df =rbind(GATA.signal.df, GATAdegrade.signal.df)
-GATA.analysis.regions=GATA.signal.df[,grepl("_GATA_",colnames(all.GATA.signal.df))]
-GATA.analysis.regions=GATA.analysis.regions[rownames(znf143.analysis.regions) %in% rownames(znf143.counts.df),]
+GATA.analysis.regions=GATA.signals.df[,grepl("_GATA_",colnames(GATA.signals.df))]
+# identical(rownames(GATA.analysis.regions),rownames(GATA.signal.df))
+# [1] TRUE
+GATA.analysis.regions2=GATA.counts.df[,grepl("_GATA_",colnames(GATA.counts.df))] 
+
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_rep'), '[', 1))
-deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers
+deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers, it would be okay to round the data if they are not been normalized...
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
 
 GATA.SF <- read.table("GATA_reads.txt") # GATA size factors from read depth
-sizeFactors(deseq.counts.table) <- GATA.SF # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller numbers
+
+sizeFactors(deseq.counts.table) <- GATA.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 
 dds <- DESeq(deseq.counts.table)
 DE.results = results(dds) # use `contrast` to compare any two groups
