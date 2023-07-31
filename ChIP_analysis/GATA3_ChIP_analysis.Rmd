@@ -639,14 +639,14 @@ ER.signal.df= get.counts.interval(c, "./normalized_bw","MCF")
 CTCF.signal.df= get.counts.interval(d, "./normalized_bw","MCF")
 CTER.signal.df= get.counts.interval(e, "./normalized_bw","MCF")
 
-#un-normalized counts
-GATA.counts.df= get.counts.interval(a, "./non_normalized_bw","MCF")
+#non-normalized counts
+GATA.counts.df= get.counts.interval(a, "./non_normalized_bw/non_merge","MCF")
 
-GATActrl.counts.df= get.counts.interval(b1, "./non_normalized_bw","MCF")
-GATAdegrade.counts.df= get.counts.interval(b2, "./non_normalized_bw","MCF")
-ER.counts.df= get.counts.interval(c, "./non_normalized_bw","MCF")
-CTCF.counts.df= get.counts.interval(d, "./non_normalized_bw","MCF")
-CTER.counts.df= get.counts.interval(e, "./non_normalized_bw","MCF")
+GATActrl.counts.df= get.counts.interval(b1, "./non_normalized_bw/non_merge","MCF")
+GATAdegrade.counts.df= get.counts.interval(b2, "./non_normalized_bw/non_merge","MCF")
+ER.counts.df= get.counts.interval(c, "./non_normalized_bw/non_merge","MCF")
+CTCF.counts.df= get.counts.interval(d, "./non_normalized_bw/non_merge","MCF")
+CTER.counts.df= get.counts.interval(e, "./non_normalized_bw/non_merge","MCF")
 ```
 
 # Counting differential binding 
@@ -655,25 +655,37 @@ Differential expression analysis is used to identify gene expression differences
 
 ```{r, engine='R', eval=F, echo=T}
 # 1. GATA Analysis
-GATA.analysis.regions=GATA.signals.df[,grepl("_GATA_",colnames(GATA.signals.df))]
-# identical(rownames(GATA.analysis.regions),rownames(GATA.signal.df))
+GATA.analysis.regions=GATA.counts.df[,grepl("_GATA_",colnames(GATA.counts.df))] # non-normalized counts
+# identical(rownames(GATA.analysis.regions),rownames(GATA.counts.df))
 # [1] TRUE
-GATA.analysis.regions2=GATA.counts.df[,grepl("_GATA_",colnames(GATA.counts.df))] 
 
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_rep'), '[', 1))
-deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers, it would be okay to round the data if they are not been normalized...
+deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions, # DESeqDataSet needs countData to be non-negative integers; non-normalized counts are integer, normalized signals has decimals.
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
 
-GATA.SF <- read.table("GATA_reads.txt") # GATA size factors from read depth
-GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller numbers
+
+GATA.SF <- read.table("GATA_reads.txt", sep = '\t', header = TRUE)[,-1] # GATA size factors from read depth
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller ratios
 
 sizeFactors(deseq.counts.table) <- GATA.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 
 dds <- DESeq(deseq.counts.table)
-DE.results = results(dds) # use `contrast` to compare any two groups
+#resultsNames(dds)
+#[1] "Intercept"                                                             
+#[2] "sample.conditions_MCF7_dTAGGATA522_GATA_CE_vs_MCF7_dTAGGATA522_GATA_CC"
+#[3] "sample.conditions_MCF7_dTAGGATA522_GATA_dE_vs_MCF7_dTAGGATA522_GATA_CC"
 
+DE.results = results(dds) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+DE.results.dEvsCC= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_dE", "MCF7_dTAGGATA522_GATA_CC"))
+DE.results.CEvsCC= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_CE", "MCF7_dTAGGATA522_GATA_CC"))
+DE.results.dEvsCE= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_dE", "MCF7_dTAGGATA522_GATA_CE"))
+
+save.image('230731_GATA3_ChIP_deseq.Rdata') 
+```
+
+```{r, engine='R', eval=F, echo=T}
 #DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
 #                        fdr = 0.1, log2fold = 0.0, treat =
@@ -708,7 +720,6 @@ write.table(file = paste0('quantile', as.character(q[count]), '.bed'), data.fram
 j = i
 }
 
-save.image
 ```
 
 # Now switch over to the PRO-seq vignette to determine the functional peaks
