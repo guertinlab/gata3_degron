@@ -172,7 +172,7 @@ gzip ${name}_PE1_no_adapt.fastq
 gzip ${name}_PE2_no_adapt.fastq
 gzip ${name}_PE2.fastq
 gzip ${name}_PE1.fastq
-samtools fixmate -f 0x2 -m ${name}.bw.bam - | samtools sort -@ $ncore - | samtools markdup -s -r - ${name}.hg38.bam
+samtools fixmate -m ${name}.bw.bam - | samtools sort -@ $ncore - | samtools markdup -s -r - ${name}.hg38.bam
 seqOutBias ${genome} ${name}.hg38.bam --shift-counts --no-scale \
                                       --bw=${name}.bigWig --read-size=42 --tallymer=$tallymer 2>&1 | tee ${name}_seqOutBias.log
 samtools sort -@ $ncore -n -o ${name}.sorted.bam ${name}.hg38.bam
