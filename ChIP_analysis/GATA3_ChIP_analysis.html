@@ -1305,6 +1305,54 @@ categorize.deseq.df.repressed &lt;- function(df, fdr = 0.1, log2fold = 0.0, trea
     #df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, &#39;Unchanged&#39;))
     #df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, &#39;All Other Genes&#39;))
     return(df.effects.lattice)
+}
+
+categorize.deseq.df.activated &lt;- function(df, fdr = 0.1, log2fold = 0.0, treat
+= &#39;Auxin&#39;) {
+
+     df.activated = data.frame(matrix(nrow = 0, ncol = 0))
+     df.repressed = data.frame(matrix(nrow = 0, ncol = 0))
+     df.unchanged = data.frame(matrix(nrow = 0, ncol = 0))
+     df.dregs = data.frame(matrix(nrow = 0, ncol = 0))
+     if (nrow(df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold,]) != 0) {
+        df.activated = df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold,]
+    df.activated$response = paste(treat, &#39;Activated&#39;)
+    }
+
+     if (nrow(df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold,]) != 0) {
+        df.repressed = df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold,]
+    df.repressed$response = paste(treat, &#39;Repressed&#39;)
+    }
+    
+    if (nrow(df[df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp; abs(df$log2FoldChange) &lt; 0.25,]) != 0) {
+    df.unchanged = df[df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp; abs(df$log2FoldChange) &lt; 0.25,]
+    df.unchanged$response = paste(treat, &#39;Unchanged&#39;)
+    }
+
+    if (nrow(df[!(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold) &amp;
+                  !(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold) &amp;
+                  !(df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp;
+              abs(df$log2FoldChange) &lt; 0.25), ]) != 0) {
+    df.dregs = df[!(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold) &amp;
+                  !(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold) &amp;
+                  !(df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp;
+              abs(df$log2FoldChange) &lt; 0.25), ]
+    df.dregs$response = paste(treat, &#39;All Other Genes&#39;)
+    }
+    print(head(df.repressed))
+    print(head(df.activated))
+    print(head(df.dregs))
+    print(head(df.unchanged))
+    df.effects.lattice = df.activated
+    #rbind(df.activated, 
+    #      df.unchanged, 
+    #      df.repressed, 
+    #      df.dregs)
+    print(head(df.effects.lattice))
+    #df.effects.lattice$response = factor(df.effects.lattice$response)
+    #df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, &#39;Unchanged&#39;))
+    #df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, &#39;All Other Genes&#39;))
+    return(df.effects.lattice)
 }</code></pre>
 <p>In the previous chunk we have created read size table (“XX_reads.txt”) of library with same ChIP factor. Another way to estimate read size is to use the <code>DESeq2</code> function <code>estimateSizeFactorsForMatrix</code> to estimate size factors with robust regression: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column.<br />
 </p>
@@ -1376,19 +1424,42 @@ DE.results.CEvsCC= results(dds, contrast=c(&quot;sample.conditions&quot;, &quot;
 DE.results.dEvsCE= results(dds, contrast=c(&quot;sample.conditions&quot;, &quot;MCF7_dTAGGATA522_GATA_dE&quot;, &quot;MCF7_dTAGGATA522_GATA_CE&quot;))
 
 save.image(&#39;230731_GATA3_ChIP_deseq.Rdata&#39;) </code></pre>
-<pre class="r"><code>#DE.results.lattice = 
-#    categorize.deseq.df.repressed(DE.results, 
-#                        fdr = 0.1, log2fold = 0.0, treat =
-#                       &#39;ZNF143_degron_30min&#39;)
-                        
+<pre class="r"><code># notice that the &quot;categorize.deseq.df&quot; function in source file is giving errors: Error in rep_len(xi, nvar) : attempt to replicate non-vector; This seems to be caused by the &quot;rbind&quot; command in the end.
+# the activated group gives null obs.
 #DE.results.lattice = 
-#    categorize.deseq.df(DE.results, 
-#                        fdr = 0.1, log2fold = 0.0, treat =
-#                       &#39;ZNF143_degron_30min&#39;)
-                        
-                        
-normalized.counts.znf143 = counts(dds.4, normalized=TRUE)
-peak.intensities = rowMeans(normalized.counts.znf143[,1:3])
+#  categorize.deseq.df.repressed(DE.results, 
+#                      fdr = 0.1, log2fold = 0.0, treat =
+#                        &#39;GATA3&#39;)
+#DE.results.lattice2 = 
+#    categorize.deseq.df.activated(DE.results, 
+#                                  fdr = 0.1, log2fold = 0.0, treat =
+#                                      &#39;GATA3&#39;)
+
+# CE vs CC
+DE.results.lattice.CEvsCC.repressed = 
+   categorize.deseq.df.repressed(DE.results.CEvsCC, 
+                       fdr = 0.1, log2fold = 0.0, treat =
+                      &#39;GATA3_E2_30min&#39;)
+#DE.results.lattice.CEvsCC.activated = 
+#   categorize.deseq.df.activated(DE.results.CEvsCC, 
+#                       fdr = 0.1, log2fold = 0.0, treat =
+#                      &#39;GATA3_E2_30min&#39;) # gives null obs
+
+# dE vs CE
+DE.results.lattice.dEvsCE.repressed= 
+  categorize.deseq.df.repressed(DE.results.dEvsCE, 
+                      fdr = 0.1, log2fold = 0.0, treat =
+                        &#39;GATA3_degron_30min&#39;)
+#DE.results.lattice.CEvsCC.activated = 
+#   categorize.deseq.df.activated(DE.results.CEvsCC, 
+#                       fdr = 0.1, log2fold = 0.0, treat =
+#                      &#39;GATA3_E2_30min&#39;) # gives null obs
+
+#identical(DE.results.lattice.dEvsCE.repressed, DE.results.lattice.CEvsCC.repressed)
+#[1] FALSE   
+
+normalized.counts.GATA3 = counts(dds, normalized=TRUE)
+peak.intensities = rowMeans(normalized.counts.GATA3[,1:3])
 
 names(peak.intensities) = rownames(normalized.counts.znf143)
 chr = sapply(strsplit(names(peak.intensities), &quot;:&quot;), &quot;[&quot;, 1)
