@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-30" />
+<meta name="date" content="2023-07-31" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-07-30</h4>
+<h4 class="date">2023-07-31</h4>
 
 </div>
 
@@ -1333,14 +1333,14 @@ ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;
 CTCF.signal.df= get.counts.interval(d, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 CTER.signal.df= get.counts.interval(e, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 
-#un-normalized counts
-GATA.counts.df= get.counts.interval(a, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
+#non-normalized counts
+GATA.counts.df= get.counts.interval(a, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
 
-GATActrl.counts.df= get.counts.interval(b1, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
-GATAdegrade.counts.df= get.counts.interval(b2, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
-ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
-CTCF.counts.df= get.counts.interval(d, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)
-CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw&quot;,&quot;MCF&quot;)</code></pre>
+GATActrl.counts.df= get.counts.interval(b1, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
+GATAdegrade.counts.df= get.counts.interval(b2, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
+ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
+CTCF.counts.df= get.counts.interval(d, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
+CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)</code></pre>
 </div>
 </div>
 <div id="counting-differential-binding" class="section level1" number="8">
@@ -1348,26 +1348,35 @@ CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw&quot;,&quot;MCF
 <p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
 </p>
 <pre class="r"><code># 1. GATA Analysis
-GATA.analysis.regions=GATA.signals.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.signals.df))]
-# identical(rownames(GATA.analysis.regions),rownames(GATA.signal.df))
+GATA.analysis.regions=GATA.counts.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.counts.df))] # non-normalized counts
+# identical(rownames(GATA.analysis.regions),rownames(GATA.counts.df))
 # [1] TRUE
-GATA.analysis.regions2=GATA.counts.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.counts.df))] 
 
 
 sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
-deseq.counts.table = DESeqDataSetFromMatrix(countData = round(GATA.analysis.regions), # DESeqDataSet needs countData to be non-negative integers, it would be okay to round the data if they are not been normalized...
+deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions, # DESeqDataSet needs countData to be non-negative integers; non-normalized counts are integer, normalized signals has decimals.
                 colData = as.data.frame(sample.conditions),
                 design = ~ sample.conditions)
 
-GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;) # GATA size factors from read depth
-GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller numbers
+
+GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1] # GATA size factors from read depth
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller ratios
 
 sizeFactors(deseq.counts.table) &lt;- GATA.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
 
 dds &lt;- DESeq(deseq.counts.table)
-DE.results = results(dds) # use `contrast` to compare any two groups
+#resultsNames(dds)
+#[1] &quot;Intercept&quot;                                                             
+#[2] &quot;sample.conditions_MCF7_dTAGGATA522_GATA_CE_vs_MCF7_dTAGGATA522_GATA_CC&quot;
+#[3] &quot;sample.conditions_MCF7_dTAGGATA522_GATA_dE_vs_MCF7_dTAGGATA522_GATA_CC&quot;
 
-#DE.results.lattice = 
+DE.results = results(dds) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+DE.results.dEvsCC= results(dds, contrast=c(&quot;sample.conditions&quot;, &quot;MCF7_dTAGGATA522_GATA_dE&quot;, &quot;MCF7_dTAGGATA522_GATA_CC&quot;))
+DE.results.CEvsCC= results(dds, contrast=c(&quot;sample.conditions&quot;, &quot;MCF7_dTAGGATA522_GATA_CE&quot;, &quot;MCF7_dTAGGATA522_GATA_CC&quot;))
+DE.results.dEvsCE= results(dds, contrast=c(&quot;sample.conditions&quot;, &quot;MCF7_dTAGGATA522_GATA_dE&quot;, &quot;MCF7_dTAGGATA522_GATA_CE&quot;))
+
+save.image(&#39;230731_GATA3_ChIP_deseq.Rdata&#39;) </code></pre>
+<pre class="r"><code>#DE.results.lattice = 
 #    categorize.deseq.df.repressed(DE.results, 
 #                        fdr = 0.1, log2fold = 0.0, treat =
 #                       &#39;ZNF143_degron_30min&#39;)
@@ -1399,9 +1408,7 @@ count = count +1
 
 write.table(file = paste0(&#39;quantile&#39;, as.character(q[count]), &#39;.bed&#39;), data.frame(chr[peak.intensities &gt; j &amp; peak.intensities &lt;= i], start[peak.intensities &gt; j &amp; peak.intensities &lt;= i], end[peak.intensities &gt; j &amp; peak.intensities &lt;= i], peak.intensities[peak.intensities &gt; j &amp; peak.intensities &lt;= i]), sep = &#39;\t&#39;, quote=FALSE, col.names=FALSE, row.names=FALSE )
 j = i
-}
-
-save.image</code></pre>
+}</code></pre>
 </div>
 <div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="9">
 <h1><span class="header-section-number">9</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
