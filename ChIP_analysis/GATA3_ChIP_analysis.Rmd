@@ -671,7 +671,6 @@ GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)
 ```{r, engine='R', eval=F, echo=T}
 # recall that these summit_XXXwindow.bed has the peak region info.
 a =  read.table('GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
-
 b1 = read.table('GATActrl_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 b2 = read.table('GATAdegrade_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 c = read.table('ER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
@@ -680,7 +679,6 @@ e = read.table('CTER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
 
 #normalized signal
 GATA.signal.df= get.counts.interval(a, "./normalized_bw","MCF")
-
 GATActrl.signal.df= get.counts.interval(b1, "./normalized_bw","MCF")
 GATAdegrade.signal.df= get.counts.interval(b2, "./normalized_bw","MCF")
 ER.signal.df= get.counts.interval(c, "./normalized_bw","MCF")
@@ -701,8 +699,8 @@ CTER.counts.df= get.counts.interval(e, "./non_normalized_bw/non_merge","MCF")
 
 Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used. \
 
+1. GATA Analysis \
 ```{r, engine='R', eval=F, echo=T}
-# 1. GATA Analysis
 GATA.analysis.regions=GATA.counts.df[,grepl("_GATA_",colnames(GATA.counts.df))] # non-normalized counts
 # identical(rownames(GATA.analysis.regions),rownames(GATA.counts.df))
 # [1] TRUE
@@ -771,7 +769,7 @@ DE.results.lattice.dEvsCE.repressed=
 normalized.counts.GATA3 = counts(dds, normalized=TRUE)
 peak.intensities = rowMeans(normalized.counts.GATA3[,1:3])
 
-names(peak.intensities) = rownames(normalized.counts.znf143)
+names(peak.intensities) = rownames(normalized.counts.GATA3)
 chr = sapply(strsplit(names(peak.intensities), ":"), "[", 1)
 rnge = sapply(strsplit(names(peak.intensities), ":"), "[", 2)
 start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 100
@@ -790,6 +788,16 @@ count = count +1
 write.table(file = paste0('quantile', as.character(q[count]), '.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start[peak.intensities > j & peak.intensities <= i], end[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
 j = i
 }
+
+```
+
+2. ER analysis \
+```{r, engine='R', eval=F, echo=T}
+c = read.table('ER_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+#normalized signal
+ER.signal.df= get.counts.interval(c, "./normalized_bw","MCF")
+#non-normalized counts
+ER.counts.df= get.counts.interval(c, "./non_normalized_bw/non_merge","MCF")
 
 ```
 
