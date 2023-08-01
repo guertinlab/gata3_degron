@@ -1489,7 +1489,32 @@ j = i
 #normalized signal
 ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 #non-normalized counts
-ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)</code></pre>
+ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)
+
+ER.analysis.regions=ER.counts.df[,grepl(&quot;_ER_&quot;,colnames(ER.counts.df))] # non-normalized counts
+# identical(rownames(ER.analysis.regions),rownames(ER.counts.df))
+# [1] TRUE
+
+
+sample.conditions = factor(sapply(strsplit(colnames(ER.analysis.regions), &#39;_rep&#39;), &#39;[&#39;, 1))
+deseq.counts.table = DESeqDataSetFromMatrix(countData = ER.analysis.regions, # DESeqDataSet needs countData to be non-negative integers; non-normalized counts are integer, normalized signals has decimals.
+                colData = as.data.frame(sample.conditions),
+                design = ~ sample.conditions)
+
+
+ER.SF &lt;- read.table(&quot;ER_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1] # GATA size factors from read depth
+ER.size.factors = estimateSizeFactorsForMatrix(ER.SF) # size factor transformed to smaller ratios
+
+sizeFactors(deseq.counts.table) &lt;- ER.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+
+dds &lt;- DESeq(deseq.counts.table)
+#resultsNames(dds)
+#[1] &quot;Intercept&quot;                                                         
+#[2] &quot;sample.conditions_MCF7_dTAGGATA522_ER_dE_vs_MCF7_dTAGGATA522_ER_CE&quot;
+
+DE.results = results(dds) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+
+save.image(&#39;230731_GATA3_ER_ChIP_deseq.Rdata&#39;) </code></pre>
 </div>
 <div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="9">
 <h1><span class="header-section-number">9</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
