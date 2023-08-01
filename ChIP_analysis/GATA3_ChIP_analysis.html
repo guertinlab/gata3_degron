@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-07-31" />
+<meta name="date" content="2023-08-01" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-07-31</h4>
+<h4 class="date">2023-08-01</h4>
 
 </div>
 
@@ -1365,7 +1365,6 @@ GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)</code></pre>
 <h2><span class="header-section-number">7.3</span> Counting reads in peaks `</h2>
 <pre class="r"><code># recall that these summit_XXXwindow.bed has the peak region info.
 a =  read.table(&#39;GATA_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
-
 b1 = read.table(&#39;GATActrl_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 b2 = read.table(&#39;GATAdegrade_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 c = read.table(&#39;ER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
@@ -1374,7 +1373,6 @@ e = read.table(&#39;CTER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, h
 
 #normalized signal
 GATA.signal.df= get.counts.interval(a, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
-
 GATActrl.signal.df= get.counts.interval(b1, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 GATAdegrade.signal.df= get.counts.interval(b2, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
 ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
@@ -1395,8 +1393,11 @@ CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw/non_merge&quot;
 <h1><span class="header-section-number">8</span> Counting differential binding</h1>
 <p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
 </p>
-<pre class="r"><code># 1. GATA Analysis
-GATA.analysis.regions=GATA.counts.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.counts.df))] # non-normalized counts
+<ol style="list-style-type: decimal">
+<li>GATA Analysis<br />
+</li>
+</ol>
+<pre class="r"><code>GATA.analysis.regions=GATA.counts.df[,grepl(&quot;_GATA_&quot;,colnames(GATA.counts.df))] # non-normalized counts
 # identical(rownames(GATA.analysis.regions),rownames(GATA.counts.df))
 # [1] TRUE
 
@@ -1461,7 +1462,7 @@ DE.results.lattice.dEvsCE.repressed=
 normalized.counts.GATA3 = counts(dds, normalized=TRUE)
 peak.intensities = rowMeans(normalized.counts.GATA3[,1:3])
 
-names(peak.intensities) = rownames(normalized.counts.znf143)
+names(peak.intensities) = rownames(normalized.counts.GATA3)
 chr = sapply(strsplit(names(peak.intensities), &quot;:&quot;), &quot;[&quot;, 1)
 rnge = sapply(strsplit(names(peak.intensities), &quot;:&quot;), &quot;[&quot;, 2)
 start = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 1)) + 100
@@ -1480,6 +1481,15 @@ count = count +1
 write.table(file = paste0(&#39;quantile&#39;, as.character(q[count]), &#39;.bed&#39;), data.frame(chr[peak.intensities &gt; j &amp; peak.intensities &lt;= i], start[peak.intensities &gt; j &amp; peak.intensities &lt;= i], end[peak.intensities &gt; j &amp; peak.intensities &lt;= i], peak.intensities[peak.intensities &gt; j &amp; peak.intensities &lt;= i]), sep = &#39;\t&#39;, quote=FALSE, col.names=FALSE, row.names=FALSE )
 j = i
 }</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>ER analysis<br />
+</li>
+</ol>
+<pre class="r"><code>c = read.table(&#39;ER_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
+#normalized signal
+ER.signal.df= get.counts.interval(c, &quot;./normalized_bw&quot;,&quot;MCF&quot;)
+#non-normalized counts
+ER.counts.df= get.counts.interval(c, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)</code></pre>
 </div>
 <div id="now-switch-over-to-the-pro-seq-vignette-to-determine-the-functional-peaks" class="section level1" number="9">
 <h1><span class="header-section-number">9</span> Now switch over to the PRO-seq vignette to determine the functional peaks</h1>
