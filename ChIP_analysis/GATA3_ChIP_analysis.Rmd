@@ -799,6 +799,30 @@ ER.signal.df= get.counts.interval(c, "./normalized_bw","MCF")
 #non-normalized counts
 ER.counts.df= get.counts.interval(c, "./non_normalized_bw/non_merge","MCF")
 
+ER.analysis.regions=ER.counts.df[,grepl("_ER_",colnames(ER.counts.df))] # non-normalized counts
+# identical(rownames(ER.analysis.regions),rownames(ER.counts.df))
+# [1] TRUE
+
+
+sample.conditions = factor(sapply(strsplit(colnames(ER.analysis.regions), '_rep'), '[', 1))
+deseq.counts.table = DESeqDataSetFromMatrix(countData = ER.analysis.regions, # DESeqDataSet needs countData to be non-negative integers; non-normalized counts are integer, normalized signals has decimals.
+                colData = as.data.frame(sample.conditions),
+                design = ~ sample.conditions)
+
+
+ER.SF <- read.table("ER_reads.txt", sep = '\t', header = TRUE)[,-1] # GATA size factors from read depth
+ER.size.factors = estimateSizeFactorsForMatrix(ER.SF) # size factor transformed to smaller ratios
+
+sizeFactors(deseq.counts.table) <- ER.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+
+dds <- DESeq(deseq.counts.table)
+#resultsNames(dds)
+#[1] "Intercept"                                                         
+#[2] "sample.conditions_MCF7_dTAGGATA522_ER_dE_vs_MCF7_dTAGGATA522_ER_CE"
+
+DE.results = results(dds) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+
+save.image('230731_GATA3_ER_ChIP_deseq.Rdata') 
 ```
 
 # Now switch over to the PRO-seq vignette to determine the functional peaks
