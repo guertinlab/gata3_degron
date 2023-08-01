@@ -109,8 +109,31 @@ cargo build --release
 ```
 
 ## Genome and annotation processing
+
+Genome \
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Genome_pro
+#! /bin/sh
+
+#SBATCH --job-name=getrefgenome.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 32                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o getrefgenome.sh_%j.out
+#SBATCH -e getrefgenome.sh_%j.err
+
+export PATH=$PATH:/home/FCAM/ssun/packages/
+
+module load bowtie2/2.5.0
+module load genometools/1.5.10
+module load bedtools/2.29.0
+module load ucsc_genome/2012.05.22
+
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz
 gunzip hg38.fa.gz
 bowtie2-build hg38.fa hg38
@@ -132,9 +155,33 @@ bowtie2-build human_rDNA.fa human_rDNA
 #done | tee -a readsize_log.txt
 #First column (with number) read number and second column (with number) read length.
 
-/home/FCAM/mguertin/software/seqOutBias seqtable hg38.fa --read-size=62
+#read size is 39, 47 (UMI length 8)
+seqOutBias seqtable hg38.fa --read-size=39
 
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
+
+```
+
+Annotation \
+```{r engine='bash', eval=F, echo=TRUE}
+# cd /home/FCAM/ssun/Annotation
+#! /bin/sh
+
+#SBATCH --job-name=getesblannotation.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1
+#SBATCH -c 32                  
+#SBATCH -p general           
+#SBATCH --qos=general
+#SBATCH --mem=32G           	
+#SBATCH --mail-type=ALL	
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o getesblannotation.sh_%j.out
+#SBATCH -e getesblannotation.sh_%j.err
+
+module load bedtools
+
+release=109
 
 wget http://ftp.ensembl.org/pub/release-${release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
 gunzip Homo_sapiens.GRCh38.${release}.chr.gtf.gz
@@ -194,7 +241,6 @@ awk  '{OFS="\t";} $6 == "+" {print $1,$2+20,$2 + 120,$4,$5,$6} \
 subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${release}.all.exons.merged.bed | \
     sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.introns.bed 
 ```
-
 
 # Edit this for PRO alignment and parallelization:
 
