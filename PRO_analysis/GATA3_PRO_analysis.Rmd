@@ -16,8 +16,40 @@ geometry: margin=1in
 ---
 
 # PRO-seq analysis
+
+## change names
+The fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).\
 ```{r engine='bash', eval=F, echo=TRUE}
-cd /labs/Guertin/GATA3_PRO
+#!/bin/bash
+
+#SBATCH --job-name=cname.sh     # name for job
+#SBATCH -N 1                    # number of nodes
+#SBATCH -n 1                    # number of jobs / tasks
+#SBATCH -c 16                    # number of cores
+#SBATCH -p general           # SLURM partition
+#SBATCH --qos=general        # SLURM Quality of service
+#SBATCH --mem=32G                # RAM (memory) requested
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o cname.sh_%j.out
+#SBATCH -e cname.sh_%j.err
+
+gunzip *.gz
+
+for i in *_S*R1_001.fastq
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    echo $nm
+        two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq" '{print $1}')
+        mv $i ${nm}_dep1_PE1.fastq 
+        mv ${two}R2_001.fastq ${nm}_dep1_PE2.fastq
+done
+```
+
+combining dep1 and dep2 pro-seq data? (haven't got the dep2 data yet)
+```{r engine='bash', eval=F, echo=TRUE}
+cd /directory/of/GATA3_PRO
+
 for i in *_dep1_*.fastq.gz
 do
 	echo $i
@@ -31,8 +63,11 @@ do
 done 
 ```
 
-
+## Install Softwares and essential scripts
 ```{r engine='bash', eval=F, echo=TRUE}
+# mkdir scripts
+# pwd
+# home/FCAM/ssun/scripts
 module load bowtie2/2.5.0
 module load genometools/1.5.10
 module load bedtools/2.29.0
@@ -65,12 +100,17 @@ chmod +x normalize_bedGraph.py
 chmod +x normalization_factor.R
 chmod +x PRO_normalization
 
+# cd /home/FCAM/ssun/packages
 wget https://github.com/guertinlab/fqdedup/archive/refs/tags/v1.0.0.tar.gz
 gunzip v1.0.0.tar.gz
 tar -xvf v1.0.0.tar
 cd fqdedup-1.0.0/ 
 cargo build --release
+```
 
+## Genome and annotation processing
+```{r engine='bash', eval=F, echo=TRUE}
+# cd /home/FCAM/ssun/Genome_pro
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz
 gunzip hg38.fa.gz
 bowtie2-build hg38.fa hg38
@@ -82,6 +122,15 @@ bowtie2-build human_rDNA.fa human_rDNA
 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
 #This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
 #install from source, if oyu have issues: guertin@uchc.edu
+
+# retrive the readsize of data
+#for i in *.fastq
+#do
+
+#	echo $i
+#	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 >> readsize.txt
+#done | tee -a readsize_log.txt
+#First column (with number) read number and second column (with number) read length.
 
 /home/FCAM/mguertin/software/seqOutBias seqtable hg38.fa --read-size=62
 
