@@ -446,10 +446,12 @@ done
 
 ```
 
+Plot all QC metrics \
+
 ```{r engine='bash', eval=F, echo=TRUE}
 cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
 
-./plot_all_metrics.R project_QC_metrics.txt ZNF143_degron_PRO
+./plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
 ```
 
 
