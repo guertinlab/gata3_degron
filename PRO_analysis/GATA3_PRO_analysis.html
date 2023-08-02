@@ -1024,12 +1024,12 @@ table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
 
 echo &#39;removing dual adapter ligations and calculating the fraction of adapter/adapters in&#39; $name
 
-cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_PE1_final.fastq \
+cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_dep1_PE1.fastq \
         -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq &gt; ${name}_PE1_cutadapt.txt
-cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_PE2_final.fastq \
+cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_dep1_PE2.fastq \
         -o ${name}_PE2_noadap.fastq --too-short-output ${name}_PE2_short.fastq &gt; ${name}_PE2_cutadapt.txt
 
-PE1_total=$(wc -l ${name}_PE1_final.fastq | awk &#39;{print $1/4}&#39;)
+PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk &#39;{print $1/4}&#39;)
 PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk &#39;{print $1/4}&#39;)
 AAligation=$(echo &quot;scale=2 ; $PE1_w_Adapter / $PE1_total&quot; | bc)
 echo -e  &quot;value\texperiment\tthreshold\tmetric&quot; &gt; ${name}_QC_metrics.txt
@@ -1078,7 +1078,7 @@ fqComplexity -i ${name}_PE1_noadap_trimmed.fastq
 
 echo &#39;calculating and plotting theoretical sequencing depth&#39; 
 echo &#39;to achieve a defined number of concordantly aligned reads for&#39; $name
-PE1_total=$(wc -l ${name}_PE1_final.fastq | awk &#39;{print $1/4}&#39;)
+PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk &#39;{print $1/4}&#39;)
 PE1_noadap_trimmed=$(wc -l ${name}_PE1_noadap_trimmed.fastq | awk &#39;{print $1/4}&#39;)
 factorX=$(echo &quot;scale=2 ; $PE1_noadap_trimmed / $PE1_total&quot; | bc)
 
@@ -1144,7 +1144,7 @@ rm ${name}.notCombined_2.fastq.gz
 <pre class="bash"><code>
 file=pro_processing_230802.sh
 
-for i in *_dep1_PE1.fastq
+for i in *_dep1_PE1.fastq 
 do
     nm=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_dep1_PE1.fastq&quot; &#39;{print $1}&#39;)
     echo $nm
