@@ -134,13 +134,19 @@ module load genometools/1.5.10
 module load bedtools/2.29.0
 module load ucsc_genome/2012.05.22
 
+
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz
 gunzip hg38.fa.gz
-bowtie2-build hg38.fa hg38
+mkdir hg38_bt2
+cd hg38_bt2
+bowtie2-build ../hg38.fa hg38
 
+cd ..
+mkdir human_rDNA_bt2
 wget https://github.com/databio/ref_decoy/raw/master/human_rDNA.fa.gz
 gunzip human_rDNA.fa.gz
-bowtie2-build human_rDNA.fa human_rDNA
+cd human_rDNA_bt2
+bowtie2-build ../human_rDNA.fa human_rDNA
 
 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
 #This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
@@ -156,8 +162,13 @@ bowtie2-build human_rDNA.fa human_rDNA
 #First column (with number) read number and second column (with number) read length.
 
 #read size is 39, 47 (UMI length 8)
-seqOutBias seqtable hg38.fa --read-size=39
 
+cd ..
+mkdir seqOutbias_hg38
+cd seqOutbias_hg38
+seqOutBias seqtable ../hg38.fa --read-size=39
+
+cd ..
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
 
 ```
@@ -242,12 +253,13 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
     sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.introns.bed 
 ```
 
-# Edit this for PRO alignment and parallelization:
+# PRO alignment and parallelization:
 
+Parallel running the Pro 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
-#SBATCH --job-name=pro_processing_XXXXXXX.sh     # name for job
+#SBATCH --job-name=pro_processing_230802.sh     # name for job
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 10                  
@@ -255,19 +267,25 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 #SBATCH --qos=general       
 #SBATCH --mem=32G               
 #SBATCH --mail-type=ALL 
-#SBATCH --mail-user=guertin@uchc.edu
-#SBATCH -o pro_processing_XXXXXXX.sh_%j.out
-#SBATCH -e pro_processing_XXXXXXX.sh_%j.err
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o pro_processing_230802.sh_%j.out
+#SBATCH -e pro_processing_230802.sh_%j.err
 
 hostname
+name=230802
 
-name=XXXXXXX
+set -e
+# add path to the R files
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+
+#initialize variables
+directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23
 
 module load cutadapt/3.5
 module load seqtk/1.3
-seqOutBias=/home/FCAM/mguertin/software/seqOutBias
-fqdedup=/home/FCAM/mguertin/ZNF143_PRO/fqdedup-1.0.0/target/release/fqdedup
-flash=/home/FCAM/mguertin/software/flash
+#seqOutBias=/home/FCAM/mguertin/software/seqOutBias
+#fqdedup=/home/FCAM/mguertin/ZNF143_PRO/fqdedup-1.0.0/target/release/fqdedup
+#flash=/home/FCAM/mguertin/software/flash
 module load fastq-pair/1.0
 module load samtools/1.16.1
 module load genometools/1.5.10
@@ -276,19 +294,19 @@ module load rust
 module load bowtie2
 module load bedtools
 
-sizes=hg38.chrom.sizes
-annotation_prefix=Homo_sapiens.GRCh38.109 
+sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+annotation_prefix=/home/FCAM/ssun/Annotations/Homo_sapiens.GRCh38.109 
 UMI_length=8
-read_size=62
+read_size=39
 cores=10
-genome=hg38.fa
-genome_index=hg38
-prealign_rdna_index=human_rDNA
-tallymer=hg38.tal_${read_size}.gtTxt.gz
-table=hg38_${read_size}.4.2.2.tbl
+genome=/home/FCAM/ssun/Genome_pro/hg38.fa
+genome_index=/home/FCAM/ssun/Genome_pro/hg38_bt2/hg38
+prealign_rdna_index=/home/FCAM/ssun/Genome_pro/human_rDNA_bt2/human_rDNA
+tallymer=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38.tal_${read_size}.gtTxt.gz
+table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
 
-gunzip ${name}_PE1_final.fastq.gz
-gunzip ${name}_PE2_final.fastq.gz
+#gunzip ${name}_PE1_final.fastq.gz
+#gunzip ${name}_PE2_final.fastq.gz
 
 echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
 
@@ -305,15 +323,11 @@ echo -e "$AAligation\t$name\t0.80\tAdapter/Adapter" >> ${name}_QC_metrics.txt
 echo 'removing short RNA insertions in' $name
 seqtk seq -L $((UMI_length+10)) ${name}_PE1_noadap.fastq > ${name}_PE1_noadap_trimmed.fastq 
 echo 'removing PCR duplicates from' $name
-
 fqdedup -i ${name}_PE1_noadap_trimmed.fastq -o ${name}_PE1_dedup.fastq
-
 PE1_noAdapter=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
-
 fastq_pair -t $PE1_noAdapter ${name}_PE1_dedup.fastq ${name}_PE2_noadap.fastq
 
 echo 'calculating and plotting RNA insert sizes from' $name
-
 flash -q --compress-prog=gzip --suffix=gz ${name}_PE1_dedup.fastq.paired.fq \
         ${name}_PE2_noadap.fastq.paired.fq -o ${name}
 
@@ -321,14 +335,14 @@ insert_size.R ${name}.hist ${UMI_length}
 echo 'trimming off the UMI from' $name
 seqtk trimfq -b ${UMI_length} ${name}_PE1_dedup.fastq | seqtk seq -r - > ${name}_PE1_processed.fastq
 seqtk trimfq -e ${UMI_length} ${name}_PE2_noadap.fastq | seqtk seq -r - > ${name}_PE2_processed.fastq
+
 echo 'aligning' $name 'to rDNA and removing aligned reads'
-    
-bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U ${name}_PE1_processed.fastq 2>${name}_bowtie2_rDNA.log | \
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U ${name}_PE1_processed.fastq 2>${name}_bowtie2_rDNA.log | \
         samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
 reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
 fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
-echo 'aligning' $name 'to the genome'
 
+echo 'aligning' $name 'to the genome'
 bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 ${name}_PE1.rDNA.fastq.paired.fq \
         -2 ${name}_PE2_processed.fastq.paired.fq 2>${name}_bowtie2.log | samtools view -b - | \
         samtools sort - -o ${name}.bam
@@ -344,8 +358,8 @@ map_pe1=$(samtools view -c -f 0x42 ${name}.bam)
 pre_alignment=$(wc -l ${name}_PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
 alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
 echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> ${name}_QC_metrics.txt
-echo 'plotting and calculating complexity for' $name
 
+echo 'plotting and calculating complexity for' $name
 fqComplexity -i ${name}_PE1_noadap_trimmed.fastq
 
 echo 'calculating and plotting theoretical sequencing depth' 
@@ -353,6 +367,7 @@ echo 'to achieve a defined number of concordantly aligned reads for' $name
 PE1_total=$(wc -l ${name}_PE1_final.fastq | awk '{print $1/4}')
 PE1_noadap_trimmed=$(wc -l ${name}_PE1_noadap_trimmed.fastq | awk '{print $1/4}')
 factorX=$(echo "scale=2 ; $PE1_noadap_trimmed / $PE1_total" | bc)
+
 echo fraction of reads that are not adapter/adapter ligation products or below 10 base inserts
 echo $factorX 
 PE1_dedup=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
@@ -418,13 +433,13 @@ rm ${name}.notCombined_2.fastq.gz
 
 ```{r engine='bash', eval=F, echo=TRUE}
 
-file=pro_processing.sh
+file=pro_processing_230802.sh
 
-for i in *_PE1_final.fastq.gz
+for i in *_dep1_PE1.fastq
 do
-    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1_final.fastq.gz" '{print $1}')
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_PE1.fastq" '{print $1}')
     echo $nm
-    sed -e "s/XXXXXXX/${nm}/g" "$file" > pro_processing_${nm}.sh
+    sed -e "s/230802/${nm}/g" "$file" > pro_processing_${nm}.sh
     sbatch pro_processing_${nm}.sh
     sleep 1
 done
