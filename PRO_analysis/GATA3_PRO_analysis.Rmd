@@ -449,10 +449,13 @@ done
 Plot all QC metrics \
 
 ```{r engine='bash', eval=F, echo=TRUE}
-cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
+module load R/4.1.2
 
-./plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
+cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
+plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
 ```
+
+the GATA3_degron_PRO QC metrics plot:
 
 
 
