@@ -1155,9 +1155,11 @@ done
 </code></pre>
 <p>Plot all QC metrics<br />
 </p>
-<pre class="bash"><code>cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
+<pre class="bash"><code>module load R/4.1.2
 
-./plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO</code></pre>
+cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
+plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO</code></pre>
+<p>the GATA3_degron_PRO QC metrics plot:</p>
 </div>
 </div>
 <div id="input-for-pta" class="section level1" number="3">
