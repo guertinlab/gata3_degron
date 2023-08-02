@@ -1153,9 +1153,11 @@ do
     sleep 1
 done
 </code></pre>
+<p>Plot all QC metrics<br />
+</p>
 <pre class="bash"><code>cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
 
-./plot_all_metrics.R project_QC_metrics.txt ZNF143_degron_PRO</code></pre>
+./plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO</code></pre>
 </div>
 </div>
 <div id="input-for-pta" class="section level1" number="3">
