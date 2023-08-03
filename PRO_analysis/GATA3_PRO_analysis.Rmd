@@ -457,6 +457,10 @@ plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
 
 the GATA3_degron_PRO QC metrics plot:
 
+```{r echo=F, fig.align = "center", fig.cap="QC flow chart"}
+library(knitr)
+knitr::include_graphics("GATA3_degron_PRO.pdf") 
+```
 
 
 # Input for pTA
