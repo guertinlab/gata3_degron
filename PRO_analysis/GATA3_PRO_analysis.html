@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-02" />
+<meta name="date" content="2023-08-04" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-02</h4>
+<h4 class="date">2023-08-04</h4>
 
 </div>
 
@@ -713,13 +713,18 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#pro-seq-analysis" id="toc-pro-seq-analysis"><span class="toc-section-number">1</span> PRO-seq analysis</a>
 <ul>
-<li><a href="#change-names" id="toc-change-names"><span class="toc-section-number">1.1</span> change names</a></li>
-<li><a href="#install-softwares-and-essential-scripts" id="toc-install-softwares-and-essential-scripts"><span class="toc-section-number">1.2</span> Install Softwares and essential scripts</a></li>
-<li><a href="#genome-and-annotation-processing" id="toc-genome-and-annotation-processing"><span class="toc-section-number">1.3</span> Genome and annotation processing</a></li>
+<li><a href="#preprocessing" id="toc-preprocessing"><span class="toc-section-number">1.1</span> Preprocessing</a>
+<ul>
+<li><a href="#renaming-fastq-files" id="toc-renaming-fastq-files"><span class="toc-section-number">1.1.1</span> renaming fastq files</a></li>
+</ul></li>
+<li><a href="#install-softwares-and-essential-scripts" id="toc-install-softwares-and-essential-scripts"><span class="toc-section-number">1.2</span> Install softwares and essential scripts</a></li>
+<li><a href="#confirming-read-size-and-umi-length" id="toc-confirming-read-size-and-umi-length"><span class="toc-section-number">1.3</span> Confirming read size and UMI length</a></li>
+<li><a href="#genome-and-annotation-processing" id="toc-genome-and-annotation-processing"><span class="toc-section-number">1.4</span> Genome and annotation processing</a></li>
 </ul></li>
 <li><a href="#pro-alignment-and-parallelization" id="toc-pro-alignment-and-parallelization"><span class="toc-section-number">2</span> PRO alignment and parallelization:</a>
 <ul>
-<li><a href="#run-the-previous-chunk-in-parallel" id="toc-run-the-previous-chunk-in-parallel"><span class="toc-section-number">2.1</span> Run the previous chunk in parallel</a></li>
+<li><a href="#plot-all-qc-metrics" id="toc-plot-all-qc-metrics"><span class="toc-section-number">2.1</span> Plot all QC metrics<br />
+</a></li>
 </ul></li>
 <li><a href="#input-for-pta" id="toc-input-for-pta"><span class="toc-section-number">3</span> Input for pTA</a></li>
 <li><a href="#tssinference-inputs" id="toc-tssinference-inputs"><span class="toc-section-number">4</span> TSSInference inputs</a>
@@ -738,8 +743,10 @@ function toggle_visibility(id1) {
 
 <div id="pro-seq-analysis" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> PRO-seq analysis</h1>
-<div id="change-names" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> change names</h2>
+<div id="preprocessing" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Preprocessing</h2>
+<div id="renaming-fastq-files" class="section level3" number="1.1.1">
+<h3><span class="header-section-number">1.1.1</span> renaming fastq files</h3>
 <p>The fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).<br />
 </p>
 <pre class="bash"><code>#!/bin/bash
@@ -781,8 +788,9 @@ do
     cat $i ${pre}_dep2_${suf} &gt; ${pre}_${x}_final.fastq.gz
 done </code></pre>
 </div>
+</div>
 <div id="install-softwares-and-essential-scripts" class="section level2" number="1.2">
-<h2><span class="header-section-number">1.2</span> Install Softwares and essential scripts</h2>
+<h2><span class="header-section-number">1.2</span> Install softwares and essential scripts</h2>
 <pre class="bash"><code># mkdir scripts
 # pwd
 # home/FCAM/ssun/scripts
@@ -825,9 +833,45 @@ tar -xvf v1.0.0.tar
 cd fqdedup-1.0.0/ 
 cargo build --release</code></pre>
 </div>
-<div id="genome-and-annotation-processing" class="section level2" number="1.3">
-<h2><span class="header-section-number">1.3</span> Genome and annotation processing</h2>
-<p>Genome<br />
+<div id="confirming-read-size-and-umi-length" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Confirming read size and UMI length</h2>
+<pre class="bash"><code># retrieve the readsize of library
+for i in *.fastq
+do
+
+    echo $i
+    awk &#39;NR%4==2 {print length}&#39; $i | sort -n | uniq -c | sort -rh | head -1 &gt;&gt; readsize.txt
+done | tee -a readsize_log.txt
+#First column (with number) read number and second column (with number) read length.
+
+#read size ==39
+
+# retrieve the UMI size of library
+# take 4 million reads from one library for testing
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE1.fastq | head -n 40000000 &gt; MCF7_UMI_test.fastq
+module load cutadapt
+cutadapt --cores=12 -m 1 -O 1 -a TGGAATTCTCGGGTGCCAAGG MCF7_UMI_test.fastq \
+  -o MCF7_UMI_test_noadapt.fastq &gt; MCF7_UMI_test_cutadapt.txt
+
+tail MCF7_UMI_test_cutadapt.txt
+#38 42164   0.0 2   37676 4125 363
+#39 3120893 0.0 2   2948248 157254 15391
+#40 123217  0.0 2   100173 21605 1439
+#41 78405   0.0 2   68590 6747 3068
+#42 62197   0.0 2   55769 4296 2132
+#43 57462   0.0 2   51768 3555 2139
+#44 49269   0.0 2   44664 3140 1465
+#45 46152   0.0 2   42589 2721 842
+#46 53967   0.0 2   50498 2876 593
+#47 62264   0.0 2   57613 3732 919
+
+#UMI size ==8</code></pre>
+</div>
+<div id="genome-and-annotation-processing" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Genome and annotation processing</h2>
+<p>install from source, if you have issues: <a href="mailto:guertin@uchc.edu" class="email">guertin@uchc.edu</a><br />
+<br />
+Genome<br />
 </p>
 <pre class="bash"><code># cd /home/FCAM/ssun/Genome_pro
 #! /bin/sh
@@ -865,25 +909,12 @@ gunzip human_rDNA.fa.gz
 cd human_rDNA_bt2
 bowtie2-build ../human_rDNA.fa human_rDNA
 
-#Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
-#This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
-#install from source, if oyu have issues: guertin@uchc.edu
-
-# retrive the readsize of data
-#for i in *.fastq
-#do
-
-#   echo $i
-#   awk &#39;NR%4==2 {print length}&#39; $i | sort -n | uniq -c | sort -rh | head -1 &gt;&gt; readsize.txt
-#done | tee -a readsize_log.txt
-#First column (with number) read number and second column (with number) read length.
-
-#read size is 39, 47 (UMI length 8)
 
 cd ..
 mkdir seqOutbias_hg38
 cd seqOutbias_hg38
-seqOutBias seqtable ../hg38.fa --read-size=39
+seqOutBias seqtable ../hg38.fa --read-size=39 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
+#This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
 
 cd ..
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
@@ -970,7 +1001,8 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 </div>
 <div id="pro-alignment-and-parallelization" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> PRO alignment and parallelization:</h1>
-<p>Parallel running the Pro</p>
+<p>Processing reads:<br />
+</p>
 <pre class="bash"><code>#! /bin/sh
 
 #SBATCH --job-name=pro_processing_230802.sh     # name for job
@@ -1139,8 +1171,8 @@ rm ${name}.extendedFrags.fastq.gz
 rm ${name}.notCombined_1.fastq.gz
 rm ${name}.notCombined_2.fastq.gz
 </code></pre>
-<div id="run-the-previous-chunk-in-parallel" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Run the previous chunk in parallel</h2>
+<p>Run the previous chunk in parallel<br />
+</p>
 <pre class="bash"><code>
 file=pro_processing_230802.sh
 
@@ -1153,13 +1185,16 @@ do
     sleep 1
 done
 </code></pre>
-<p>Plot all QC metrics<br />
-</p>
+<div id="plot-all-qc-metrics" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Plot all QC metrics<br />
+</h2>
 <pre class="bash"><code>module load R/4.1.2
 
 cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
 plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO</code></pre>
 <p>the GATA3_degron_PRO QC metrics plot:</p>
+<pre class="bash"><code>library(knitr)
+knitr::include_graphics(&quot;GATA3_degron_PRO.pdf&quot;) </code></pre>
 </div>
 </div>
 <div id="input-for-pta" class="section level1" number="3">
