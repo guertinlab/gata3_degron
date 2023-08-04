@@ -17,7 +17,9 @@ geometry: margin=1in
 
 # PRO-seq analysis
 
-## change names
+## Preprocessing
+
+### renaming fastq files
 The fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).\
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
@@ -63,7 +65,7 @@ do
 done 
 ```
 
-## Install Softwares and essential scripts
+## Install softwares and essential scripts
 ```{r engine='bash', eval=F, echo=TRUE}
 # mkdir scripts
 # pwd
@@ -108,8 +110,46 @@ cd fqdedup-1.0.0/
 cargo build --release
 ```
 
-## Genome and annotation processing
 
+## Confirming read size and UMI length
+```{r engine='bash', eval=F, echo=TRUE}
+# retrieve the readsize of library
+for i in *.fastq
+do
+
+	echo $i
+	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 >> readsize.txt
+done | tee -a readsize_log.txt
+#First column (with number) read number and second column (with number) read length.
+
+#read size ==39
+
+# retrieve the UMI size of library
+# take 4 million reads from one library for testing
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE1.fastq | head -n 40000000 > MCF7_UMI_test.fastq
+module load cutadapt
+cutadapt --cores=12 -m 1 -O 1 -a TGGAATTCTCGGGTGCCAAGG MCF7_UMI_test.fastq \
+  -o MCF7_UMI_test_noadapt.fastq > MCF7_UMI_test_cutadapt.txt
+
+tail MCF7_UMI_test_cutadapt.txt
+#38	42164	0.0	2	37676 4125 363
+#39	3120893	0.0	2	2948248 157254 15391
+#40	123217	0.0	2	100173 21605 1439
+#41	78405	0.0	2	68590 6747 3068
+#42	62197	0.0	2	55769 4296 2132
+#43	57462	0.0	2	51768 3555 2139
+#44	49269	0.0	2	44664 3140 1465
+#45	46152	0.0	2	42589 2721 842
+#46	53967	0.0	2	50498 2876 593
+#47	62264	0.0	2	57613 3732 919
+
+#UMI size ==8
+```
+
+
+## Genome and annotation processing
+install from source, if you have issues: guertin@uchc.edu \
+ \
 Genome \
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Genome_pro
@@ -148,25 +188,12 @@ gunzip human_rDNA.fa.gz
 cd human_rDNA_bt2
 bowtie2-build ../human_rDNA.fa human_rDNA
 
-#Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
-#This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
-#install from source, if oyu have issues: guertin@uchc.edu
-
-# retrive the readsize of data
-#for i in *.fastq
-#do
-
-#	echo $i
-#	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 >> readsize.txt
-#done | tee -a readsize_log.txt
-#First column (with number) read number and second column (with number) read length.
-
-#read size is 39, 47 (UMI length 8)
 
 cd ..
 mkdir seqOutbias_hg38
 cd seqOutbias_hg38
-seqOutBias seqtable ../hg38.fa --read-size=39
+seqOutBias seqtable ../hg38.fa --read-size=39 #Compute mappability for the given read length and the k-mer that corresponds to each possible read alignment position
+#This is the most time-consuming step of the seqOutBias command but can be completed once before processing the sequencing data
 
 cd ..
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
@@ -255,7 +282,9 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 
 # PRO alignment and parallelization:
 
-Parallel running the Pro 
+Processing reads: \
+
+
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
@@ -429,7 +458,7 @@ rm ${name}.notCombined_2.fastq.gz
 
 
 
-## Run the previous chunk in parallel 
+Run the previous chunk in parallel \
 
 ```{r engine='bash', eval=F, echo=TRUE}
 
@@ -446,7 +475,7 @@ done
 
 ```
 
-Plot all QC metrics \
+## Plot all QC metrics \
 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load R/4.1.2
