@@ -270,8 +270,6 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 # PRO alignment and parallelization:
 
 Processing reads: \
-
-
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
@@ -443,8 +441,6 @@ rm ${name}.notCombined_2.fastq.gz
 
 ```
 
-
-
 Run the previous chunk in parallel \
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -482,17 +478,24 @@ knitr::include_graphics("GATA3_degron_PRO.pdf")
 # Input for pTA
 Using this code to get the merged bigWigs for primaryTranscriptAnnotation
 
-
 ```{r engine='bash', eval=F, echo=TRUE}
+srun --partition=general --qos=general --mem=36G -N 1 -n 1 -c 12 --pty bash
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+module load ucsc_genome/2012.05.22
+module load R/4.1.2
 PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+# PRO_normalization assumes the naming convention CELL_COND_TIME_ETC_rep<#>_<plus><minus>.bigWig for unpaired reads or 
+#CELL_COND_TIME_ETC_rep<#>_<plus><minus>_PE<1><2>.bigWig for paired reads, 
+#and assumes that you are running the script in the directory with your bigWigs 
 ```
 
 ```{r engine='bash', eval=F, echo=TRUE}
+module load ucsc_genome/2012.05.22
+
 reps=8
 pair="_PE1"
-name="HEK_CloneZD29_30min"
-chrSizes="hg38.chrom.sizes" # path to chromosome sizes file
+name="MCF7_dTAGGATAClone522_30min"
+chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes # path to chromosome sizes file
 
 plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
 bigWigMerge $plusfiles tmpPlus${pair}.bg
