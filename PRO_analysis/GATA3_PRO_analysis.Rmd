@@ -122,28 +122,15 @@ do
 done | tee -a readsize_log.txt
 #First column (with number) read number and second column (with number) read length.
 
+
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE1.fastq
+#20343886 47
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE2.fastq
+#20343886 39
+#...
 #read size ==39
-
-# retrieve the UMI size of library
-# take 4 million reads from one library for testing
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE1.fastq | head -n 40000000 > MCF7_UMI_test.fastq
-module load cutadapt
-cutadapt --cores=12 -m 1 -O 1 -a TGGAATTCTCGGGTGCCAAGG MCF7_UMI_test.fastq \
-  -o MCF7_UMI_test_noadapt.fastq > MCF7_UMI_test_cutadapt.txt
-
-tail MCF7_UMI_test_cutadapt.txt
-#38	42164	0.0	2	37676 4125 363
-#39	3120893	0.0	2	2948248 157254 15391
-#40	123217	0.0	2	100173 21605 1439
-#41	78405	0.0	2	68590 6747 3068
-#42	62197	0.0	2	55769 4296 2132
-#43	57462	0.0	2	51768 3555 2139
-#44	49269	0.0	2	44664 3140 1465
-#45	46152	0.0	2	42589 2721 842
-#46	53967	0.0	2	50498 2876 593
-#47	62264	0.0	2	57613 3732 919
-
-#UMI size ==8
+#Read1 contains the barcoding information (UMI) followed by the polyT tail of the messenger RNA, and Read2 contains the actual sequence. 47-39=8
+#UMI == 8
 ```
 
 
@@ -497,7 +484,8 @@ Using this code to get the merged bigWigs for primaryTranscriptAnnotation
 
 
 ```{r engine='bash', eval=F, echo=TRUE}
-PRO_normalization -c hg38.chrom.sizes
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 ```
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -530,7 +518,8 @@ rm tmpMinus${pair}.bg
 
 
 ```{r engine='bash', eval=F, echo=TRUE}
-PRO_normalization -c hg38.chrom.sizes
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 ```
 
 
