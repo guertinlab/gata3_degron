@@ -445,6 +445,7 @@ Run the previous chunk in parallel \
 
 ```{r engine='bash', eval=F, echo=TRUE}
 
+
 file=pro_processing_230802.sh
 
 for i in *_dep1_PE1.fastq 
@@ -474,12 +475,25 @@ library(knitr)
 knitr::include_graphics("GATA3_degron_PRO.pdf") 
 ```
 
+# TSSInference inputs
 
-# Input for pTA
-Using this code to get the merged bigWigs for primaryTranscriptAnnotation
+## Input for pTA
+get the merged bigWigs for primaryTranscriptAnnotation
 
 ```{r engine='bash', eval=F, echo=TRUE}
-srun --partition=general --qos=general --mem=36G -N 1 -n 1 -c 12 --pty bash
+#! /bin/sh
+
+#SBATCH --job-name=mergebw.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 10                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o mergebw.sh_%j.out
+#SBATCH -e mergebw.sh_%j.err
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 module load R/4.1.2
@@ -489,13 +503,29 @@ PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 #and assumes that you are running the script in the directory with your bigWigs 
 ```
 
+PE1 \
 ```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+
+#SBATCH --job-name=mergebw2.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 10                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o mergebw2.sh_%j.out
+#SBATCH -e mergebw2.sh_%j.err
+
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 
 reps=8
 pair="_PE1"
 name="MCF7_dTAGGATAClone522_30min"
-chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes # path to chromosome sizes file
+chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes 
 
 plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
 bigWigMerge $plusfiles tmpPlus${pair}.bg
@@ -517,20 +547,31 @@ rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg
 ```
 
-# TSSInference inputs
 
+PE2 \
 
 ```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+
+#SBATCH --job-name=mergebw3.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 10                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o mergebw3.sh_%j.out
+#SBATCH -e mergebw3.sh_%j.err
+
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
-PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
-```
+module load ucsc_genome/2012.05.22
 
-
-```{r engine='bash', eval=F, echo=TRUE}
 reps=8
 pair="_PE2"
-name="HEK_CloneZD29_30min"
-chrSizes="hg38.chrom.sizes" # path to chromosome sizes file
+name="MCF7_dTAGGATAClone522_30min"
+chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 
 plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
 bigWigMerge $plusfiles tmpPlus${pair}.bg
@@ -552,9 +593,14 @@ rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg
 ```
 
-## Annotations
+## Primary Transcription Annotations
 
 ```{r engine='R', eval=F, echo=TRUE}
+# What is the difference between GENCODE and Ensembl GTF?
+# download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
+
+gunzip gencode.v42.basic.annotation.gtf.gz
+
 grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
     grep -v 'tag "readthrough_transcript"' | \
     grep -v 'tag "RNA_Seq_supported_only"' | \
@@ -568,9 +614,6 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
 
 ```
 
-
-
-# TSSInference
 
 ```{r engine='R', eval=F, echo=TRUE}
 library(bigWig)
@@ -589,12 +632,7 @@ potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
 ```
 
 
-# primaryTranscriptAnnotation
-
 ```{r engine='bash', eval=F, echo=TRUE}
-
-gunzip gencode.v42.basic.annotation.gtf.gz
-
 grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
    awk '{if($3=="exon"){print $0}}' | \
    grep -w "exon_number 1" | \
@@ -610,9 +648,9 @@ grep 'transcript_type "protein_coding"' gencode.v42.annotation.gtf | \
 
 ```
 
+## TSS 
 
 ```{r engine='R', eval=F, echo=TRUE}
-
 fname = "gencode.v42.firstExon.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
