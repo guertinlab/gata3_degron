@@ -1187,12 +1187,20 @@ knitr::include_graphics(&quot;GATA3_degron_PRO.pdf&quot;) </code></pre>
 <div id="input-for-pta" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Input for pTA</h1>
 <p>Using this code to get the merged bigWigs for primaryTranscriptAnnotation</p>
-<pre class="bash"><code>export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
-PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes</code></pre>
-<pre class="bash"><code>reps=8
+<pre class="bash"><code>srun --partition=general --qos=general --mem=36G -N 1 -n 1 -c 12 --pty bash
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+module load ucsc_genome/2012.05.22
+module load R/4.1.2
+PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+# PRO_normalization assumes the naming convention CELL_COND_TIME_ETC_rep&lt;#&gt;_&lt;plus&gt;&lt;minus&gt;.bigWig for unpaired reads or 
+#CELL_COND_TIME_ETC_rep&lt;#&gt;_&lt;plus&gt;&lt;minus&gt;_PE&lt;1&gt;&lt;2&gt;.bigWig for paired reads, 
+#and assumes that you are running the script in the directory with your bigWigs </code></pre>
+<pre class="bash"><code>module load ucsc_genome/2012.05.22
+
+reps=8
 pair=&quot;_PE1&quot;
-name=&quot;HEK_CloneZD29_30min&quot;
-chrSizes=&quot;hg38.chrom.sizes&quot; # path to chromosome sizes file
+name=&quot;MCF7_dTAGGATAClone522_30min&quot;
+chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes # path to chromosome sizes file
 
 plusfiles=$(ls ${name}_*rep*_plus${pair}_scaled.bigWig)
 bigWigMerge $plusfiles tmpPlus${pair}.bg
