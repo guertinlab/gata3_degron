@@ -90,6 +90,7 @@ wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/PRO_n
 wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/normalization_factor.R
 wget https://raw.githubusercontent.com/guertinlab/Nascent_RNA_Methods/main/normalize_bedGraph.py
 
+
 chmod +x insert_size.R
 chmod +x fqComplexity
 chmod +x complexity_pro.R
@@ -596,9 +597,12 @@ rm tmpMinus${pair}.bg
 ## Primary Transcription Annotations
 
 ```{r engine='R', eval=F, echo=TRUE}
-# What is the difference between GENCODE and Ensembl GTF?
 # download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
+# content: Basic gene annotation; region: Chr; Download: GTF
 
+#mkdir Annotation_v42
+#cd Annotation_v42
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.basic.annotation.gtf.gz
 gunzip gencode.v42.basic.annotation.gtf.gz
 
 grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
@@ -612,27 +616,6 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
     tr " " "\t" | tr -d '"' | \
     grep -v "\tENSG" > gencode.hg38.v42.basic.firstExon.latest.filtered.bed
 
-```
-
-
-```{r engine='R', eval=F, echo=TRUE}
-library(bigWig)
-# source TSSinference functions
-source("TSSinference.R")
-# prepare annotation file
-gene.exon1 = parse.bed.exon1("gencode.hg38.v42.basic.firstExon.latest.filtered.bed")
-# assign bigWig variables
-# These two are the ones with control + experimental merged
-bw.plus='HEK_CloneZD29_30min_plus_PE2_scaled.bigWig'
-bw.minus='HEK_CloneZD29_30min_minus_PE2_scaled.bigWig'
-
-#swap minus and plus
-potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
-
-```
-
-
-```{r engine='bash', eval=F, echo=TRUE}
 grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
    awk '{if($3=="exon"){print $0}}' | \
    grep -w "exon_number 1" | \
@@ -640,7 +623,8 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
    awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
    tr " " "\t" | tr -d '"' > gencode.v42.firstExon.bed
    
-grep 'transcript_type "protein_coding"' gencode.v42.annotation.gtf | \
+#grep 'transcript_type "protein_coding"' gencode.v42.annotation.gtf | \
+grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
     awk '{if($3=="transcript"){print $0}} ' | \
     cut -f1,4,5,7,9 | tr ";" "\t" | \
     awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
@@ -648,28 +632,53 @@ grep 'transcript_type "protein_coding"' gencode.v42.annotation.gtf | \
 
 ```
 
-## TSS 
+## TSS Inference data process
 
 ```{r engine='R', eval=F, echo=TRUE}
-fname = "gencode.v42.firstExon.bed"
+# at the TSS working directory (where you saved the merged bigWig files)
+module load R/4.1.2
+R
+
+# source TSSinference functions
+source("/home/FCAM/ssun/scripts/TSSinference.R")
+library(bigWig)
+# prepare annotation file
+gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed")
+
+# assign bigWig variables
+# These two are the ones with control + experimental merged
+bw.plus='MCF7_dTAGGATAClone522_30min_plus_PE2_scaled.bigWig'
+bw.minus='MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig'
+
+
+#swap minus and plus
+potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
+```
+
+
+```{r engine='R', eval=F, echo=TRUE}
+fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
 dat0 = unique(dat0)
 gencode.firstExon = dat0
 # import data for all transcripts, annotate, and remove duplicate transcripts
-fname = "gencode.v42.transcript.bed"
+fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
 dat0 = unique(dat0)
 gencode.transcript = dat0
 
-chrom.sizes = read.table("hg38.chrom.sizes",stringsAsFactors=F,header=F) 
+chrom.sizes = read.table("/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes",stringsAsFactors=F,header=F) 
 names(chrom.sizes) = c("chr","size")
 
 
 
-plus.file = "HEK_CloneZD29_30min_plus_PE1_scaled.bigWig" 
-minus.file = "HEK_CloneZD29_30min_minus_PE1_scaled.bigWig" 
+plus.file = "MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig" 
+minus.file = "MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig" 
+
+
+
 bw.plus = load.bigWig(plus.file)
 bw.minus = load.bigWig(minus.file)
 
@@ -773,6 +782,9 @@ sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 # Differential expression analysis 
 
 ```{r engine='R', eval=F, echo=TRUE}
+module load R/4.1.2
+R
+
 library(bigWig)
 library(lattice)
 library(DESeq2)
