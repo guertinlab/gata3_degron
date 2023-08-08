@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-07" />
+<meta name="date" content="2023-08-08" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-07</h4>
+<h4 class="date">2023-08-08</h4>
 
 </div>
 
@@ -733,7 +733,7 @@ function toggle_visibility(id1) {
 <li><a href="#tss-inference-data-process" id="toc-tss-inference-data-process"><span class="toc-section-number">3.3</span> TSS Inference data process</a></li>
 </ul></li>
 <li><a href="#differential-expression-analysis" id="toc-differential-expression-analysis"><span class="toc-section-number">4</span> Differential expression analysis</a></li>
-<li><a href="#jinhong-to-do" id="toc-jinhong-to-do"><span class="toc-section-number">5</span> Jinhong: to do</a>
+<li><a href="#to-do" id="toc-to-do"><span class="toc-section-number">5</span> to do</a>
 <ul>
 <li><a href="#plot-an-ma-plot-for-activated-and-repressed-and-unchanged" id="toc-plot-an-ma-plot-for-activated-and-repressed-and-unchanged"><span class="toc-section-number">5.1</span> Plot an MA plot for activated and repressed and unchanged</a></li>
 </ul></li>
@@ -1370,21 +1370,33 @@ names(chrom.sizes) = c(&quot;chr&quot;,&quot;size&quot;)
 plus.file = &quot;MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig&quot; 
 minus.file = &quot;MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig&quot; 
 
-
-
 bw.plus = load.bigWig(plus.file)
 bw.minus = load.bigWig(minus.file)
 
+#if (!require(&quot;BiocManager&quot;, quietly = TRUE))
+#    install.packages(&quot;BiocManager&quot;)
 
+#BiocManager::install(&quot;NMF&quot;)
 library(NMF)
 library(dplyr)
 library(bigWig)
+#BiocManager::install(&quot;pracma&quot;)
 library(pracma) 
 library(RColorBrewer) 
-library(primaryTranscriptAnnotation)
+# https://github.com/WarrenDavidAnderson/genomicsRpackage/tree/master/primaryTranscriptAnnotation
+#library(devtools)
+#install_github(&quot;WarrenDavidAnderson/genomicsRpackage/primaryTranscriptAnnotation&quot;)
+#library(primaryTranscriptAnnotation)
 
+### facing troubles while installing the primaryTranscriptAnnotation packages, doing the following instead:
+# download genomicsRpackage-master.zip from https://github.com/WarrenDavidAnderson/genomicsRpackage
+# unzip genomicsRpackage-master.zip
+source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/gene_ann.R&quot;)
+source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/map_tu.R&quot;)
 
+# Get the largest interval for each gene, given multiple TSS and TTS annotations
 largest.interval.bed = get.largest.interval(bed=gencode.transcript)
+# Evaluate reads and compute densities for each transcript of each gene.
 transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
 
 par(mfrow=c(1,2)) 
@@ -1466,8 +1478,11 @@ inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
 
 final.coords = inferred.coords$bed      
 
-write.table(final.coords, file = &quot;HEK_ZNF143_gene_annotations.bed&quot;,
-sep = &quot;\t&quot;, row.names=FALSE, col.names=FALSE, quote=FALSE)</code></pre>
+write.table(final.coords, file = &quot;MCF7_GATA3_gene_annotations.bed&quot;,
+sep = &quot;\t&quot;, row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+save.image(&#39;230807_GATA3_pro_TSS.Rdata&#39;)</code></pre>
+<pre class="r"><code>plot</code></pre>
 </div>
 </div>
 <div id="differential-expression-analysis" class="section level1" number="4">
@@ -1788,8 +1803,8 @@ for (chip.peak in Sys.glob(file.path(&quot;/Users/guertinlab/Desktop/ZNF143_ChIP
     }
 plot_cdf(df.cdf, tf = &quot;ZNF143&quot;, col.lines = c(rep(&quot;grey60&quot;,20),colorRampPalette(c(&quot;red&quot;,&quot;pink&quot;))(13),colorRampPalette(c(&quot;blue&quot;, &quot;light blue&quot;))(7)), line.type = c(rep(2, 20), rep(1,20)))</code></pre>
 </div>
-<div id="jinhong-to-do" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> Jinhong: to do</h1>
+<div id="to-do" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> to do</h1>
 <div id="plot-an-ma-plot-for-activated-and-repressed-and-unchanged" class="section level2" number="5.1">
 <h2><span class="header-section-number">5.1</span> Plot an MA plot for activated and repressed and unchanged</h2>
 <p>Unchanged can be the combine matched genes (match a set for act and a
