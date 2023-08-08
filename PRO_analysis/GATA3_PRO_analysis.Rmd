@@ -655,7 +655,6 @@ bw.minus='MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig'
 potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
 ```
 
-
 ```{r engine='R', eval=F, echo=TRUE}
 fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
@@ -677,21 +676,33 @@ names(chrom.sizes) = c("chr","size")
 plus.file = "MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig" 
 minus.file = "MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig" 
 
-
-
 bw.plus = load.bigWig(plus.file)
 bw.minus = load.bigWig(minus.file)
 
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
 
+#BiocManager::install("NMF")
 library(NMF)
 library(dplyr)
 library(bigWig)
+#BiocManager::install("pracma")
 library(pracma) 
 library(RColorBrewer) 
-library(primaryTranscriptAnnotation)
+# https://github.com/WarrenDavidAnderson/genomicsRpackage/tree/master/primaryTranscriptAnnotation
+#library(devtools)
+#install_github("WarrenDavidAnderson/genomicsRpackage/primaryTranscriptAnnotation")
+#library(primaryTranscriptAnnotation)
 
+### facing troubles while installing the primaryTranscriptAnnotation packages, doing the following instead:
+# download genomicsRpackage-master.zip from https://github.com/WarrenDavidAnderson/genomicsRpackage
+# unzip genomicsRpackage-master.zip
+source("/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/gene_ann.R")
+source("/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/map_tu.R")
 
+# Get the largest interval for each gene, given multiple TSS and TTS annotations
 largest.interval.bed = get.largest.interval(bed=gencode.transcript)
+# Evaluate reads and compute densities for each transcript of each gene.
 transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
 
 par(mfrow=c(1,2)) 
@@ -773,8 +784,14 @@ inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
 
 final.coords = inferred.coords$bed		
 
-write.table(final.coords, file = "HEK_ZNF143_gene_annotations.bed",
+write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+save.image('230807_GATA3_pro_TSS.Rdata')
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+plot
 ```
 
 
@@ -1106,7 +1123,7 @@ plot_cdf(df.cdf, tf = "ZNF143", col.lines = c(rep("grey60",20),colorRampPalette(
 ```
 
 
-# Jinhong: to do
+# to do
 
 ## Plot an MA plot for activated and repressed and unchanged
 
