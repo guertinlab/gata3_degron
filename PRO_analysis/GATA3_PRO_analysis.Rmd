@@ -593,7 +593,7 @@ rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg
 ```
 
-## TSS Inference
+## Transcription start site (TSS) Inference analysis
 
 TSS Annotations \
 ```{r engine='R', eval=F, echo=TRUE}
@@ -636,8 +636,8 @@ bw.plus='MCF7_dTAGGATAClone522_30min_plus_PE2_scaled.bigWig'
 bw.minus='MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig'
 
 
-#swap minus and plus
-potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
+#potential.tss = TSSinference(gene.exon1, bw.plus, bw.minus, densityFilter=TRUE)
+potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE) # looking for upstream antisense TSSs
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -649,7 +649,6 @@ head(potential.tss2)
 #4  chr12   8822621   8822622 A2ML1 A2ML1      +     NA NA   NA
 #7   chr3 138132389 138132390 A4GNT A4GNT      -     NA NA   NA
 #10  chr3 151814073 151814074 AADAC AADAC      +     NA NA   NA
-save.image('230808_GATA3_pro_TSS.Rdata')
 ```
 
 ## Primary Transcription Annotations 
@@ -680,31 +679,6 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
 PTA \
 1.Loading key packages and preprocessed Pro-seq data
 ```{r engine='R', eval=F, echo=TRUE}
-# import data for all 1's exons, annotate, and remove duplicate transcripts
-fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed"
-dat0 = read.table(fname,header=F,stringsAsFactors=F) 
-names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
-dat0 = unique(dat0)
-gencode.firstExon = dat0
-
-# import data for all transcripts, annotate, and remove duplicate transcripts
-fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed"
-dat0 = read.table(fname,header=F,stringsAsFactors=F) 
-names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
-dat0 = unique(dat0)
-gencode.transcript = dat0
-
-chrom.sizes = read.table("/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes",stringsAsFactors=F,header=F) 
-names(chrom.sizes) = c("chr","size")
-
-# merged plus
-plus.file = "MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig" 
-# merged minus
-minus.file = "MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig" 
-
-bw.plus = load.bigWig(plus.file)
-bw.minus = load.bigWig(minus.file)
-
 #if (!require("BiocManager", quietly = TRUE))
 #    install.packages("BiocManager")
 
@@ -725,9 +699,37 @@ library(RColorBrewer)
 # unzip genomicsRpackage-master.zip
 source("/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/gene_ann.R")
 source("/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/map_tu.R")
+
+
+# import data for all 1's exons, annotate, and remove duplicate transcripts
+fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed"
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
+dat0 = unique(dat0)
+gencode.firstExon = dat0
+
+# import data for all transcripts, annotate, and remove duplicate transcripts
+fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed"
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
+dat0 = unique(dat0)
+gencode.transcript = dat0
+
+# chrom size
+chrom.sizes = read.table("/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes",stringsAsFactors=F,header=F) 
+names(chrom.sizes) = c("chr","size")
+
+# merged plus
+plus.file = "MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig" 
+# merged minus
+minus.file = "MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig" 
+
+bw.plus = load.bigWig(plus.file)
+bw.minus = load.bigWig(minus.file)
 ```
 
-2. obtain gene annotations use get.largest.interval(); \
+2. \
+obtain gene annotations use get.largest.interval(); \
 count reads for each transcripts use read.count.transcript().\
 ```{r engine='R', eval=F, echo=TRUE}
 # Get the largest interval for each gene, given multiple TSS and TTS annotations
@@ -737,25 +739,35 @@ transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus
 
 ```
 
-3. Evaluate count and density distribution
+3. Evaluate count and density distribution \
 ```{r engine='R', eval=F, echo=TRUE}
+jpeg(file="count_density_distribution.jpeg")
 par(mfrow=c(1,2)) 
 hist(log(transcript.reads$density), breaks=200,
 col="black",xlab="log read density",main="") 
 
 hist(log(transcript.reads$counts), breaks=200,
      col="black",xlab="log read count",main="")
+dev.off()
 ```
 
-4. based on above distribution, choose threshold or specify a gene to be cut off
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution"}
+#library(knitr)
+knitr::include_graphics("./count_density_distribution.jpeg") 
+```
+
+4. 
+based on above distribution, we want to filter out genes with low/no expression \
+choose threshold \
 ```{r engine='R', eval=F, echo=TRUE}
 den.cut = -8
-cnt.cut = 1
+cnt.cut = 0
 ind.cut.den = which(log(transcript.reads$density) < den.cut) 
 
 ind.cut.cnt = which(log(transcript.reads$counts) < cnt.cut) 
-
 ind.cut = union(ind.cut.den, ind.cut.cnt)
+
+jpeg(file="cut_count_density_distribution.jpeg")
 par(mfrow=c(1,2))
 hist(log(transcript.reads$density), breaks=200,
 col="black",xlab="log read density",main="") 
@@ -763,15 +775,24 @@ abline(v=den.cut, col="red")
 hist(log(transcript.reads$counts), breaks=200,
 col="black",xlab="log read count",main="") 
 abline(v=cnt.cut, col="red")
+dev.off()
 ```
 
-5. remove unexpected genes
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution 2"}
+#library(knitr)
+knitr::include_graphics("./cut_count_density_distribution.jpeg") 
+```
+
+
+5. remove genes with low/no expression
 ```{r engine='R', eval=F, echo=TRUE}
 unexp = names(transcript.reads$counts)[ind.cut]
 largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]
 ```
 
-6. identify TSS
+6. TSS identification and remove overlaps \
+
+In previous TSS analysis session, we have identified transcription start site (TSS).\
 ```{r engine='R', eval=F, echo=TRUE}
 # from TSSInference
 tss.interval.bed = merge(potential.tss2, largest.interval.expr.bed, by.x="gene", by.y="gene")
@@ -784,17 +805,33 @@ tss.interval.bed= tss.interval.bed[,c(2:5, 7, 6)]
 colnames(tss.interval.bed) = c('chr', 'start', 'end', 'gene', 'xy', 'strand')
 tss.interval.bed$xy <- 0
 
-#remove gene overlaps
-overlap.data = gene.overlaps( bed = tss.interval.bed ) 
-
-filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
-overlaps=overlap.data$cases, 
-transcripts=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus, by="den")
+# head(tss.interval.bed)
+#    chr     start       end    gene xy strand
+#1 chr19  58345183  58353492    A1BG  0      -
+#2  chr1  33306766  33321142 A3GALT2  0      -
+#3 chr22  42692121  42718965  A4GALT  0      -
+#4 chr12  53307459  53321610    AAAS  0      -
+#5 chr12 125065402 125143316    AACS  0      +
+#6  chr4 170060222 170090202   AADAT  0      -
 ```
 
-7. get TTS coordinates\
-find TTS search regions use get.end.intervals() \
-identifying TTS use get.TTS() \
+Now we want to address overlaps (if multiple genes' occupying same coordinates) and filter them out from TSSs. 
+```{r engine='R', eval=F, echo=TRUE}
+#remove gene overlaps with the highest density
+overlap.data = gene.overlaps(bed = tss.interval.bed ) 
+
+filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
+                                       overlaps=overlap.data$cases, 
+                                       transcripts=gencode.transcript, 
+                                       bw.plus=bw.plus, 
+                                       bw.minus=bw.minus, 
+                                       by="den")
+```
+
+7. TTS identification \ 
+TTS: triplex target DNA site that can selectively form triple-helix structure, and regulate gene expression.
+find TTS search regions use get.end.intervals(); \
+identifying TTS use get.TTS(), which will generate a bed output with both TSSs and TTSs. \
 ```{r engine='R', eval=F, echo=TRUE}
 # get TTS intervals
 add.to.end = 100000
@@ -822,12 +859,14 @@ inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           pk.thresh=pk.thresh, knot.thresh=knot.thresh,
                           cnt.thresh=cnt.thresh, tau.dist=tau.dist,
                           frac.max=frac.max, frac.min=frac.min,
-						  knot.div=knot.div)
+						              knot.div=knot.div)
 						  
 final.coords = inferred.coords$bed		
 
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+save.image('230808_GATA3_pro_TSS.Rdata')
 ```
 
 
