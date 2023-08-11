@@ -818,7 +818,7 @@ tss.interval.bed$xy <- 0
 Now we want to address overlaps (if multiple genes' occupying same coordinates) and filter them out from TSSs. 
 ```{r engine='R', eval=F, echo=TRUE}
 #remove gene overlaps with the highest density
-overlap.data = gene.overlaps(bed = tss.interval.bed ) 
+overlap.data = gene.overlaps(bed = tss.interval.bed) 
 
 filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
                                        overlaps=overlap.data$cases, 
@@ -853,20 +853,20 @@ tau.dist = 50000
 frac.max = 1
 frac.min = 0.3
 
+#save.image('230808_GATA3_pro_TSS.Rdata')
+
 inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           bw.plus=bw.plus, bw.minus=bw.minus,
                           bp.bin=bp.bin, add.to.end=add.to.end,
                           pk.thresh=pk.thresh, knot.thresh=knot.thresh,
                           cnt.thresh=cnt.thresh, tau.dist=tau.dist,
                           frac.max=frac.max, frac.min=frac.min,
-						              knot.div=knot.div)
-						  
+                          knot.div=knot.div)						  
 final.coords = inferred.coords$bed		
 
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
-
-save.image('230808_GATA3_pro_TSS.Rdata')
+#save.image('230809_GATA3_pro_TSS.Rdata')
 ```
 
 
@@ -880,7 +880,7 @@ R
 library(bigWig)
 library(lattice)
 library(DESeq2)
-library(MatchIt)
+library(MatchIt) # Selects matched samples of the original treated and control groups with similar covariate distributions – can be used to match exactly on covariates, to match on propensity scores, or perform a variety of other matching procedures. 
 library(data.table)
 
 source('https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R')
@@ -956,28 +956,27 @@ plotPCAlattice <- function(df, file = 'PCA_lattice.pdf') {
 
 
 
-run.deseq.list <- function(mat, untreated = 4, treated=4) {
-  sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
+#run.deseq.list <- function(mat, untreated = 4, treated=4) {
+# sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
   
   
-  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
-  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
-  dds = DESeq(deseq.counts.table);
-  res = results(dds);
+#  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+#  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
+#  dds = DESeq(deseq.counts.table);
+#  res = results(dds);
   #res = res[order(res$padj),];
-  return(res)
-}
+#  return(res)
+#}
 
-
-run.deseq.list.dds <- function(mat) {
-  sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))        
-  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
-  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
-  dds = DESeq(deseq.counts.table);
+#run.deseq.list.dds <- function(mat) {
+#  sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))        
+#  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+#  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
+#  dds = DESeq(deseq.counts.table);
   #res = results(dds);
   #res = res[order(res$padj),];
-  return(dds)
-}
+#  return(dds)
+#}
 
 tighten_summit_window <- function(res.deseq) {
   chr = sapply(strsplit(rownames(res.deseq), ':'), '[', 1)
@@ -990,77 +989,419 @@ tighten_summit_window <- function(res.deseq) {
 }
 ```
 
+load the unnormalized bigWig PRO data \
+estimate read size use the `DESeq2` function `estimateSizeFactorsForMatrix`: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
+
 ```{r engine='R', eval=F, echo=TRUE}
 inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
 
-counts.df = abs(get.raw.counts.interval(inferred.coords, "/Users/guertinlab/Desktop/ZNF143_ChIP/bigWigs/", file.prefix = "H"))
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
 
+# estimate read size
 estimateSizeFactorsForMatrix(counts.df)
+```
 
-
-#PCA for experiments
-
-dds = run.deseq.list.dds(counts.df)
+In this PRO exp, we have 4 levels
+```{r engine='R', eval=F, echo=TRUE}
+sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
+                           levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
+deseq.counts.table = DESeqDataSetFromMatrix(counts.df, DataFrame(sample.conditions), ~ sample.conditions)
+colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
+dds = DESeq(deseq.counts.table)
+#resultsNames(dds)
+#[1] "Intercept"                                   
+#[2] "sample.conditions_control_NoE2_vs_control_E2"
+#[3] "sample.conditions_dTAGV1_E2_vs_control_E2"   
+#[4] "sample.conditions_dTAGV1_NoE2_vs_control_E2" 
+res = results(dds)
+#res = res[order(res$padj),]
 rld <- rlog(dds)
+```
 
+PCA \
+
+```{r engine='R', eval=F, echo=TRUE}
+#PCA for experiments
 plotPCA(rld)
 
 pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
 pca.plot$sample.conditions = rownames(pca.plot)
-plotPCAlattice(pca.plot, file = 'PCA_ZNF143_PRO.pdf')
+plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
+```
 
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
+#library(knitr)
+knitr::include_graphics("PCA_GATA3_PRO.pdf") 
+```
+
+```{r engine='R', eval=F, echo=TRUE}
 rep = factor(sapply(strsplit(colnames(counts.df), 'rep'), '[', 2))
-sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))
+# [1] "1" "2" "3" "1" "2" "3" "1" "2" "3" "1" "2" "3"
+sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
+                           levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
 
 
 deseq.df = DESeqDataSetFromMatrix(counts.df, cbind.data.frame(sample.conditions, rep), ~ rep + sample.conditions)
 deseq.df = DESeq(deseq.df)
-
-for (i in levels(sample.conditions)[-1]) {
-  res.deseq = results(deseq.df, contrast = c("sample.conditions", i, "untreated"))
-  sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
-  
-  activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
-  activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
-  write.table(activated.strand, file = paste0(i, '_activated_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-  
-  unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
-
-  #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
-  unchanged$treatment = 0
-  activated$treatment = 1
-  df.deseq.effects.lattice = rbind(unchanged, activated)
-  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
-  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
-
-  write.table(unchanged.strand, file = paste0(i, '_activated_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-  unchanged$treatment = "Matched to Activated"
-  activated$treatment = "Activated"
-  df.x = rbind(activated, unchanged)
-  
-  repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
-  repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
-  write.table(repressed.strand, file = paste0(i, '_repressed_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-  unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
-
-  # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
-   unchanged$treatment = 0
-  repressed$treatment = 1
-  df.deseq.effects.lattice = rbind(unchanged, repressed)
-  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
-  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
-
-  write.table(unchanged.strand, file = paste0(i, '_repressed_matched_genes.bed'), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-  unchanged$treatment = "Matched to Repressed"
-  repressed$treatment = "Repressed"
-  df.x = rbind(df.x, unchanged)
-  df.x = rbind(df.x, repressed)
-}
+#save.image('230810_GATA3_pro_DEA.Rdata')
 ```
 
+we want to compare: \
+1) "control_E2"  vs. "control_NoE2": ER activity under control \
+2) "dTAGV1_E2"  vs.  "dTAGV1_NoE2" : ER activity when GATA3 is depleted \   
+3) "dTAGV1_E2" vs. "control_E2" : compare between with or without GATA3 (when ER is activated) \  
+4) "dTAGV1_NoE2" vs. "control_NoE2": compare between with or without GATA3 (when ER is not activated) \ 
+
+## 1) control_E2_vs_control_NoE2 \
+```{r engine='R', eval=F, echo=TRUE}
+#levels(sample.conditions)
+#[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
+
+res.deseq = results(deseq.df, contrast = c("sample.conditions", "control_E2", "control_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
+#[1] 131
+
+
+# activated
+activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'control_E2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+MA plot \
+```{r engine='R', eval=F, echo=TRUE}
+# Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
+unchanged.df$treatment="Unchanged"
+# nrow(unchanged.df)
+#[1] 131
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 4; activated: 127
+
+pdf("MA_plot_control_E2_vs_control_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c("red", "blue", "grey90", "grey60"),
+             scales="free",
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression("control_E2_vs_control_NoE2 log"[2]~"PRO fold change"),
+             xlab=expression("log"[10]~"Mean of Normalized Counts"),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col="grey85"))))
+dev.off()
+
+#save.image('230810_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
+```
+
+
+## 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
+```{r engine='R', eval=F, echo=TRUE}
+#levels(sample.conditions)
+#[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
+
+res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_E2" , "dTAGV1_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
+#[1] 190
+
+
+# activated
+activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'dTAGV1_E2_vs_dTAGV1_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_E2_vs_dTAGV1_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'dTAGV1_E2_vs_dTAGV1_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_E2_vs_dTAGV1_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+MA plot \
+```{r engine='R', eval=F, echo=TRUE}
+# Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
+unchanged.df$treatment="Unchanged"
+# nrow(unchanged.df)
+#[1] 190
+#nrow(repressed)
+#nrow(activated)
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 12; activated: 178
+
+pdf("MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c("red", "blue", "grey90", "grey60"),
+             scales="free",
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression("dTAGV1_E2_vs_dTAGV1_NoE2 log"[2]~"PRO fold change"),
+             xlab=expression("log"[10]~"Mean of Normalized Counts"),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col="grey85"))))
+dev.off()
+
+#save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
+```
+
+
+## 3) dTAGV1_E2_vs_control_E2 \ 
+```{r engine='R', eval=F, echo=TRUE}
+#levels(sample.conditions)
+#[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
+
+res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_E2" , "control_E2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
+#[1] 1009
+
+
+# activated
+activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'dTAGV1_E2_vs_control_E2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_E2_vs_control_E2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'dTAGV1_E2_vs_control_E2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_E2_vs_control_E2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+MA plot \
+```{r engine='R', eval=F, echo=TRUE}
+# Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
+unchanged.df$treatment="Unchanged"
+# nrow(unchanged.df)
+#[1] 1009
+#nrow(repressed)
+#nrow(activated)
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 491; activated: 518
+
+pdf("MA_plot_dTAGV1_E2_vs_control_E2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c("red", "blue", "grey90", "grey60"),
+             scales="free",
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression("dTAGV1_E2_vs_control_E2 log"[2]~"PRO fold change"),
+             xlab=expression("log"[10]~"Mean of Normalized Counts"),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col="grey85"))))
+dev.off()
+
+#save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
+```
+
+## 4) dTAGV1_NoE2_vs_control_NoE2 \ 
+```{r engine='R', eval=F, echo=TRUE}
+#levels(sample.conditions)
+#[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
+
+res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_NoE2" , "control_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
+#[1] 1368
+
+
+# activated
+activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) & res.deseq$padj > 0.1 & abs(res.deseq$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+        
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+MA plot \
+```{r engine='R', eval=F, echo=TRUE}
+# Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
+unchanged.df$treatment="Unchanged"
+# nrow(unchanged.df)
+#[1] 1062
+#nrow(repressed)
+#nrow(activated)
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 637; activated: 731
+
+pdf("MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c("red", "blue", "grey90", "grey60"),
+             scales="free",
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression("dTAGV1_NoE2_vs_control_NoE2 log"[2]~"PRO fold change"),
+             xlab=expression("log"[10]~"Mean of Normalized Counts"),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col="grey85"))))
+dev.off()
+
+#save.image('230810_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
+```
+
+
 # get functional peaks
+
+load key packages and functions \
+
 ```{r engine='R', eval=F, echo=TRUE}
 library(latticeExtra)
 
@@ -1142,9 +1483,6 @@ filter.deseq.into.bed <- function(deseq.df, gene.file, cat = 'R1881 Activated') 
   return(z)
 }
 
-gene.file=read.table(file = "/Users/guertinlab/Desktop/ZNF143_ChIP/HEK_ZNF143_gene_annotations.bed", sep="\t", header=FALSE)
-df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table('/Users/guertinlab/Desktop/ZNF143_ChIP/quantile1.bed', header=FALSE))
-
 plot_cdf <- function(df.all, tf="quantile", col.lines = c("#ce228e", "grey60", "#2290cf","grey90"), line.type = c(1)) {
 pdf(paste0(tf, "FIG_cdf_compare_Reg_classes.pdf"), width=6.2, height=3.83) 
 	print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
@@ -1171,6 +1509,14 @@ pdf(paste0(tf, "FIG_cdf_compare_Reg_classes.pdf"), width=6.2, height=3.83)
 
 
 #make sure that the "cdf.deseq.df" function is the one from above, not sourced
+```
+
+find functional peaks \
+```{r engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "/Users/guertinlab/Desktop/ZNF143_ChIP/HEK_ZNF143_gene_annotations.bed", sep="\t", header=FALSE)
+df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table('/Users/guertinlab/Desktop/ZNF143_ChIP/quantile1.bed', header=FALSE))
+
+
 for (chip.peak in Sys.glob(file.path("/Users/guertinlab/Desktop/ZNF143_ChIP/quantile*bed"))) {
 	print(chip.peak)
 	quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
@@ -1195,10 +1541,3 @@ for (chip.peak in Sys.glob(file.path("/Users/guertinlab/Desktop/ZNF143_ChIP/quan
 	}
 plot_cdf(df.cdf, tf = "ZNF143", col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(13),colorRampPalette(c("blue", "light blue"))(7)), line.type = c(rep(2, 20), rep(1,20)))
 ```
-
-
-## Plot an MA plot for activated and repressed and unchanged
-
-
-Unchanged can be the combine matched genes (match a set for act and a
-set for repressed).
