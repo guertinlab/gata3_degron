@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-08" />
+<meta name="date" content="2023-08-15" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-08</h4>
+<h4 class="date">2023-08-15</h4>
 
 </div>
 
@@ -731,13 +731,16 @@ function toggle_visibility(id1) {
 <li><a href="#data-pre-process" id="toc-data-pre-process"><span class="toc-section-number">3.1</span> Data pre-process</a></li>
 <li><a href="#input-for-pta" id="toc-input-for-pta"><span class="toc-section-number">3.2</span> Input for PTA</a></li>
 <li><a href="#input-for-tss" id="toc-input-for-tss"><span class="toc-section-number">3.3</span> Input for TSS</a></li>
-<li><a href="#tss-inference" id="toc-tss-inference"><span class="toc-section-number">3.4</span> TSS Inference</a></li>
+<li><a href="#transcription-start-site-tss-inference-analysis" id="toc-transcription-start-site-tss-inference-analysis"><span class="toc-section-number">3.4</span> Transcription start site (TSS) Inference analysis</a></li>
 <li><a href="#primary-transcription-annotations" id="toc-primary-transcription-annotations"><span class="toc-section-number">3.5</span> Primary Transcription Annotations</a></li>
 </ul></li>
-<li><a href="#differential-expression-analysis" id="toc-differential-expression-analysis"><span class="toc-section-number">4</span> Differential expression analysis</a></li>
-<li><a href="#get-functional-peaks" id="toc-get-functional-peaks"><span class="toc-section-number">5</span> get functional peaks</a>
+<li><a href="#differential-expression-analysis" id="toc-differential-expression-analysis"><span class="toc-section-number">4</span> Differential expression analysis</a>
 <ul>
-<li><a href="#plot-an-ma-plot-for-activated-and-repressed-and-unchanged" id="toc-plot-an-ma-plot-for-activated-and-repressed-and-unchanged"><span class="toc-section-number">5.1</span> Plot an MA plot for activated and repressed and unchanged</a></li>
+<li><a href="#control_e2_vs_control_noe2" id="toc-control_e2_vs_control_noe2"><span class="toc-section-number">4.1</span> 1) control_E2_vs_control_NoE2<br />
+</a></li>
+<li><a href="#dtagv1_e2_vs_dtagv1_noe2" id="toc-dtagv1_e2_vs_dtagv1_noe2"><span class="toc-section-number">4.2</span> 2) dTAGV1_E2_vs_dTAGV1_NoE2  </a></li>
+<li><a href="#dtagv1_e2_vs_control_e2" id="toc-dtagv1_e2_vs_control_e2"><span class="toc-section-number">4.3</span> 3) dTAGV1_E2_vs_control_E2  </a></li>
+<li><a href="#dtagv1_noe2_vs_control_noe2" id="toc-dtagv1_noe2_vs_control_noe2"><span class="toc-section-number">4.4</span> 4) dTAGV1_NoE2_vs_control_NoE2  </a></li>
 </ul></li>
 </ul>
 </div>
@@ -1183,8 +1186,12 @@ done
 cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
 plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO</code></pre>
 <p>the GATA3_degron_PRO QC metrics plot:</p>
-<pre class="bash"><code>library(knitr)
-knitr::include_graphics(&quot;GATA3_degron_PRO.pdf&quot;) </code></pre>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:unnamed-chunk-10"></span>
+<embed src="data:application/pdf;base64,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Y2VzIFsgNDUvbWludXMgOTYvcXVvdGVsZWZ0CjE0NC9kb3RsZXNzaSAvZ3JhdmUgL2FjdXRlIC9jaXJjdW1mbGV4IC90aWxkZSAvbWFjcm9uIC9icmV2ZSAvZG90YWNjZW50Ci9kaWVyZXNpcyAvLm5vdGRlZiAvcmluZyAvY2VkaWxsYSAvLm5vdGRlZiAvaHVuZ2FydW1sYXV0IC9vZ29uZWsgL2Nhcm9uIC9zcGFjZV0KPj4KZW5kb2JqCjEwIDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvTmFtZSAvRjIgL0Jhc2VGb250IC9IZWx2ZXRpY2EKL0VuY29kaW5nIDkgMCBSID4+CmVuZG9iagp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDIxIDAwMDAwIG4gCjAwMDAwMDAxNjMgMDAwMDAgbiAKMDAwMDAwMjQxMCAwMDAwMCBuIAowMDAwMDAyNDkzIDAwMDAwIG4gCjAwMDAwMDI2MDUgMDAwMDAgbiAKMDAwMDAwMjYzOCAwMDAwMCBuIAowMDAwMDAwMjEyIDAwMDAwIG4gCjAwMDAwMDAyOTIgMDAwMDAgbiAKMDAwMDAwNTMzMyAwMDAwMCBuIAowMDAwMDA1NTkwIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgMTEgL0luZm8gMSAwIFIgL1Jvb3QgMiAwIFIgPj4Kc3RhcnR4cmVmCjU2ODcKJSVFT0YK" title="GATA3 degron PRO seq QC metrics" width="100%" type="application/pdf"></embed>
+<p class="caption">
+Figure 1: <span class="caption-title">GATA3 degron PRO seq QC metrics</span><br>
+</p>
+</div>
 </div>
 </div>
 <div id="primarytranscriptannotation-pta" class="section level1" number="3">
@@ -1302,8 +1309,8 @@ rm ${name}_minus${pair}_scaled_sorted.bg
 rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg</code></pre>
 </div>
-<div id="tss-inference" class="section level2" number="3.4">
-<h2><span class="header-section-number">3.4</span> TSS Inference</h2>
+<div id="transcription-start-site-tss-inference-analysis" class="section level2" number="3.4">
+<h2><span class="header-section-number">3.4</span> Transcription start site (TSS) Inference analysis</h2>
 <p>TSS Annotations<br />
 </p>
 <pre class="r"><code># download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
@@ -1342,8 +1349,8 @@ bw.plus=&#39;MCF7_dTAGGATAClone522_30min_plus_PE2_scaled.bigWig&#39;
 bw.minus=&#39;MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig&#39;
 
 
-#swap minus and plus
-potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)</code></pre>
+#potential.tss = TSSinference(gene.exon1, bw.plus, bw.minus, densityFilter=TRUE)
+potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE) # looking for upstream antisense TSSs</code></pre>
 <pre class="r"><code>head(potential.tss2)
 #   chrom     start       end  gene  misc strand height up down
 #1  chr19  58353491  58353492  A1BG  A1BG      -     NA NA   NA
@@ -1351,8 +1358,7 @@ potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
 #3  chr12   9115918   9115919   A2M   A2M      -     NA NA   NA
 #4  chr12   8822621   8822622 A2ML1 A2ML1      +     NA NA   NA
 #7   chr3 138132389 138132390 A4GNT A4GNT      -     NA NA   NA
-#10  chr3 151814073 151814074 AADAC AADAC      +     NA NA   NA
-save.image(&#39;230808_GATA3_pro_TSS.Rdata&#39;)</code></pre>
+#10  chr3 151814073 151814074 AADAC AADAC      +     NA NA   NA</code></pre>
 </div>
 <div id="primary-transcription-annotations" class="section level2" number="3.5">
 <h2><span class="header-section-number">3.5</span> Primary Transcription Annotations</h2>
@@ -1379,32 +1385,7 @@ grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v42.basic.anno
     tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; &gt; gencode.v42.transcript.bed</code></pre>
 <p>PTA<br />
 1.Loading key packages and preprocessed Pro-seq data</p>
-<pre class="r"><code># import data for all 1&#39;s exons, annotate, and remove duplicate transcripts
-fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed&quot;
-dat0 = read.table(fname,header=F,stringsAsFactors=F) 
-names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
-dat0 = unique(dat0)
-gencode.firstExon = dat0
-
-# import data for all transcripts, annotate, and remove duplicate transcripts
-fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed&quot;
-dat0 = read.table(fname,header=F,stringsAsFactors=F) 
-names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
-dat0 = unique(dat0)
-gencode.transcript = dat0
-
-chrom.sizes = read.table(&quot;/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes&quot;,stringsAsFactors=F,header=F) 
-names(chrom.sizes) = c(&quot;chr&quot;,&quot;size&quot;)
-
-# merged plus
-plus.file = &quot;MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig&quot; 
-# merged minus
-minus.file = &quot;MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig&quot; 
-
-bw.plus = load.bigWig(plus.file)
-bw.minus = load.bigWig(minus.file)
-
-#if (!require(&quot;BiocManager&quot;, quietly = TRUE))
+<pre class="r"><code>#if (!require(&quot;BiocManager&quot;, quietly = TRUE))
 #    install.packages(&quot;BiocManager&quot;)
 
 #BiocManager::install(&quot;NMF&quot;)
@@ -1423,9 +1404,37 @@ library(RColorBrewer)
 # download genomicsRpackage-master.zip from https://github.com/WarrenDavidAnderson/genomicsRpackage
 # unzip genomicsRpackage-master.zip
 source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/gene_ann.R&quot;)
-source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/map_tu.R&quot;)</code></pre>
+source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/primaryTranscriptAnnotation/R/map_tu.R&quot;)
+
+
+# import data for all 1&#39;s exons, annotate, and remove duplicate transcripts
+fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed&quot;
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
+dat0 = unique(dat0)
+gencode.firstExon = dat0
+
+# import data for all transcripts, annotate, and remove duplicate transcripts
+fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed&quot;
+dat0 = read.table(fname,header=F,stringsAsFactors=F) 
+names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
+dat0 = unique(dat0)
+gencode.transcript = dat0
+
+# chrom size
+chrom.sizes = read.table(&quot;/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes&quot;,stringsAsFactors=F,header=F) 
+names(chrom.sizes) = c(&quot;chr&quot;,&quot;size&quot;)
+
+# merged plus
+plus.file = &quot;MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig&quot; 
+# merged minus
+minus.file = &quot;MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig&quot; 
+
+bw.plus = load.bigWig(plus.file)
+bw.minus = load.bigWig(minus.file)</code></pre>
 <ol start="2" style="list-style-type: decimal">
-<li>obtain gene annotations use get.largest.interval();<br />
+<li><br />
+obtain gene annotations use get.largest.interval();<br />
 count reads for each transcripts use read.count.transcript().<br />
 </li>
 </ol>
@@ -1434,39 +1443,61 @@ largest.interval.bed = get.largest.interval(bed=gencode.transcript)
 # Evaluate reads and compute densities for each transcript of each gene.
 transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)</code></pre>
 <ol start="3" style="list-style-type: decimal">
-<li>Evaluate count and density distribution</li>
+<li>Evaluate count and density distribution<br />
+</li>
 </ol>
-<pre class="r"><code>par(mfrow=c(1,2)) 
+<pre class="r"><code>jpeg(file=&quot;count_density_distribution.jpeg&quot;)
+par(mfrow=c(1,2)) 
 hist(log(transcript.reads$density), breaks=200,
 col=&quot;black&quot;,xlab=&quot;log read density&quot;,main=&quot;&quot;) 
 
 hist(log(transcript.reads$counts), breaks=200,
-     col=&quot;black&quot;,xlab=&quot;log read count&quot;,main=&quot;&quot;)</code></pre>
+     col=&quot;black&quot;,xlab=&quot;log read count&quot;,main=&quot;&quot;)
+dev.off()</code></pre>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:unnamed-chunk-21"></span>
+<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAHgAeADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK86uvEzvqWoJqPjey8Oy29zJFHYSwxBjGrEI5MvL7wA3y4GGx1BrrvDGo3Wq+HbW8vVUTybxuWMxiRQ7KsgVuVDqAwB6bqANeiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA84vPEXnapfrqfjSw8PzWtzJHDYzQQh/LViEkJl5feAG+TAw2OoNdh4Y1G61Xw7a3l6qieTeNyxmMSKHZVkCtyodQGAPTdXMJ4nvtf1WLRLG6s7PUEur4XErWxlMMcMxSMBSQNzqVbOcYDYHIx0/hjUrnVtAhurvyjcCSaCRogQjtHK0ZdQScBtm4DJ60AWb+bVInQafZWlwpHzGe6aIg+wEbZ/SodK1K8u7u9tb6zhtprbZ/qbgyqwYE9Si46elalY+n/APIy6z/uwf8AoJoA2KKKKACiiigAooooAKKKKACiiigApkcscyb4pFdckZU5GQcEfnUV7fWum2j3d7cR29uhAaSRsKMkAZP1IH41538FSToniUEkgeIroD2+WOgD0yiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooqjrGq2+h6TcaldhzBbrufYMtjIHA/GgC47pFG0kjKiKCWZjgADuTTs5GRXO+Pv+Sd+Jf+wXc/8Aopq27L/jwt/+uS/yFAE9FFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABQAAMCiigArH0/8A5GXWf92D/wBBNbFY+n/8jLrP+7B/6CaANiiiigAooooAKKKKACiiigAooooA4/4o/wDJOtT/AN6D/wBHR1yHwOupnvPGtoz5gi1ZpUTA4ZiwY568hF/Kus+K0qw/DTV5XOETyWY+wmSuL+A0qz6l42lQ5R9QVlPsTIaAPZ6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACuW+I/wDyT7WP+uQ/9DWuprlviP8A8k+1j/rkP/Q1oAn8ff8AJO/Ev/YLuf8A0U1bdl/x4W//AFyX+QrE8ff8k78S/wDYLuf/AEU1bdl/x4W//XJf5CgCeiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKx9P/AORl1n/dg/8AQTWxWPp//Iy6z/uwf+gmgDYooooAKKKKACiiigAooooAKKKKAOG+Mf8AySbXv+ucf/o1K4n9nn7/AIt/6+4//aldj8ZbmBfhfrls00YuHgR1iLDcyiWMEgdcDI596479nj7/AIt/6+4//alAHt9FFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHnV14md9S1BNR8b2Xh2W3uZIo7CWGIMY1YhHJl5feAG+XAw2OoNdd4Y1G61Xw7a3l6qieTeNyxmMSKHZVkCtyodQGAPTdXH3niLztUv11PxpYeH5rW5kjhsZoIQ/lqxCSEy8vvADfJgYbHUGuw8Majdar4dtby9VRPJvG5YzGJFDsqyBW5UOoDAHpuoA16Ko39zqEDoLLTlulI+Ym4Ee0/iDmodK1S4vrq8trqx+yzWxTIEokDBgSOQB6UAalFFFABRRRQAUUUUAFFFFABXLfEf8A5J9rH/XIf+hrXU1y3xH4+H2sf9ch/wChrQBP4+/5J34l/wCwXc/+imrbsv8Ajwt/+uS/yFcD4p8VRXXw88eSXjxR29qZtPt5IwWEm+CPYTjPJabGemMe5rvrL/jwt/8Arkv8hQBPRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUVyEeteItXuL+TSW0W3tbO5ltil4ZHlJjYqWbaQEBIyOvBB71t+HNXOu6FBqDRJG7tIjLG+9CyOyEq2BuUlSQccgigDUrH0/wD5GXWf92D/ANBNbFY+n/8AIy6z/uwf+gmgDYooooAKKKKACiiigAooooAKKKKAPAP2iJpItR05Y5GUSWEyOAcbl82I4PtkD8qn/Zo/5B/iL/rrB/J6pftHyBNV0ZSDmS0mUf8AfaH+lN/Zw1i0tbnVNKlZxdXpWSEBcgiMHdk9vvigD6HooooAKKKKACiiigAooooAKKKKACiiigAooooA4uLVvEFxNe6qkFneWFnezWzadHAftKpG5XzFcthnON+zaMggA567HhLWm8QeHxqRdXSS6ukiZUK5jS4kRODznaq1uYxSAADAGKAFrH0//kZdZ/3YP/QTWxWPp/8AyMus/wC7B/6CaANiiiigAooooAKKKKACiiigArk/ib/yTfXP+vf/ANmFdZXI/FFtnwz158Z222cf8CFAHhPii7ng+DksEUhWO41u3SUD+ICwgYA/iAfwr6A8B+II/E3g6wv0EgdU8ibeoXMifK5ABPBIJHt2FfN+u3ov/gyk4QoP+EhSPBOfuWMaZ/HbmvTv2eP+QJ4h/wCwj/7KKAPZqKKKACiiigAooooAKKKKACiiigAooooAKKKKAPOLzTB4u1S/v49E8JuLO5ktmbU7YzTsY2KkuRjYDjIB3fKQe9dh4Y1JNW8O2t2lvFbr88XlQNujHlu0Z2HAyh25U4GQRXn3i3ULeS81mW98AaPPf2MM0sM+ovGWuI41JEigpmRcAEqGyOhwa9K0d530m2NzYx2Mu3H2aKQOsYBwACABjGD04zigAv7+ezdFh0q9vQwyWtzEAvsd7r+lZmhXUt3r+tSS2VxZtiAeXOULfdPPyMw/WuhrH0//AJGXWf8Adg/9BNAGxRRRQAUUUUAFFFFABRRRQAUUUUAfLf7Q/wDyUi3/AOwbH/6HJUfwD/5KDaf9cbn/ANBSpP2hv+Skwf8AYNj/APQ5KrfAF2PxMgQn5RazkD3IGf5CgD6tooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACsfT/+Rl1n/dg/9BNbFY+n/wDIy6z/ALsH/oJoA2KKKKACiiigAooooAKKKKACuL+LU0cHwr8QPK21TbhAfdnUAfmRXaV5l8e7mSD4WXUaY2z3MMb5Hbdu/mooA+bbnVpv+EPbRzP+4/tIXSw7R97ytrNnGem0YzXuv7O1xE+meJIFcGVL5ZGX0VlIB/Ha35V85XXX/gR/kK9x/ZpvLaG78RWkk8aXE4t2iiLYZwvm7sDvjI/OgD6GooooAKKKKACiiigAooooAKKKKACiiigAooooAp6npWn6zZNZ6lZw3du3JjmQMM+vPQ1bAAAA4ApaKACsfT/+Rl1n/dg/9BNbFY+n/wDIy6z/ALsH/oJoA2KKKKACiiigAooooAKKKKACiiigD5V/aAuobj4nGKKQM9vYxRSjH3WO58f98up/GovgD/yVCH/r0m/kKofGv/kr+u/SD/0njq/8Af8AkqEP/XpN/IUAfV9FFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAVj6f/yMus/7sH/oJrYrH0//AJGXWf8Adg/9BNAGxRRRQAUUUUAFFFFABRRRQAV83fEjXNS1PRfGFne3bzW9nqUC28bAYjHn3S8fgij8K+ka+UPiBqUcF94v01ioe6vVlXPU+XdXAI/8ifpQB5nM5Z2U9mP+f0r1D4Af8lIj/wCveT/0E15a53OzDoTmvTvgCT/wtCEdvss38qAPq+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKx9P/wCRl1n/AHYP/QTWxWPp/wDyMus/7sH/AKCaANiiiigAooooAKKKKACiiigAooooA+NPivfHUfip4gnMfl7bjyMbs58tBHn8dufxrc+AP/JUIf8Ar0m/kK891Z2k1u/d2LMZ5CWY5J5NehfAH/kqEP8A16TfyFAH1fRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUV5xeTn+1L8a/eeLLe6FzILWPTIJzAYdx8vYYUKsSu0nec7ie2K7Dww+ov4dtW1XzftZ38zqqyFN7eWXC8Bym0sB3zQBr1j6f/wAjLrP+7B/6Ca2Kx9P/AORl1n/dg/8AQTQBsUUUUAFFFFABRRRQAUUUUAFfFfjzUU1LxhrEyIUKzzqyk5wftDnr9CK+1K+F/EzFfFetj+9ezj/yIT/SgDIr0L4K6raaP8SbOe8k2JKhtkwMlnkZUUY+p/LJrz2t3wT/AMj74d/7Cdt/6NWgD7iooooAKKKKACiiigAooooAKKKKACiiigAooooAKK5g+JNXvJ7k6N4d+2WlvPJbmea9WHzHjYq+xcEkBgRk4zj05rY0bVY9Z0uO+jikh3M8bxS43RujlHU4JHDKwyDjigC/WPp//Iy6z/uwf+gmtisfT/8AkZdZ/wB2D/0E0AbFFFFABRRRQAUUUUAFFFFABRRUc88dtby3ErbYokLucZwAMmgD4Q1P/kMXv/XeT+ZrsfgzeT2nxU0YQsFE7PDJwDlShJH6CuLvZUn1K6mjOUeV2U46gkkV1vwi/wCSraB/13b/ANFtQB9k0UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAcHFc6/rmqR6Pcvq+nwx3N8895DbiLfGsxFsiyFSMGMgkjk7Rzyc9J4Xlv5dAhOpmVrpJJojJLHseRElZUcrgYLIqt0HWs2K68a3c120Nto9vBHcyxQrciXe8asQr8ccrg8etaPhb+1f7DH9t/8AH/8AarrfjONvnybNueduzbjPbFAFy+Oph0+wJZsuPm892Bz7YBrM0M3h1/WvtywLLiDiBiVxtPqBXQVj6f8A8jLrP+7B/wCgmgDYooooAKKKKACiiigAooooAK+FfE//ACNms/8AX9P/AOjGr7iv52tdPubhAC8UTOoPTIBNfCF9eSahqFzezBRLcStK4UYALEk49uaAK9bvgn/kffDv/YTtv/Rq1hVf0OaS31/TZonKSR3UTow6ghgQaAPvCis7w/PLdeG9KuJ3LzS2cTu56sxQEn860aACiiigAooooAKKKKACiiigAorN1+SKLRLh5ru8tEG399ZIXmU7hjaoVsknAxtOc9K5ax1vxlaRz3Nxo8mo6VCm8SSotveyAddsKlg5x0BEZPTHqAd3RRRQB5xeWA1fVL+70bw7fvb/AGmSK4lh12WxS5lRikhEaNg/MpGTtJI/Guw8MTWM/h21OnWbWVtHvh+zMBmJ0dkdTgkEh1bJyc9cnNcTetpeo+IruCw0HWjcXDzlXtNVe0gu3hdY5iwSQAYYgZK5Y12vhaexuPDdo2n2TWVum+L7MwGYXRyjqcE5IdWBOTk80AWr/VrXTXRbhLti4yPItJZh+JRTj8azNCvodQ1/WpoFnCYgH76B4j909nANdDWPp/8AyMus/wC7B/6CaANiiiigAooooAKKKKACiiigAqhrn/Iv6l/16y/+gGr9YPja/bS/A+uXqIHaGylYKTgH5TQB8Pr1/A/yq7o93c2OordWlxLb3EUcrRyxOVdD5bcgjkGqS9fwP8qnsv8AXt/1xl/9AagD73ooooAKKKKACiiigAooooAKKKKACis3X5IotEuHmu7y0Qbf31kheZTuGNqhWyScDG05z0rlrHW/GVpHPc3GjyajpUKbxJKi297IB12wqWDnHQERk9MeoB3dFFFABRRRQAVj6f8A8jLrP+7B/wCgmtisfT/+Rl1n/dg/9BNAGxRRRQAUUUUAFFFFABRRRQBT1f8A5At//wBe8n/oJr4Mr7z1f/kC3/8A17yf+gmvgygAqxYyGHULaUDJSVWx9CKr0+Fgk0bnorAn86APufwv/wAilo3/AF4wf+i1rVrF8IXEN14N0WWCVJI/sUS7kORkKAR+BBH4VtUAFFFFABRRRQAUUUUAFFFFAGX4hi1CbRpBpe43aSRSqiyeWZFSRWeMN23KGXP+1VLTbvVdU19LyTTb7TNPhtXiaK7kTM0rMhDBUZgAoVhkkZ3+1TeLorubwzdJZQyzS7o2MMU4haRBIpdd5ZQoKBgTngE4yeKx/B6acb5rix8OS6f5kDYuTewzrIAwBUbJXPUdcY+UjPagDs6KKKAKtrp1nZFjb26IWkkkz1O6RtzkE9MtyRS2FhbaZaC1tIykQd3wWLEs7F2JJ55ZifxqzRQAVj6f/wAjLrP+7B/6Ca2Kx9P/AORl1n/dg/8AQTQBsUUUUAFFFFABRRTJZY4InlldY40Us7ucBQOSSewoA4208S6g/wAY7/w07q2nLpCXka7QCkgkCnnqQQ3f+6MY5rta+cPAGrTap8ZvD1zNfPdTvpkqTSGXezf60gMc+m08+1fR9ABXG/Fe+hsPhfr8k27bJbGEbRn5nIUfhkiuyrzv44/8kk1f/fg/9HJQB8ir1/A/yp0cjRMWXGSrLz6EEH+dNXr+B/lSUAff9FFFABRRRQAUUUUAFFFFABRRRQBl+IYtQm0aQaXuN2kkUqosnlmRUkVnjDdtyhlz/tVS0271XVNfS8k02+0zT4bV4miu5EzNKzIQwVGYAKFYZJGd/tU3i6K7m8M3SWUMs0u6NjDFOIWkQSKXXeWUKCgYE54BOMnisfwemnG+a4sfDkun+ZA2Lk3sM6yAMAVGyVz1HXGPlIz2oA7OiiigAooooAKx9P8A+Rl1n/dg/wDQTWxWPp//ACMus/7sH/oJoA2KKKKACiiigAooooAKKKKAOR+JWtrofge/dbkwXVyjQWxCk7n2MxHQgfKj8n0+lfF1fVXx8uEtvBmnSOGIOo7Pl9Wt51H6mvlWgAooooA+yfhG4l+FmhuBgNHIf/Ir121cH8GZUl+E+h7GDbEkVsdj5r8V3lABRRRQAUUUUAFFFFABRRRQBjeK7Jb/AMN3Nu09tCN0b5ujiJtsitsf/ZbG0+zHrXO+C7Sc6oJ7mXSYvs6XghtrC8E5Kz3AmJb5VwFwqjjuTxnFdVrzbNFuG8iwnxt/d6hL5UB+Yfeba2Pb5Tzj61y2htZW+vnVLl/C+mYtXt/L028WQzbmVgXYon3dpwMH7x5oA7qiiigAooooAKx9P/5GXWf92D/0E1sVj6f/AMjLrP8Auwf+gmgDYooooAKKKKACsnxR/wAilrX/AF4T/wDotq1qyfFH/Ipa1/14T/8AotqAPl74Guz/ABZ0wscnyZh+AiYCvrevjf4UavFoHjmPV543kis7O5mdExuYLCxwM19iW8wuLaKdQQsiBwD1AIzQBJXnfxx/5JJq/wDvwf8Ao5K9Erxb9o3WLyy8L6bpkDqttqEz/aBtBLCPayjPYZOePQds5APmpev4H+VJSr1/A/ypKAPvixvItQsLa9tyTDcRLLGSMHawBHH0NT1j+E/+RN0P/sH2/wD6LWtigAooooAKKKKACiiigAooooAxvFdkt/4bubdp7aEbo3zdHETbZFbY/wDstjafZj1rnfBdpOdUE9zLpMX2dLwQ21heCclZ7gTEt8q4C4VRx3J4ziuq15tmi3DeRYT42/u9Ql8qA/MPvNtbHt8p5x9a5bQ2srfXzqly/hfTMWr2/l6beLIZtzKwLsUT7u04GD9480Ad1RRRQAUUUUAFY+n/APIy6z/uwf8AoJrYrH0//kZdZ/3YP/QTQBsUUUUAFFFFABRRRQAUUUUAeG/tJ3gXRNEs1uFDG5aZoQwzwuFYj8WGfrXzlXo3xmuJJPiFrcLysyx3SbFJztBhTp7V5zQAUUUUAfUn7PGpvefD+eydABZXjojDuGAfn8Sa9brwT9mdmNt4lXJ2h7YgZ4BxJ/gK97oAKKKKACiiigAooooAKKKKAMLxlaR3nhO9immtYol2Subs4hZUdXKP/stt2nrw3Q1zPhmx03XNbi1OXR9Ds4Ws5Yo7W3XzDPtlVWdt0aY2FSoGM/Oc44rqPFqQP4dlFxM8CCe3ZZ1UMIXEyFHYEgFFYKzc/dBrO8MaDdWV+b3UNWs72ZBciFLSExqgnm86QnLsTlgoHoF7k5oA6yiiigAornJ/GECXU8NnpGr6ilvI0Us9pbAxq6nDKCzDcQeDtzyCOorY0zUrbV9PivrN2aCXONylWBBIZSp5BBBBB6EGgC3WPp//ACMus/7sH/oJrYrH0/8A5GXWf92D/wBBNAGxRRRQAUUUUAFZPij/AJFLWv8Arwn/APRbVrVk+KP+RS1r/rwn/wDRbUAfENhqE2myzSQbd0sEkDbhn5XUqfxwa+6tM/5BNn/1wT/0EV8FV966Z/yCbP8A64J/6CKALVeEftL/APIO8O/9dZ/5JXu9eEftL/8AIO8O/wDXWf8AklAHzwvX8D/KkpV6/gf5UlAH2r8NL6bUfhtoFzPt8w2iodowMLlR+gFdVXnvwT1Br/4WaXujCfZzJAMHO4Kx5/WvQqACiiigAooooAKKKKACiiigDC8ZWkd54TvYpprWKJdkrm7OIWVHVyj/AOy23aevDdDXM+GbHTdc1uLU5dH0OzhazlijtbdfMM+2VVZ23RpjYVKgYz85zjiuo8WpA/h2UXEzwIJ7dlnVQwhcTIUdgSAUVgrNz90Gs7wxoN1ZX5vdQ1azvZkFyIUtITGqCebzpCcuxOWCgegXuTmgDrKKKKAPOLzQj/al++s+D7/XriW5ke3vYbqIoIixMaAPKhi2rheBgkZyc12HhizvrDw7a22osxuU3na0plMaF2KIXPLFUKqW77c1x95oR/tS/fWfB9/r1xLcyPb3sN1EUERYmNAHlQxbVwvAwSM5Oa7DwxZ31h4dtbbUWY3KbztaUymNC7FELnliqFVLd9uaANesfT/+Rl1n/dg/9BNW76HUpHQ2N5a26gfMJrZpST7EOuKzNDjvI9f1oXtxDPJiD5ooTGMbT2LN/OgDoKKKKACiiigAooooAKKKp6rqlpoulXOpX8hitLaMySuFLbVHU4HJoA+NfiTI8vxL8RtI7Owv5VBY54DYA+gAA/CuWrd8a3D3fjrX55AoZ9QnyF6ffNYVABRRRQB9B/szf6jxN/vW38pa98r5u/Z21uDTb/V7S5cIt69vHEdpJaX95gcdBjd19K+kaACiiigAooooAKKKKACiiigDlfFN35OrWEF7pd1qWiT2twLm3hsDdKZQ8BiLqFOOBJj/AOsKo+ABpwtLQf8ACLvpes/Yl+13B0f7IrN8u9Q4UA5bnA9M9q7iigAooooA84vJBDql+mgXfixbX7TIbpdMtoJIFmLEybDMpbO4tnYSN2e+a7DwwNOHh21/sp5XtDvO+fd5jOXYyF93O/fu3Z75rlWbTf8AhIbmw0zxRrelLPdurpFbobVrgktIkcssTAOWJJUN1JwM5rq/DSWEWiLDprStbwzzxM8xJd5VmdZWYnqTIHOe+aALV5q2m6c6pfahaWrOMqJ5lQsPbJrL0S+tL/xBrUtndQXMYEA3wyBxnae4rfKq3VQfqKx9OAXxJrIAAG2Dp/umgDZooooAKKKKACuf8dX8emeA9du5UZ0SylUhevzKVH866CuP+Kn/ACS7xD/16H+YoA+MK+8NGuIbjSbbyZo5PLjVH2MDtYKMg46H2r4Pr6n/AGef+Sayf9hCX/0FKAPWK+Wvj8zHx9cKSSBBbYGenElfSmv63a+HNCu9XvVka2tU3yCJQWIzjgEj1r49+IviGHxH411TUrUym0umiki87hlURgAYycdTQByi9fwP8qSlXr+B/lSUAfWPwD/5Jbbf9fM3/oVenV5j8A/+SW23/XzN/wChV6dQAUUUUAFFFFABRRRQAUUUUAcr4pu/J1awgvdLutS0Se1uBc28NgbpTKHgMRdQpxwJMf8A1hVHwANOFpaD/hF30vWfsS/a7g6P9kVm+XeocKActzgeme1dxRQAUUUUAcrFpni65mu5JfESWaG5l8iJLKOQCHcfL5JznbjOe9aPhbT7/TNDFrqc/n3YurqRpf76vPI6nHb5WXjt07Vs0UAFY+n/APIy6z/uwf8AoJrYrH0//kZdZ/3YP/QTQAt1rElv4r0zRxEpjvLW4naQnlTE0QAH18w/lWvXLan/AMlM8O/9g2//APQ7aupoAKKKKACiiqWq6pbaNp0l/eFhBGyKxVcnLMFHH1YUAXa8Y8dard/2z4/0trljZnQ1mWFjkBwEGR6cM3TrXqXiXWf+Ed8NajrHkfaPsUDTeVv2b8DOM4OPrg18t/EnxT/afj7VdQs2zbSQeRHuTBKNCinI9fmagDj/ABUyv4v1plIZTfzkEHII8xqyaKKACiiigDtvhNOY/iTosW5tstyvyg8ZHIJ/DP519k18YfCv/kqPh7/r7H8jX2fQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQBkx+HdPGmXumzIbizvJ5Z5IpcEAyOXYDGCPmJIPUE9elSaDosPh/SE06C4uLhEkllMtw4aRmkkaRixwM8ua0qKACsfT/APkZdZ/3YP8A0E1sVj6f/wAjLrP+7B/6CaANiiiigAooooAK4/4qf8ku8Q/9eh/mK7CuP+Kn/JLvEP8A16H+YoA+MK+iv2dNbuJLO+0EpF9mhT7WHAO/ezFSCc4xhB29ea+da9t/ZtniTxLrMDSKJZLRCiE8sA3OPpkUAer/ABg1C0s/hrq0FxMI5buIxQKQfncfMQP+AqT+FfIN06ySqVOQI0H4hAD+or6a/aFdU8I6YWIA+2OOfUwSgV8v0AKvX8D/ACpKVev4H+VJQB9Vfs+3kNx8Nvs8bEyW13IsgI6E4YfoRXqteL/s3f8AInat/wBhD/2mte0UAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABWPp//ACMus/7sH/oJrYrH0/8A5GXWf92D/wBBNAGdqf8AyUzw7/2Db/8A9Dtq6muW1P8A5KZ4d/7Bt/8A+h21dTQAUUVz/jLXRoXhnU54LmOLUVsLie0VgCWaNC2QD1xxQB0FeffEjV5ljm0URx+RJaR3ZfnduW7gQD0xhjXTWXifT7i7uLKWRobi2nhtWMgAWSWSJZVCYPPyt3xyDXiuqapdXvj/AMY2k88ksVooWIOc7Abu1OB7cDj60AdT8VfGFrdWF3oWm6gWlSC7TUIBERwIJSoyRg/NGeh7V85a3crPfyOAR5kUbgH3jjP9K7zxhdk/E/xJbo4KGC+Lj0YRT4/Rv1rznUv+PpP+veH/ANFLQBTooooAKKKKALuj6nNoutWOqW6q01ncR3CK+drFGDAHHODjmvvFDuRW9RmvgGvv2L/VJ/uigB1FFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABWPp//Iy6z/uwf+gmtisfT/8AkZdZ/wB2D/0E0AbFFFFABRRRQAV538b7ue0+FepmB9hleKJ+AcqzgEc16JXmvx4/5JVff9d4f/QxQB8lV6v+z1/yUp/+vCX/ANCSvKK734R+J7Lwj4yfU9QiuJIPsrQ7YFDNlnQDqQMfjQB6D+0hqK3Np4bjtbtJbV5LouInDKZE8tecdxlh7ZNeA12/j/XI72Cz0ZYWWTTr7UJGkJ4fzZyRgdsbD+dcRQAq9fwP8qSlXr+B/lSUAe//ALM8jk+JYi7eWPszBM8AnzMnHrwPyr6Ar59/Zm/13ib/AHbX/wBq19BUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABWPp//ACMus/7sH/oJrYrH0/8A5GXWf92D/wBBNAGdqf8AyUzw7/2Db/8A9Dtq6muW1P8A5KZ4d/7Bt/8A+h21dTQAV5p8Wv8AVQ/9gjVf/RAr0uvG/G+sy63YXMssSRm2g1+zUKTysSbAT7kDNAGR4e8RHUmn1jUWggx4rto3bOxAI7cxjknuFH4mvGLzXft3iy91eONoWu76W5RN2TH5jMQM98bqLm9mj1i6gEhMMd+8wjzxu8xRn/x0ViI2x1YdVOaAJry4NzdzTZJ8w8k9/eq9FFABRRRQAUUUUAFfcfhDVbjW/C1lqF0sazS7wwjBC/K7KOpPYCvhyvtP4ZyCX4eaTIAQHEjAH3legDrKKKKACiiigAooooAKKKKACiiigAooooAKKwb7xp4f069ltLi/zPCcSrDDJKIz1wxRSFP1xWxaXltf2kV3Zzxz28qh45Y2DKwPcEUATVj6f/yMus/7sH/oJrYrH0//AJGXWf8Adg/9BNAGxRRRQAUUUUAFea/Hj/klV9/13h/9DFelV5d8fruC3+GMsEr7ZLm6iSIYJ3EHcfpwp60AfKNT2lwba4R+du5d4HUgMD/QVBRQBe1q7jv9d1C8hz5U9zJKmeu1mJH86o0UUAKvX8D/ACpKVev4H+VJQB6v+z/rF7Z/EAaXDIq2l/GxuFKglvLRyuD25J6V9UV8g/BO7gs/irpTTvsEgkiTgnLMhAHHvX19QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUVzB8SaveT3J0bw79stLeeS3M816sPmPGxV9i4JIDAjJxnHpzWxo2qx6zpcd9HFJDuZ43ilxujdHKOpwSOGVhkHHFAF+sfT/8AkZdZ/wB2D/0E1sVj6f8A8jLrP+7B/wCgmgDn72Rz8bNJiLsY10O4ZVzwCZUyce+B+QruK4W8/wCS46X/ANgKf/0ctdfJqVrFqtvpjy4u7iKSaNNp5RCoY56DBdfzoAt183+KtcitpbnTQ4SRrjxEZSw4KyecEAPqWjx+XrX0Freppoug6jqskbSpZW0lw0anBYIpbA+uK+PPHGsy3PivVQEjCxahfRoMHO15ZG556/vG/IUAYN1Okmr3twudjTM49cb81n1PIf3tz9T/AOhCoKACiiigAooooAKKKKACvr34JzvcfCvTHkZmPmTgZOcDzWwK+Qq+sfgHdrcfC22iCkG2upoiT/ES2/P/AI/j8KAPTqKKKACiiigAooooAKKKKACiiigAooooA84vNV/4R3VL+x0zxTYRQvcyTzQzaTNdvbSSMXcF4nUDlicOMgHrjFdh4YtbW08O2qWV6t9BJvn+1LjErSO0jMNvABZjgDp0rNXQPEGnT3SaJrVhDZXNxJcGO809pnieRi77WWVMjcxIBBx0zitLwza21loaW1rdm7VJp/NnKhd83muZeBwP3m8YHTGKANesfT/+Rl1n/dg/9BNW77R9N1N0e+0+1uWQYUzRK5A9siszQ7Cz07X9ahsrWG2jIgOyJAoztPYUAdBRRRQAUUUUAFeNftIf8iPpf/YSX/0XJXsteHftK6gI9B0LTfLJM9zJOHz93y1C4x7+b+lAHzjRRRQAUUUUAKvX8D/KkpV6/gf5UlAHXfC7/kp/h3/r8X+tfaNfDfg68m0/xpot1bsFlS9iwSM9WAP6GvuSgAooooAKKKKACiiigAooooAKKKKACiiigDzvU4dFvbpZtM0zWJb+/urqN7ay1KSzSQ28hjlkcLIFxuA56ncM98db4YmsJ/Dlo2m2jWdsgaIWzABonRirqcE5IYMCcnJycmksvC+jafq0mqWtoY7yRpGZ/OcjMjbnwpO0Zbk4HWr9hYW2mWotrSMpFveTBYsSzsXY5PPLMT+NAEd9Y3F26NDqt5ZBRgrAsRDe53o36YrM0O2ltdf1pJr2e7bEB8ydUDfdPHyKo/SugrH0/wD5GXWf92D/ANBNAHnmua4Jfjf4LudLule1vrGaFnVQRJHliRyOPmUdPSuyv/8Akp+hf9gq+/8ARltXkem/8j98L/8Arzm/9Clr0i/1tF+M1tZSRFUsNAuLlpQ2dweWPIxjt5Xrzn25AJfir4m0zQvAusWt5MftV9YTQ28KDLOWAjz6YBkUn26Z6V8oeLP+Ry1z/sIT/wDoxq9b/aH1CPUIfCl7au32e8tJZUyMFkbymGR+VeITzy3NxJPPI0k0rF3djksxOSSfXNADGYsxY8knJpKKKACiiigAooooAKKKKACvqb9ngj/hW8wzz/aEvH/AUr5Zr3j9m3V1XUdY0fyTukgW58zd0CNtxjHfzP096APoeiiigAooooAKKKKACiiigAooooAKKKKAOVi+H2hNNdz3sD3c1zcy3Bd5XUrvYtt4bGBnA9q19A0S38PaQum2rMYEmmlTd/CJJWk2/hvx+FadFABWPp//ACMus/7sH/oJrYrH0/8A5GXWf92D/wBBNAGxRRRQAUUUUAFfP/7TX/Mrf9vf/tGvoCvm39pO6mfxNotoz5gis2kRMDhmchjnryEX8qAPEqKKKACiiigBV6/gf5UlKvX8D/KkoA0/Df8AyNOkf9fsP/oYr7sr4L0u7XT9Xsr1kLrbzpKVHUhWBx+lfdlhewalp1tfWzh7e5iWaNh/ErAEH8jQBYooooAKKKKACiiigAooooAKKKKACiiigAooooAKx9P/AORl1n/dg/8AQTWxWPp//Iy6z/uwf+gmgD588I3k938Q/Aonk3iB7mKPgDag3ED8ya9D1j/kuWo/9inJ/wCjDXmXhCZbfx74QnfOyOW7dsdcBWNdfpHieLxd8V9S1a3haKB/DM6RBjyyCX5WPoSCOO1AHnXxV1g3y+FtOAYJp+i2ykHGC7xI5I79Co/CvO6u6neTXs8cs8jufKRV3sW2qBgAZ7AAAewFUqACiiigAooooAKKKKACiiigAr0r4E3txa/FLT4IZCkd2k0M64B3oIncD2+ZFPHpXmtdl8KboWvxQ8Pu0vlBroJuzjJZSoH47sfjQB9m0UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFY+n/8AIy6z/uwf+gmtisfT/wDkZdZ/3YP/AEE0AbFFFFABRRRQAV8o/H67nn+JssEkhaK3tYliX+6CNx/Uk19XV8afFmWSX4pa/wCZIz7bjau45wAowB7UAcXRRRQAUUUUAKvX8D/KkpV6/gf5UlABX1z8ENZvNa+G1q14ysbSQ2cW1cYjjVQoPqfevkavpb9m+8nl8J6tau+YYLwNGuBwWXnn8BQB7TRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAVj6f/AMjLrP8Auwf+gmtisfT/APkZdZ/3YP8A0E0AfM+hSxweKvDLyyJGmb0bnYAZKsAPxJAqj4avxY3FyjPGiXXhS8gYyHHWORgB7llUfjVK/wD+Pvw1/wBfb/8Ao1ax72QJHZkMB/xLAp/FmH9aAMeVixXPZQP0qOlY7jn2ApKACiiigAooooAKKKKACiiigAroPAn/ACUPw1/2FbX/ANGrXP1d0e6+xa3YXZLDyLiOT5OvysDx78UAfb/h/WE1/Q7bU0haFZwxEbNkjDFev4Vp1yXwxmW5+HOjTqCFkjdgD15dq62gAooooAKKKKACiiigAooooAKKKKACiiigArH0/wD5GXWf92D/ANBNbFY+n/8AIy6z/uwf+gmgDYooooAKKKCQASTgDqTQAV8UfEa+i1H4ja/dQBhG146jcMHK/Kf1Br6D+NniyGw+H8kWm6pALu6uI4wIZAzbR8xxjp0X8/evlVmZ2LMxZmOSSckmgBKKKKACiiigBV6/gf5UlKvX8D/KkoAK9T+F3jqHwnpbWxunt2m1OKe6dYw4+youJAepydwxgZ4PNeWU5JCiuoxh12n8wf6UAffME8dzbxXETbo5UDocYyCMipK5X4f+K9J8V+FrWbS7je1tEkM8LjDxOFxhh74OD0P511VABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABWPp/wDyMus/7sH/AKCa2Kx9P/5GXWf92D/0E0AfJl//AMffhr/r7f8A9GrXKy/ek/64R/yWuqv/APj78Nf9fb/+jVrkp3xIQMfNEgP/AHyv+FAEFFFFABRRRQAUUUUAFFFFABRRRQAUAkEEHBFFFAH1X8Bddl1TwRJYytH/AMS2VYYkX7wQorZP1Yv+WO1eqV8g/CG8YfEHR4MsPMvI24PGFilHP/fVfVWm67bapquo2NuN32LyiZVYMsm9Swxj0xQBqUUUUAFFFFABRRRQAUUUUAFFFFAFC81zSNOuFgvtVsbaZuVjnuERj9ATmrysGUMpBUjIIPBFcR/wj+sadeagLbQ9A1WK9uZLj7TeTtFKN7Ftrjyn3Bc7Rgj5QBgV0XhnSZND8P22nyvEzxl2IhUrGm52fYgPRF3bV9lFAGtWPp//ACMus/7sH/oJq3faXBqDo0s14hUYHkXckIP1CMM/jSafpFrpkk8lubhpJypkee4eVjgYHLk4oAvUdBk1gp4Q06Ndsd1rCLkkKur3IAyc/wDPSoL7wLo2pWb2l7JqtxbyDDxSatclWHoR5nNAGo+v6RHpEerPqdqunSbdl00oEbbjgfN05PFcN45+K/h7TPCl2+nX8V5d3Pn2tuqKSu9VILHOMoDgZB5yMZrUf4TeEJdNTTZLO9axRty2zalcGMHjou/HYVT/AOFH/D3/AKAbf+Bk/wD8XQB8k3M3mFFVsoqLgeh2qD/L9Kgr69/4Uf8AD3/oBt/4GT//ABdJ/wAKP+Hv/QDf/wADJ/8A4ugD5Dor69/4Uf8AD3/oBt/4GT//ABdJ/wAKP+Hv/QDb/wADJ/8A4ugD5Dor68/4Uf8AD3/oBv8A+Bk//wAXS/8ACj/h7/0A2/8AAyf/AOLoA+Q16/gf5UlfXv8AwpD4fD/mBv8A+Bk//wAXSf8ACj/h7/0A2/8AAyf/AOLoA+Q6K+vP+FH/AA9/6Abf+Bk//wAXR/wo/wCHv/QDf/wMn/8Ai6APnPwX8RdX8DWWqQaX5Ya9VNrugby3U8Nz14LDHvXuHw3+MWmanpsena7fLDd21qryX11IFEz5bcvQAEAA9TkZ6Yrd/wCFH/D3/oBt/wCBk/8A8XR/wpD4fYI/sN8HnH22f/4ugDsk13SJLU3SarYtbggGUXCFASMgZzjpzV9WDKGUgqRkEdDXnw+CHw+ByNDcdv8Aj9n/APi66Hw54I0DwnPczaNaS273IHm7rmSQNyTnDMRnJPPvQB0NFFFABRRRQAUUUUAFFFFAFC81zSNOuFgvtVsbaZuVjnuERj9ATmrysGUMpBUjIIPBFcR/wj+sadeagLbQ9A1WK9uZLj7TeTtFKN7Ftrjyn3Bc7Rgj5QBgV0XhnSZND8P22nyvEzxl2IhUrGm52fYgPRF3bV9lFAGtWPp//Iy6z/uwf+gmrd9pcGoOjSzXiFRgeRdyQg/UIwz+NJp+kWumSTyW5uGknKmR57h5WOBgcuTigD5A1SRIZvDssjBUS5kZmPQASrk1xzNuOfYD8hX2FcfBvwNdbRPpMrqpJVTez4XJycDfxUH/AAo/4ff9AN//AAMn/wDi6APkOivrz/hR/wAPv+gG/wD4GT//ABdH/Cj/AIff9AN//Ayf/wCLoA+Q6K+vP+FH/D7/AKAb/wDgZP8A/F0f8KP+H3/QDf8A8DJv/i6APkOivrz/AIUf8Pv+gG//AIGT/wDxdH/Cj/h9/wBAN/8AwMn/APi6APkOivrz/hR/w+/6Ab/+Bk//AMXR/wAKP+H3/QDf/wADJ/8A4ugD5Dor68/4Uf8AD7/oBv8A+Bk3/wAXR/wo/wCH3/QDf/wMn/8Ai6APkOivrz/hR/w+/wCgG/8A4GT/APxdH/Cj/h9/0A3/APAyf/4ugD5U0XWrzw/qkGp6dII7y3ffE5UMAcEdDwetesfDf4lS6Hp4LWKTT32oWlhy+0BArBn+vI46da9T/wCFH/D7/oBv/wCBk3/xdKPgj8PxjGiPwcj/AEyfr/33QB3MuoWkF3b2stxGs9wWESE8uVGWx9BVnIzjPNcO3wi8GO+99OuWbzJJcm/nPzuAHb7/AFYAZPfArodN8N6fpeoSX8Bu5LqSIQmW5vJZzsBztG9jgZ54oA16KKKACiiigAooooAKKKKACiiigAqK5uIrS1muZ22wwo0jtgnCgZJwOelS1R1q3lu9C1C2gXfLLbSRoucZYqQBz70AVR4m09lDLDqhBGQRpV1/8bpf+Elsf+eGq/8Agpuv/jdadupS2iRhhlQAj3xUlAGR/wAJLY/88NV/8FN1/wDG6P8AhJbH/nhqv/gpuv8A43WvRQBkf8JLY/8APDVf/BTdf/G6jh8V6ZcRCWGPU5IySAy6VckHBwf+WfqK26zdBtZrLR4oLhNkqvISuQersR09iKAIv+Elsf8Anhqv/gpuv/jdH/CS2P8Azw1X/wAFN1/8brXooAyP+Elsf+eGq/8Agpuv/jdH/CS2P/PDVf8AwU3X/wAbrXooAxI/FemSvKkceps0TbJANKuiVbAbB/d8HDA/iKk/4SWx/wCeGq/+Cm6/+N1LplrNb6hrMsqbUuLxZYjkHcogiTPt8yMPwrSoAyP+Elsf+eGq/wDgpuv/AI3R/wAJLY/88NV/8FN1/wDG616KAMj/AISWx/54ar/4Kbr/AON1YsNZs9Snmgt/tCywqruk9rLCQrFgpAdRkEq3T0q/WbDazL4mvbtkxBJZ28SPkcsrzFhjrwHX86ANKiiigAooooAKKKKACiiigAooooAKKKKACiiigDIPibTvMlRF1CXy5GiZotOuJF3KSrAMqEHBBHB7Uf8ACS2P/PDVf/BTdf8AxupdDtZrSymjnTYzXlzKBkH5XmdlPHqCDWlQBiTeK9Mt4/Mmj1ONMgbm0q6AyTgf8s/UgVJ/wktj/wA8NV/8FN1/8bqXXrWa80pobdN8hmhbGQOFlVj19ga0qAMj/hJbH/nhqv8A4Kbr/wCN1H/wlemef5Hl6n523fs/sq5ztzjOPL6ZrbrNFrN/wkxu9n7j7GIt2R97eTjHXpQBF/wktj/zw1X/AMFN1/8AG6P+Elsf+eGq/wDgpuv/AI3WvRQBiQ+K9MuIhJDHqciEkBl0q5IyDg/8s/UGpP8AhJbH/nhqv/gpuv8A43Uug2s1lpEcFwmyQSSkrkHgyMR09iK0qAMSXxXpkCq0seporMqAtpV0MsxwB/q+pJAqT/hJbH/nhqv/AIKbr/43Uut2s13aW6QJvZLy3lYZAwqyqzHn0ANaVAGR/wAJLY/88NV/8FN1/wDG6jHivTGneAR6mZkVXZP7KushWJAJHl9CVb8jW3WbBazJ4mvrtkxBLZ28SPkcsrzFhjrwHX86AIv+Elsf+eGq/wDgpuv/AI3R/wAJLY/88NV/8FN1/wDG616KAIbO7hv7KC8tn3wXEayxtgjcrDIODyOD3qas3w9azWPhnSrS5TZPBZwxSJkHayoARkcdRWlQAUUUUAFFFFABRRRQAUUUUAFFFFABVS41XTrO8gs7m/tYLq4OIYZZlV5T/sqTk/hUt01wlrI1pFFLcBf3aSyGNGPoWCsQPfBriPGWr2NiPDj65caXp+o/2lBI6faw22NS2SGZUJUcZO0AE0AdVqXiLQ9GmSHVNZ0+xlddyJdXSRMwzjIDEZFadcD4wv7HT7+TV7PxNHZ6sdOAtrPZHKLxQzMgCkFm3E4+Qg13FrJLLZwSTxeVK8as8ec7GI5H4GgCaiimuWCMUAZ8HaGOAT7nBxQBWv8AVdO0tY21C/tbRZW2Rm4mWMO3oMkZNLf6nYaVbi41G+trOAsFElxKsa5PQZYgZrjPHmorB4FuW8QjS7C9d1W3RbzzQ2HQnazohzgHIA6DrU+tarpSeKPD+t3d5avoZsrtI7wurQCZjFtO77vKLKB+I70AdojrIiujBkYAqynII9RTq5zwHDLB4J01JY3iG12ijcEFIi7GMYPTCFRjtXR0AFFFUtRl1OJIzplpaXLFsSC5umhCr6grG+T7cfWgCGLxFoc2qnSotZ0+TUQzKbRLpDMCASRsznIAOeO1adefW1/DpniyKz0TX11FrzU5jfaXsRjbBtzO+VAZNrAfeJBzgckV6DQAUUUUAFUxq2mtqbaYuoWhv1XebUTL5oX12Zzj8KuV5ZbvAZ7PSRt/4SKPxPLdSx4/eiIzSMZT3CGAqoPTkD2oA9TooooAKKKKACiiigAooooAKKKKACiiigAooqlqMupxJGdMtLS5YtiQXN00IVfUFY3yfbj60AJDrWlXOoyadBqdlLfRZ8y2SdWkTHXKg5FXq8/GtaBr3jm0sLa/0y2GkXkj7PNRZ7m6KsrIiZ3bRvYscfMwwOATXoFABRRRQAVRh1rSrnUZNOg1Oylvos+ZbJOrSJjrlQcir1efjWtA17xzaWFtf6ZbDSLyR9nmos9zdFWVkRM7to3sWOPmYYHAJoA9AoorI8TS6nFoU40i2mnu5CsY8koHjViAzrvIUsq5IBPXFAGha3tpfLI1pdQ3CxSNFIYpA+x16qcdCO46ip64f4a7YbfXrOLS7mwgg1NhGk5jOBsQbflduRgZP+0OTzjuKAKeoatpukRpJqWoWllG7bUa5mWMMfQFiMmrasGUMpBBGQR3rzbxhLJY+Np7651hdMiGjgWDvAkgmmDuXjG8HJIMeVXDMNuDwa7/AEua4uNIsp7uD7PcyQI8sIGPLcqCV/A5FAFuqVrrOl315NaWepWdxcwf66GGdXePnHzKDkfjVwkhSQMkDp615L4GmD6z4ag8+0m+z2lwosrZCs+m7sErcsSSx428hMtzhuoAPW6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAzvEGoS6T4a1XUoFRprSzmnjWQEqWRCwBwQcZHrVVvFekQXcVlc3ey6by1fbE5jjeQDYrOAVQtkYDEE5HrVrxBp8ureGtV02BkWa7s5oI2kJChnQqCcAnGT6VzN14T1Z01HToZbL+zdTuYbmeZ3YTQlVjV1VduGz5QwxZduehxQBuN4u0NdSXTzeN57XH2VT5EnltN3QSbdhYYOQDxg5xVzVdasNEigkv5mjFxMIIQsTyF5CpYKAoJJIU49enUivPj50WuaV4btbzTLpLbXHvCsMrNcohaSVhLHtwgUuRv3Hd8vAzXdazpc2o3mizRNGFsb/wC0yByclfJlTC8dcuvXHANAEcnivRobqO2luZElfy9262lAiMmNiyNtxGxyMK5B5HFSx+I9Mk1YaX5syXTMyIJLaREkZQSwR2UK5ABOFJ6H0rnL/wAF3MutalKsUd3Y6lOs8qS6pc2/lkIiEeXHlJB8gIztPbkAUyXwhrV3rdndXl4sscGoS3DSm/nO+FlkVUWDHloVDqMjJOCc8mgDTi8Z2d/4j0vTtMlWaG6ExeR4JFDKi5DRMQFdc8Fl3D3rX1TXNP0YwLeyuJJy3lxxQvK7BeWO1ATgZGTjAyM1z2k+G9Ztb7w4t0dP+yaJbSWweJ3Mk4KKittKgJwoyuT168Vrappl+dfs9Z01baWWG2ltZIbmRo1KuyNuDKrcgxjjHIPUYoAp6V4ytJvDem6lqMoE18HMUdpBJMZArHlUQMxAGCT0GferM/jTQLcqGvmk3Wq3gMNvJKBAxYCQlFOFypyT074yK52LwNqdrp+hussM97p9tNbTRR309nHIsjq+VkiG4YKj5SCDn2BrRsPCU9n9u8tLaCO40lLJIlnkl2Sb53YlnG4r+9HJ568DigDbuPEWmW1/HZNLNJPIqPi3tpZlVWJCs7IpCA4OCxHQ1kp4zhi1u10yVJLk3Ml2omtLSYiPyZVjCEBWyfmIZsgArnowqndeFtXJ037ELS2ube2t4H1GK9mjkAj+8piCbJl+9gOR941Na+GtW07VLTULf7FO8V3qDPHJM8Y8q5mWQEEI3zKFHy4wcnmgDfj1/TJYLWZLnKXVy1pD+7bLSqWDLjGQQUfOem01pVwmiWKXfxF1W4trmOfSrB2lRYzkR3sqhJVz0yojJI7Gds+3d0AFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAVg3XiOPTtfv7a+khhsLWwguTKQd26SSRMcdfuKAAMknvkVvVyev+F73VNYuNQtp7dGENkbcSZIMtvO8uHAH3TuAyMkcnHAyAaP/CW6L9ha7+1ShVnFuYjbSifzSMhPJ2+ZuxzjbnHPSrulaxYa3avc6dP50SSNC5KMhV1+8pDAHIrjNS0u9028/wCEr1K80izvlvkkWGa6ZbUIIXh2GYoCGO9ju2egx3rW8AefLo19ez+Wftmo3FwjRA7GUtgFc4JU44OBkYPegDQXxdojC9YXbiOxd47iU28gjR0fYU3ldpfcQAoJJyCAQacvirSXsnukkumWOUQvEtlMZlcjcAYtm8cc/d6c1kXPhC5ufC95prXEaXD6rJqMLpI6r/x8mZFZlww4wCV5B5BOBVYeFtXWEyQpHazS3CNdRprd3I1zEqOApuGXemGYHCjnGCeaAN+TxbokdlaXQu2kjuy4hWGCSR22HD/IqlhtPDZA2nrineF9Xk17w3Z6nL5W64Vm/dZ2kBiARknsB3rndE8J61oUtvewtZXF0jXqPFNcylfLnmWVSJGVmLAqAcj5snnit/wzos+k+E7XSL2SJ5o42SR4MhTkk/LnkdaAH2nijSL5Z3guXMEEbSvcvBIkBRfvMsrKEYD1Umo7fxfodzC8qXbqEeFGWW3kjf8AfOEjIVlBKsxADAY688GsuDw5q83g6fwpfGxSzXTzZQXkEjM74UKrNEVAXgcgMcn0qG+8Ma5rUs9/ftp0F6kVsltFBI7xsYp1ny7FQQGZFGADtGeWzQB0V94j0nTUvXu7sRLZNEtwSjHYZCAnQc5JHTp3xWdqfjXT7LRptRgiubgwXUNrLAbaWORDI6DJQpuHyvuHHzcAHJFUJ/DOs6h/a8t2bCKS+vLGeOOOV3VEgkRmBYoMkhDjjuBx1qxq/hi+vpNblgltw15JZTW6uzAboHDkPgHAJUDIz9KAOntrhLq2jnjWRUcZAliaNh9VYAj6EVLUVs1w9tG13FFFOR86RSGRVPoGKqSPwFS0AFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/Z" alt="Evaluate count and density distribution" width="100%" />
+<p class="caption">
+Figure 2: <span class="caption-title">Evaluate count and density distribution</span><br>
+</p>
+</div>
 <ol start="4" style="list-style-type: decimal">
-<li>based on above distribution, choose threshold or specify a gene to be cut off</li>
+<li>based on above distribution, we want to filter out genes with low/no expression<br />
+choose threshold<br />
+</li>
 </ol>
 <pre class="r"><code>den.cut = -8
-cnt.cut = 1
+cnt.cut = 0
 ind.cut.den = which(log(transcript.reads$density) &lt; den.cut) 
 
 ind.cut.cnt = which(log(transcript.reads$counts) &lt; cnt.cut) 
-
 ind.cut = union(ind.cut.den, ind.cut.cnt)
+
+jpeg(file=&quot;cut_count_density_distribution.jpeg&quot;)
 par(mfrow=c(1,2))
 hist(log(transcript.reads$density), breaks=200,
 col=&quot;black&quot;,xlab=&quot;log read density&quot;,main=&quot;&quot;) 
 abline(v=den.cut, col=&quot;red&quot;) 
 hist(log(transcript.reads$counts), breaks=200,
 col=&quot;black&quot;,xlab=&quot;log read count&quot;,main=&quot;&quot;) 
-abline(v=cnt.cut, col=&quot;red&quot;)</code></pre>
+abline(v=cnt.cut, col=&quot;red&quot;)
+dev.off()</code></pre>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:unnamed-chunk-23"></span>
+<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAHgAeADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK86uvEzvqWoJqPjey8Oy29zJFHYSwxBjGrEI5MvL7wA3y4GGx1BrrvDGo3Wq+HbW8vVUTybxuWMxiRQ7KsgVuVDqAwB6bqANeiiigAooooAKKKKACiiigAooqrp9y93bPI4UFZ5o/l9EkZR+iilfWxXK+XmLVFFFMkKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoqrqNy9nZmaMKWDouG6fM4U/wA6tUr62K5Xy8wUUUUyQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA84vPEXnapfrqfjSw8PzWtzJHDYzQQh/LViEkJl5feAG+TAw2OoNdh4Y1G61Xw7a3l6qieTeNyxmMSKHZVkCtyodQGAPTdXMJ4nvtf1WLRLG6s7PUEur4XErWxlMMcMxSMBSQNzqVbOcYDYHIx0/hjUrnVtAhurvyjcCSaCRogQjtHK0ZdQScBtm4DJ60AWb+bVInQafZWlwpHzGe6aIg+wEbZ/SodK1K8u7u9tb6zhtprbZ/qbgyqwYE9Si46elalY+n/8jLrP+7B/6CaANiiiigAooooAKKKKACs7Rf8Ajwl/6+7n/wBHvWjWdov/AB4S/wDX3c/+j3qX8SNV/Cl6r8maNFFFUZBTI5Y5k3xSK65IypyMg4I/Oor2+tdNtHu724jt7dCA0kjYUZIAyfqQPxrzv4KknRPEoJJA8RXQHt8sdAHplFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAGdrn/ILb/rrF/6MWtGs7XP+QW3/AF1i/wDRi1o1K+Jmr/hR9X+SCiiiqMgooooAKKKo6xqtvoek3GpXYcwW67n2DLYyBwPxoAuO6RRtJIyoiglmY4AA7k07ORkVzvj7/knfiX/sF3P/AKKatuy/48Lf/rkv8hQBPRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUAADAoooAKx9P/AORl1n/dg/8AQTWxWPp//Iy6z/uwf+gmgDYooooAKKKKACiiigArO0X/AI8J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alpd7pt5/wAJXqV5pFnfLfJIsM10y2oQQvDsMxQEMd7Hds9BjvWt4A8+XRr69n8s/bNRuLhGiB2MpbAK5wSpxwcDIwe9AGgvi7RGF6wu3Edi7x3Ept5BGjo+wpvK7S+4gBQSTkEAg05fFWkvZPdJJdMscoheJbKYzK5G4AxbN445+705rIufCFzc+F7zTWuI0uH1WTUYXSR1X/j5MyKzLhhxgEryDyCcCqw8LausJkhSO1mluEa6jTW7uRrmJUcBTcMu9MMwOFHOME80Ab8ni3RI7K0uhdtJHdlxCsMEkjtsOH+RVLDaeGyBtPXFO8L6vJr3huz1OXyt1wrN+6ztIDEAjJPYDvXO6J4T1rQpbe9hayuLpGvUeKa5lK+XPMsqkSMrMWBUA5HzZPPFb/hnRZ9J8J2ukXskTzRxskjwZCnJJ+XPI60APtPFGkXyzvBcuYII2le5eCRICi/eZZWUIwHqpNR2/i/Q7mF5Uu3UI8KMstvJG/75wkZCsoJVmIAYDHXng1lweHNXm8HT+FL42KWa6ebKC8gkZnfChVZoioC8DkBjk+lQ33hjXNalnv79tOgvUitktooJHeNjFOs+XYqCAzIowAdozy2aAOivvEek6al693diJbJoluCUY7DIQE6DnJI6dO+KztT8a6fZaNNqMEVzcGC6htZYDbSxyIZHQZKFNw+V9w4+bgA5IqhP4Z1nUP7XluzYRSX15Yzxxxyu6okEiMwLFBkkIccdwOOtWNX8MX19JrcsEtuGvJLKa3V2YDdA4ch8A4BKgZGfpQB09tcJdW0c8ayKjjIEsTRsPqrAEfQipaitmuHto2u4oopyPnSKQyKp9AxVSR+AqWgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/9k=" alt="Evaluate count and density distribution 2" width="100%" />
+<p class="caption">
+Figure 3: <span class="caption-title">Evaluate count and density distribution 2</span><br>
+</p>
+</div>
 <ol start="5" style="list-style-type: decimal">
-<li>remove unexpected genes</li>
+<li>remove genes with low/no expression</li>
 </ol>
 <pre class="r"><code>unexp = names(transcript.reads$counts)[ind.cut]
 largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]</code></pre>
 <ol start="6" style="list-style-type: decimal">
-<li>identify TSS</li>
+<li>TSS identification and remove overlaps<br />
+</li>
 </ol>
+<p>In previous TSS analysis session, we have identified transcription start site (TSS).<br />
+</p>
 <pre class="r"><code># from TSSInference
 tss.interval.bed = merge(potential.tss2, largest.interval.expr.bed, by.x=&quot;gene&quot;, by.y=&quot;gene&quot;)
 
@@ -1478,16 +1509,29 @@ tss.interval.bed= tss.interval.bed[,c(2:5, 7, 6)]
 colnames(tss.interval.bed) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;)
 tss.interval.bed$xy &lt;- 0
 
-#remove gene overlaps
-overlap.data = gene.overlaps( bed = tss.interval.bed ) 
+# head(tss.interval.bed)
+#    chr     start       end    gene xy strand
+#1 chr19  58345183  58353492    A1BG  0      -
+#2  chr1  33306766  33321142 A3GALT2  0      -
+#3 chr22  42692121  42718965  A4GALT  0      -
+#4 chr12  53307459  53321610    AAAS  0      -
+#5 chr12 125065402 125143316    AACS  0      +
+#6  chr4 170060222 170090202   AADAT  0      -</code></pre>
+<p>Now we want to address overlaps (if multiple genes’ occupying same coordinates) and filter them out from TSSs.</p>
+<pre class="r"><code>#remove gene overlaps with the highest density
+overlap.data = gene.overlaps(bed = tss.interval.bed) 
 
 filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
-overlaps=overlap.data$cases, 
-transcripts=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus, by=&quot;den&quot;)</code></pre>
+                                       overlaps=overlap.data$cases, 
+                                       transcripts=gencode.transcript, 
+                                       bw.plus=bw.plus, 
+                                       bw.minus=bw.minus, 
+                                       by=&quot;den&quot;)</code></pre>
 <ol start="7" style="list-style-type: decimal">
-<li>get TTS coordinates<br />
-find TTS search regions use get.end.intervals()<br />
-identifying TTS use get.TTS()<br />
+<li>TTS identification  
+TTS: triplex target DNA site that can selectively form triple-helix structure, and regulate gene expression.
+find TTS search regions use get.end.intervals();<br />
+identifying TTS use get.TTS(), which will generate a bed output with both TSSs and TTSs.<br />
 </li>
 </ol>
 <pre class="r"><code># get TTS intervals
@@ -1510,18 +1554,20 @@ tau.dist = 50000
 frac.max = 1
 frac.min = 0.3
 
+#save.image(&#39;230808_GATA3_pro_TSS.Rdata&#39;)
+
 inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           bw.plus=bw.plus, bw.minus=bw.minus,
                           bp.bin=bp.bin, add.to.end=add.to.end,
                           pk.thresh=pk.thresh, knot.thresh=knot.thresh,
                           cnt.thresh=cnt.thresh, tau.dist=tau.dist,
                           frac.max=frac.max, frac.min=frac.min,
-                          knot.div=knot.div)
-                          
+                          knot.div=knot.div)                          
 final.coords = inferred.coords$bed      
 
 write.table(final.coords, file = &quot;MCF7_GATA3_gene_annotations.bed&quot;,
-sep = &quot;\t&quot;, row.names=FALSE, col.names=FALSE, quote=FALSE)</code></pre>
+sep = &quot;\t&quot;, row.names=FALSE, col.names=FALSE, quote=FALSE)
+#save.image(&#39;230809_GATA3_pro_TSS.Rdata&#39;)</code></pre>
 </div>
 </div>
 <div id="differential-expression-analysis" class="section level1" number="4">
@@ -1534,7 +1580,7 @@ R
 library(bigWig)
 library(lattice)
 library(DESeq2)
-library(MatchIt)
+library(MatchIt) # Selects matched samples of the original treated and control groups with similar covariate distributions – can be used to match exactly on covariates, to match on propensity scores, or perform a variety of other matching procedures. 
 library(data.table)
 
 source(&#39;https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R&#39;)
@@ -1610,28 +1656,27 @@ plotPCAlattice &lt;- function(df, file = &#39;PCA_lattice.pdf&#39;) {
 
 
 
-run.deseq.list &lt;- function(mat, untreated = 4, treated=4) {
-  sample.conditions = factor(c(rep(&quot;untreated&quot;,untreated), rep(&quot;treated&quot;, treated)), levels=c(&quot;untreated&quot;,&quot;treated&quot;))        
+#run.deseq.list &lt;- function(mat, untreated = 4, treated=4) {
+# sample.conditions = factor(c(rep(&quot;untreated&quot;,untreated), rep(&quot;treated&quot;, treated)), levels=c(&quot;untreated&quot;,&quot;treated&quot;))        
   
   
-  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
-  colData(deseq.counts.table)$condition&lt;-factor(colData(deseq.counts.table)$sample.conditions, levels=c(&#39;untreated&#39;,&#39;treated&#39;));
-  dds = DESeq(deseq.counts.table);
-  res = results(dds);
+#  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+#  colData(deseq.counts.table)$condition&lt;-factor(colData(deseq.counts.table)$sample.conditions, levels=c(&#39;untreated&#39;,&#39;treated&#39;));
+#  dds = DESeq(deseq.counts.table);
+#  res = results(dds);
   #res = res[order(res$padj),];
-  return(res)
-}
+#  return(res)
+#}
 
-
-run.deseq.list.dds &lt;- function(mat) {
-  sample.conditions = factor(c(&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;), levels=c(&quot;untreated&quot;,&quot;treated&quot;))        
-  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
-  colData(deseq.counts.table)$condition&lt;-factor(colData(deseq.counts.table)$sample.conditions, levels=c(&#39;untreated&#39;,&#39;treated&#39;));
-  dds = DESeq(deseq.counts.table);
+#run.deseq.list.dds &lt;- function(mat) {
+#  sample.conditions = factor(c(&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;), levels=c(&quot;untreated&quot;,&quot;treated&quot;))        
+#  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
+#  colData(deseq.counts.table)$condition&lt;-factor(colData(deseq.counts.table)$sample.conditions, levels=c(&#39;untreated&#39;,&#39;treated&#39;));
+#  dds = DESeq(deseq.counts.table);
   #res = results(dds);
   #res = res[order(res$padj),];
-  return(dds)
-}
+#  return(dds)
+#}
 
 tighten_summit_window &lt;- function(res.deseq) {
   chr = sapply(strsplit(rownames(res.deseq), &#39;:&#39;), &#39;[&#39;, 1)
@@ -1642,212 +1687,388 @@ tighten_summit_window &lt;- function(res.deseq) {
   df = cbind.data.frame(chr, start, end, gene)
   return(df)
 }</code></pre>
+<p>load the unnormalized bigWig PRO data<br />
+estimate read size use the <code>DESeq2</code> function <code>estimateSizeFactorsForMatrix</code>: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column.<br />
+</p>
 <pre class="r"><code>inferred.coords=read.table(&#39;MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
 
-counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/Users/guertinlab/Desktop/ZNF143_ChIP/bigWigs/&quot;, file.prefix = &quot;H&quot;))
+counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/&quot;, file.prefix = &quot;MCF&quot;))
 
-estimateSizeFactorsForMatrix(counts.df)
-
-
-#PCA for experiments
-
-dds = run.deseq.list.dds(counts.df)
-rld &lt;- rlog(dds)
-
+# estimate read size
+estimateSizeFactorsForMatrix(counts.df)</code></pre>
+<p>In this PRO exp, we have 4 levels</p>
+<pre class="r"><code>sample.conditions = factor(c(&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;, &quot;dTAGV1_NoE2&quot;,&quot;dTAGV1_NoE2&quot;), 
+                           levels=c(&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;))
+deseq.counts.table = DESeqDataSetFromMatrix(counts.df, DataFrame(sample.conditions), ~ sample.conditions)
+colData(deseq.counts.table)$condition&lt;-factor(colData(deseq.counts.table)$sample.conditions, levels=c(&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;))
+dds = DESeq(deseq.counts.table)
+#resultsNames(dds)
+#[1] &quot;Intercept&quot;                                   
+#[2] &quot;sample.conditions_control_NoE2_vs_control_E2&quot;
+#[3] &quot;sample.conditions_dTAGV1_E2_vs_control_E2&quot;   
+#[4] &quot;sample.conditions_dTAGV1_NoE2_vs_control_E2&quot; 
+res = results(dds)
+#res = res[order(res$padj),]
+rld &lt;- rlog(dds)</code></pre>
+<p>PCA<br />
+</p>
+<pre class="r"><code>#PCA for experiments
 plotPCA(rld)
 
 pca.plot = plotPCA(rld, intgroup=&quot;sample.conditions&quot;, returnData=TRUE)
 pca.plot$sample.conditions = rownames(pca.plot)
-plotPCAlattice(pca.plot, file = &#39;PCA_ZNF143_PRO.pdf&#39;)
-
-rep = factor(sapply(strsplit(colnames(counts.df), &#39;rep&#39;), &#39;[&#39;, 2))
-sample.conditions = factor(c(&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;untreated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;,&quot;treated&quot;), levels=c(&quot;untreated&quot;,&quot;treated&quot;))
+plotPCAlattice(pca.plot, file = &#39;PCA_GATA3_PRO.pdf&#39;)</code></pre>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:unnamed-chunk-32"></span>
+<embed src="data:application/pdf;base64,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L0V4dEdTdGF0ZQovY2EgMS4wMDAKPj4KZW5kb2JqCnhyZWYKMCAxNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMjEgMDAwMDAgbiAKMDAwMDAwMDE2MyAwMDAwMCBuIAowMDAwMDAyNjgyIDAwMDAwIG4gCjAwMDAwMDI3NjUgMDAwMDAgbiAKMDAwMDAwMjk1NSAwMDAwMCBuIAowMDAwMDAyOTg4IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDI5MiAwMDAwMCBuIAowMDAwMDA1NjgzIDAwMDAwIG4gCjAwMDAwMDU5NDAgMDAwMDAgbiAKMDAwMDAwNjAzNyAwMDAwMCBuIAowMDAwMDA2MDg2IDAwMDAwIG4gCjAwMDAwMDYxMzUgMDAwMDAgbiAKMDAwMDAwNjE4NCAwMDAwMCBuIAowMDAwMDA2MjMzIDAwMDAwIG4gCjAwMDAwMDYyODIgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSAxNyAvSW5mbyAxIDAgUiAvUm9vdCAyIDAgUiA+PgpzdGFydHhyZWYKNjMzMQolJUVPRgo=" title="PCA" width="100%" type="application/pdf"></embed>
+<p class="caption">
+Figure 4: <span class="caption-title">PCA</span><br>
+</p>
+</div>
+<pre class="r"><code>rep = factor(sapply(strsplit(colnames(counts.df), &#39;rep&#39;), &#39;[&#39;, 2))
+# [1] &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot;
+sample.conditions = factor(c(&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;, &quot;dTAGV1_NoE2&quot;,&quot;dTAGV1_NoE2&quot;), 
+                           levels=c(&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;))
 
 
 deseq.df = DESeqDataSetFromMatrix(counts.df, cbind.data.frame(sample.conditions, rep), ~ rep + sample.conditions)
 deseq.df = DESeq(deseq.df)
+#save.image(&#39;230810_GATA3_pro_DEA.Rdata&#39;)</code></pre>
+<p>we want to compare:<br />
+1) “control_E2” vs. “control_NoE2”: ER activity under control<br />
+2) “dTAGV1_E2” vs. “dTAGV1_NoE2” : ER activity when GATA3 is depleted  <br />
+3) “dTAGV1_E2” vs. “control_E2” : compare between with or without GATA3 (when ER is activated)  
+4) “dTAGV1_NoE2” vs. “control_NoE2”: compare between with or without GATA3 (when ER is not activated)  </p>
+<div id="control_e2_vs_control_noe2" class="section level2" number="4.1">
+<h2><span class="header-section-number">4.1</span> 1) control_E2_vs_control_NoE2<br />
+</h2>
+<pre class="r"><code>#levels(sample.conditions)
+#[1] &quot;control_E2&quot;   &quot;control_NoE2&quot; &quot;dTAGV1_E2&quot;    &quot;dTAGV1_NoE2&quot; 
 
-for (i in levels(sample.conditions)[-1]) {
-  res.deseq = results(deseq.df, contrast = c(&quot;sample.conditions&quot;, i, &quot;untreated&quot;))
-  sum(res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj))
+res.deseq = results(deseq.df, contrast = c(&quot;sample.conditions&quot;, &quot;control_E2&quot;, &quot;control_NoE2&quot;)) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj))
+#[1] 131
+
+
+# activated
+activated = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;control_E2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
   
-  activated = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
-  activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]    
-  write.table(activated.strand, file = paste0(i, &#39;_activated_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-  
-  unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Activated&quot;
+activated$treatment = &quot;Activated&quot;
+df.x = rbind(activated, unchanged)
 
-  #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
-  unchanged$treatment = 0
-  activated$treatment = 1
-  df.deseq.effects.lattice = rbind(unchanged, activated)
-  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
-  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
 
-  write.table(unchanged.strand, file = paste0(i, &#39;_activated_matched_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-  unchanged$treatment = &quot;Matched to Activated&quot;
-  activated$treatment = &quot;Activated&quot;
-  df.x = rbind(activated, unchanged)
-  
-  repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
-  repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]    
-  write.table(repressed.strand, file = paste0(i, &#39;_repressed_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-  unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+# repressed
+repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;control_E2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
 
-  # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
-   unchanged$treatment = 0
-  repressed$treatment = 1
-  df.deseq.effects.lattice = rbind(unchanged, repressed)
-  out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
-  unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-  unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Repressed&quot;
+repressed$treatment = &quot;Repressed&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)</code></pre>
+<p>MA plot<br />
+</p>
+<pre class="r"><code># Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment==&quot;Matched to Activated&quot;,], df.x[df.x$treatment==&quot;Matched to Repressed&quot;,])
+unchanged.df$treatment=&quot;Unchanged&quot;
+# nrow(unchanged.df)
+#[1] 131
 
-  write.table(unchanged.strand, file = paste0(i, &#39;_repressed_matched_genes.bed&#39;), quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-  unchanged$treatment = &quot;Matched to Repressed&quot;
-  repressed$treatment = &quot;Repressed&quot;
-  df.x = rbind(df.x, unchanged)
-  df.x = rbind(df.x, repressed)
-}</code></pre>
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 4; activated: 127
+
+pdf(&quot;MA_plot_control_E2_vs_control_NoE2_response.pdf&quot;, useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c(&quot;red&quot;, &quot;blue&quot;, &quot;grey90&quot;, &quot;grey60&quot;),
+             scales=&quot;free&quot;,
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression(&quot;control_E2_vs_control_NoE2 log&quot;[2]~&quot;PRO fold change&quot;),
+             xlab=expression(&quot;log&quot;[10]~&quot;Mean of Normalized Counts&quot;),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col=&quot;grey85&quot;))))
+dev.off()
+
+#save.image(&#39;230810_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata&#39;)</code></pre>
 </div>
-<div id="get-functional-peaks" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> get functional peaks</h1>
-<pre class="r"><code>library(latticeExtra)
+<div id="dtagv1_e2_vs_dtagv1_noe2" class="section level2" number="4.2">
+<h2><span class="header-section-number">4.2</span> 2) dTAGV1_E2_vs_dTAGV1_NoE2  </h2>
+<pre class="r"><code>#levels(sample.conditions)
+#[1] &quot;control_E2&quot;   &quot;control_NoE2&quot; &quot;dTAGV1_E2&quot;    &quot;dTAGV1_NoE2&quot; 
 
-cdf.deseq.df &lt;- function(df, genes = gene.file, chip.peaks = chip.peaks) {
-  bed.tss.activated = filter.deseq.into.bed(df, genes, cat = &quot;Repressed&quot;)
-  bed.tss.unchanged = filter.deseq.into.bed(df, genes, cat = &quot;Matched to Repressed&quot;)
-  act.distance = bedTools.closest(bed1 = bed.tss.activated, bed2 = chip.peaks[,c(1:3)], opt.string = &#39;-D a&#39;)
-  unreg.distance = bedTools.closest(bed1 = bed.tss.unchanged, bed2 = chip.peaks[,c(1:3)], opt.string = &#39;-D a&#39;)
+res.deseq = results(deseq.df, contrast = c(&quot;sample.conditions&quot;, &quot;dTAGV1_E2&quot; , &quot;dTAGV1_NoE2&quot;)) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj))
+#[1] 190
 
-  df.up.can = cbind(act.distance[,c(4, 10)], &quot;Repressed&quot;)
-  df.un.can = cbind(unreg.distance[,c(4, 10)], &quot;Matched to Repressed&quot;)
 
-  colnames(df.up.can) = c(colnames(df.up.can)[1:2], &#39;status&#39;)
-  colnames(df.un.can) = c(colnames(df.up.can)[1:2], &#39;status&#39;)
-
-  df.all = rbind(df.up.can, df.un.can)
-  df.all$status = factor(df.all$status, levels = c(&quot;Repressed&quot;, &quot;Matched to Repressed&quot;))
-  return(df.all)
-}
-
-filter.deseq.into.bed &lt;- function(deseq.df, gene.file, cat = &#39;R1881 Activated&#39;) {
-  deseq.df = deseq.df[deseq.df$treatment == cat,]
-  #print(dim(deseq.df))
-  #scientific notation was messing this up occasionally
-  x = gene.file$V4
-  #print(length(x))
-  y = gene.file[x %in% rownames(deseq.df),]
-  #print(dim(y))
-  z = get.tss(y)
-  #print(dim(z))
-  return(z)
-}
-
-col.lines = c(&quot;#FF0000&quot;, &quot;grey60&quot;)
-
-bedTools.closest &lt;- function(functionstring=&quot;/Users/guertinlab/Downloads/bedtools2/bin/closestBed&quot;,bed1,bed2,opt.string=&quot;&quot;) {
+# activated
+activated = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;dTAGV1_E2_vs_dTAGV1_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
   
-  options(scipen =99) # not to use scientific notation when writing out
-  
-  #write bed formatted dataframes to tempfile
-  write.table(bed1,file= &#39;a.file.bed&#39;, quote=F,sep=&quot;\t&quot;,col.names=F,row.names=F)
-  write.table(bed2,file= &#39;b.file.bed&#39;, quote=F,sep=&quot;\t&quot;,col.names=F,row.names=F)
-  
-  # create the command string and call the command using system()
-  command1=paste(&#39;sort -k1,1 -k2,2n&#39;, &#39;a.file.bed&#39;, &#39;&gt; a.file.sorted.bed&#39;)
-  cat(command1,&quot;\n&quot;)
-  try(system(command1))
-  command2=paste(&#39;sort -k1,1 -k2,2n&#39;, &#39;b.file.bed&#39;, &#39;&gt; b.file.sorted.bed&#39;)
-  cat(command2,&quot;\n&quot;)
-  try(system(command2))
-  
-  command=paste(functionstring, opt.string,&quot;-a&quot;,&#39;a.file.sorted.bed&#39;,&quot;-b&quot;,&#39;b.file.sorted.bed&#39;,&quot;&gt;&quot;,&#39;out.file.bed&#39;,sep=&quot; &quot;)
-  cat(command,&quot;\n&quot;)
-  try(system(command))
-  
-  res=read.table(&#39;out.file.bed&#39;,header=F, comment.char=&#39;&#39;)
-  
-  command3=paste(&#39;rm&#39;, &#39;a.file.bed&#39;, &#39;b.file.bed&#39;, &#39;a.file.sorted.bed&#39;, &#39;b.file.sorted.bed&#39;, &#39;out.file.bed&#39;)
-  cat(command3,&quot;\n&quot;)
-  try(system(command3))
-  
-  colnames(res) = c(colnames(bed1), colnames(bed2), &#39;dis&#39; )
-  return(res)
-}
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_E2_vs_dTAGV1_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Activated&quot;
+activated$treatment = &quot;Activated&quot;
+df.x = rbind(activated, unchanged)
 
 
-filter.deseq.into.bed &lt;- function(deseq.df, gene.file, cat = &#39;R1881 Activated&#39;) {
-  deseq.df = deseq.df[deseq.df$treatment == cat,]
-  print(dim(deseq.df))
-  #scientific notation was messing this up occasionally
-  x = gene.file$V4
-  print(length(x))
-  xy=sapply(strsplit(sapply(strsplit(rownames(deseq.df), &#39;:&#39;), &#39;[&#39;, 2), &quot;-&quot;), &quot;[&quot;, 2)
-  gene = sapply(strsplit(xy, &quot;_&quot;), &quot;[&quot;, 2)
-  y = gene.file[x %in% gene,]
-  #print(dim(y))
-  z = get.tss(y)
-  #print(dim(z))
-  return(z)
-}
+# repressed
+repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;dTAGV1_E2_vs_dTAGV1_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
 
-gene.file=read.table(file = &quot;/Users/guertinlab/Desktop/ZNF143_ChIP/HEK_ZNF143_gene_annotations.bed&quot;, sep=&quot;\t&quot;, header=FALSE)
-df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table(&#39;/Users/guertinlab/Desktop/ZNF143_ChIP/quantile1.bed&#39;, header=FALSE))
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_E2_vs_dTAGV1_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Repressed&quot;
+repressed$treatment = &quot;Repressed&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)</code></pre>
+<p>MA plot<br />
+</p>
+<pre class="r"><code># Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment==&quot;Matched to Activated&quot;,], df.x[df.x$treatment==&quot;Matched to Repressed&quot;,])
+unchanged.df$treatment=&quot;Unchanged&quot;
+# nrow(unchanged.df)
+#[1] 190
+#nrow(repressed)
+#nrow(activated)
 
-plot_cdf &lt;- function(df.all, tf=&quot;quantile&quot;, col.lines = c(&quot;#ce228e&quot;, &quot;grey60&quot;, &quot;#2290cf&quot;,&quot;grey90&quot;), line.type = c(1)) {
-pdf(paste0(tf, &quot;FIG_cdf_compare_Reg_classes.pdf&quot;), width=6.2, height=3.83) 
-    print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
-         auto.key = list(lines=TRUE, points=FALSE),
-         col = col.lines,
-         aspect = 1,
-                                        #xlim = c(0, 50000),
-         scales=list(relation=&quot;free&quot;,alternating=c(1,1,1,1)),
-         ylab = &#39;Cumulative Distribution Function&#39;,
-         xlab = expression(&#39;log&#39;[10]~&#39;ZNF143 Distance from TSS&#39;),
-                                        #index.cond = list(c(2,1)),
-         between=list(y=1.0),
-         type = &#39;a&#39;,
-         xlim = c(0,8),
-         lwd=2,
-         lty=line.type,
-         par.settings = list(superpose.line = list(col = col.lines, lwd=3), strip.background=list(col=&quot;grey85&quot;)),
-         panel = function(...) {
-             panel.abline(v= 200, lty =2)
-             panel.ecdfplot(...)
-         }))
-    dev.off()
-}
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 12; activated: 178
+
+pdf(&quot;MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf&quot;, useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c(&quot;red&quot;, &quot;blue&quot;, &quot;grey90&quot;, &quot;grey60&quot;),
+             scales=&quot;free&quot;,
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression(&quot;dTAGV1_E2_vs_dTAGV1_NoE2 log&quot;[2]~&quot;PRO fold change&quot;),
+             xlab=expression(&quot;log&quot;[10]~&quot;Mean of Normalized Counts&quot;),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col=&quot;grey85&quot;))))
+dev.off()
+
+#save.image(&#39;230810_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata&#39;)</code></pre>
+</div>
+<div id="dtagv1_e2_vs_control_e2" class="section level2" number="4.3">
+<h2><span class="header-section-number">4.3</span> 3) dTAGV1_E2_vs_control_E2  </h2>
+<pre class="r"><code>#levels(sample.conditions)
+#[1] &quot;control_E2&quot;   &quot;control_NoE2&quot; &quot;dTAGV1_E2&quot;    &quot;dTAGV1_NoE2&quot; 
+
+res.deseq = results(deseq.df, contrast = c(&quot;sample.conditions&quot;, &quot;dTAGV1_E2&quot; , &quot;control_E2&quot;)) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj))
+#[1] 1009
 
 
-#make sure that the &quot;cdf.deseq.df&quot; function is the one from above, not sourced
-for (chip.peak in Sys.glob(file.path(&quot;/Users/guertinlab/Desktop/ZNF143_ChIP/quantile*bed&quot;))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(df = df.x, genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE))
-    plot_cdf(df.all, tf = quantile.name)
-    }
-    
-df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
-colnames(df.cdf) = c(&quot;V4&quot;, &quot;dis&quot;, &quot;status&quot;)
-for (chip.peak in Sys.glob(file.path(&quot;/Users/guertinlab/Desktop/ZNF143_ChIP/quantile*bed&quot;))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(df = df.x, genes = gene.file,
-    chip.peaks=read.table(chip.peak, header=FALSE))
-    x = paste(as.character(df.all[,3]), quantile.name)
-    df.all[,3] = x
-    df.cdf = rbind(df.cdf, df.all)
-    #plot_cdf(df.all, tf = quantile)
-    
-    }
-plot_cdf(df.cdf, tf = &quot;ZNF143&quot;, col.lines = c(rep(&quot;grey60&quot;,20),colorRampPalette(c(&quot;red&quot;,&quot;pink&quot;))(13),colorRampPalette(c(&quot;blue&quot;, &quot;light blue&quot;))(7)), line.type = c(rep(2, 20), rep(1,20)))</code></pre>
-<div id="plot-an-ma-plot-for-activated-and-repressed-and-unchanged" class="section level2" number="5.1">
-<h2><span class="header-section-number">5.1</span> Plot an MA plot for activated and repressed and unchanged</h2>
-<p>Unchanged can be the combine matched genes (match a set for act and a
-set for repressed).</p>
+# activated
+activated = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;dTAGV1_E2_vs_control_E2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_E2_vs_control_E2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Activated&quot;
+activated$treatment = &quot;Activated&quot;
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;dTAGV1_E2_vs_control_E2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_E2_vs_control_E2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Repressed&quot;
+repressed$treatment = &quot;Repressed&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)</code></pre>
+<p>MA plot<br />
+</p>
+<pre class="r"><code># Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment==&quot;Matched to Activated&quot;,], df.x[df.x$treatment==&quot;Matched to Repressed&quot;,])
+unchanged.df$treatment=&quot;Unchanged&quot;
+# nrow(unchanged.df)
+#[1] 1009
+#nrow(repressed)
+#nrow(activated)
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 491; activated: 518
+
+pdf(&quot;MA_plot_dTAGV1_E2_vs_control_E2_response.pdf&quot;, useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c(&quot;red&quot;, &quot;blue&quot;, &quot;grey90&quot;, &quot;grey60&quot;),
+             scales=&quot;free&quot;,
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression(&quot;dTAGV1_E2_vs_control_E2 log&quot;[2]~&quot;PRO fold change&quot;),
+             xlab=expression(&quot;log&quot;[10]~&quot;Mean of Normalized Counts&quot;),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col=&quot;grey85&quot;))))
+dev.off()
+
+#save.image(&#39;230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata&#39;)</code></pre>
+</div>
+<div id="dtagv1_noe2_vs_control_noe2" class="section level2" number="4.4">
+<h2><span class="header-section-number">4.4</span> 4) dTAGV1_NoE2_vs_control_NoE2  </h2>
+<pre class="r"><code>#levels(sample.conditions)
+#[1] &quot;control_E2&quot;   &quot;control_NoE2&quot; &quot;dTAGV1_E2&quot;    &quot;dTAGV1_NoE2&quot; 
+
+res.deseq = results(deseq.df, contrast = c(&quot;sample.conditions&quot;, &quot;dTAGV1_NoE2&quot; , &quot;control_NoE2&quot;)) # use `contrast` to compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj))
+#[1] 1368
+
+
+# activated
+activated = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  
+# unchanged Matched to Activated
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Activated&quot;
+activated$treatment = &quot;Activated&quot;
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq[res.deseq$padj &lt; 0.1 &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &lt; 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq[!is.na(res.deseq$padj) &amp; res.deseq$padj &gt; 0.1 &amp; abs(res.deseq$log2FoldChange) &lt; 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) &amp; !is.na(res.deseq$padj) &amp; res.deseq$log2FoldChange &gt; 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+        
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Repressed&quot;
+repressed$treatment = &quot;Repressed&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)</code></pre>
+<p>MA plot<br />
+</p>
+<pre class="r"><code># Unchanged is the combine matched genes.
+unchanged.df = rbind(df.x[df.x$treatment==&quot;Matched to Activated&quot;,], df.x[df.x$treatment==&quot;Matched to Repressed&quot;,])
+unchanged.df$treatment=&quot;Unchanged&quot;
+# nrow(unchanged.df)
+#[1] 1062
+#nrow(repressed)
+#nrow(activated)
+
+df.y=rbind(unchanged.df, repressed, activated) # repressed: 637; activated: 731
+
+pdf(&quot;MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.pdf&quot;, useDingbats = FALSE, width=4.83, height=3.33)
+print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
+             groups=df.y$treatment,
+             col=c(&quot;red&quot;, &quot;blue&quot;, &quot;grey90&quot;, &quot;grey60&quot;),
+             scales=&quot;free&quot;,
+             aspect=1,
+             ylim=c(-7.2, 7.2),
+             xlim=c(-1,5.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.5,
+             ylab=expression(&quot;dTAGV1_NoE2_vs_control_NoE2 log&quot;[2]~&quot;PRO fold change&quot;),
+             xlab=expression(&quot;log&quot;[10]~&quot;Mean of Normalized Counts&quot;),
+             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                              par.ylab.text=list(cex=1.1,font=2),
+                              strip.background=list(col=&quot;grey85&quot;))))
+dev.off()
+
+#save.image(&#39;230810_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata&#39;)</code></pre>
 </div>
 </div>
 
