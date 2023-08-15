@@ -1397,3 +1397,4 @@ dev.off()
 #save.image('230810_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
 
+The above activated, repressed, and matched files in bed format are going to be integrated with our ChIP exp to determine functional ChIP peaks. \
