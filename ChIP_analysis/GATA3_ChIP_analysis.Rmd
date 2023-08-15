@@ -381,18 +381,9 @@ do
 	slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_100window.bed
    	slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
 done
-
-for i in *_summits.bed
-do
-	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_summits.bed" '{print $1}')
-	echo $name
-	
-	slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_100window.bed
-   #	slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
-done
 ```
 
-
+# De novo motif analysis at peaks
 
 gata3 peaks\
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -434,6 +425,51 @@ name=${name}_top2000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
 ```
+
+# Fraction of Reads in Peaks (FRiP)
+
+counting reads in peaks \
+GATA peaks\
+ER peaks \
+```{r engine='bash', eval=F, echo=TRUE}
+#We did this using the peaks called with all the samples (don't run this)
+name=ZNF143_ChIP
+sort -k1,1 -k2,2n ${name}_summit_400window.bed > ${name}_summit_window_sorted.bed
+intersectBed -u -a ZNF143_ChIP_summit_window_sorted.bed -b ZNF143_functional_peaks.bed > ZNF143_ChIP_functional_summit_window_sorted.bed
+
+#You can download the file here
+wget https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysis/ZNF143_ChIP_functional_summit_window_sorted.bed
+peaks=ZNF143_ChIP_functional_summit_window_sorted.bed
+sort -k1,1 -k2,2n ZNF143_ChIP_summit_400window.bed > ZNF143_ChIP_summit_400window_sorted.bed
+summitWin=ZNF143_ChIP_summit_400window_sorted.bed
+for i in *_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b ${nm}_sorted.bed > ${nm}_peak_counts.txt
+    mapBed -null '0' -a $summitWin -b ${nm}_sorted.bed > ZNF143_ChIP_summit_counts.bed
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ${name}.bam)
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - $peaks | paste -d'\t' - *peak_counts.txt > Combined_ZNF143_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_ZNF143_FRiP.txt
+rm rowname.txt
+```
+
 
 # Differential expression analysis with DEseq2 
 
@@ -867,13 +903,6 @@ Generate BED files that are ranked by their intensity, parsed into separate file
 
 1. GATA
 ```{r, engine='R', eval=F, echo=T}
-#CTCF_ChIP_summits_final.bed  
-#GATA_ChIP_summits_final.bed
-#CTER_ChIP_summits_final.bed  
-#GATActrl_ChIP_summits_final.bed
-#ER_ChIP_summits_final.bed    
-#GATAdegrade_ChIP_summits_final.bed
-
 #mkdir GATA
 #cd GATA #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
 module load R/4.1.2 
@@ -917,13 +946,6 @@ j = i
 2. ER
 
 ```{r, engine='R', eval=F, echo=T}
-#CTCF_ChIP_summits_final.bed  
-#GATA_ChIP_summits_final.bed
-#CTER_ChIP_summits_final.bed  
-#GATActrl_ChIP_summits_final.bed
-#ER_ChIP_summits_final.bed    
-#GATAdegrade_ChIP_summits_final.bed
-
 #mkdir ER
 #cd ER #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/ER
 
@@ -1145,8 +1167,8 @@ plot_cdf(df.cdf, tf = "GATA3_dTAGV1_E2_vs_control_E2", cat = cat, col.lines = c(
 choose a cut-off based on the CDF plot \
 ```{r, engine='R', eval=F, echo=T}
 #Let's choose a cutoff of 0.85
-quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
-write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
+#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
 ```
 
 2.dTAGV1_NoE2_vs_control_NoE2
@@ -1233,16 +1255,16 @@ plot_cdf(df.cdf, tf = "GATA3_dTAGV1_E2_vs_dTAGV1_NoE2", cat = cat, col.lines = c
 choose a cut-off based on the CDF plot \
 ```{r, engine='R', eval=F, echo=T}
 #Let's choose a cutoff of 0.85
-quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
-write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
+#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
 ```
 
 
 
 # heatmap of GATA3 functional and non-functional peaks
 deeptools
-# Fraction of Reads in Peaks (FRiP)
 
+# ###############################below not runned###############################################
 # motif analysis of other and functional ZNF143 peaks
 
 
