@@ -472,8 +472,8 @@ plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
 the GATA3_degron_PRO QC metrics plot:
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 degron PRO seq QC metrics"}
-#library(knitr)
-knitr::include_graphics("/GATA3_degron_PRO.pdf") 
+library(knitr)
+knitr::include_graphics("./GATA3_degron_PRO.pdf") 
 ```
 
 # primaryTranscriptAnnotation (PTA)
@@ -753,7 +753,7 @@ dev.off()
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution"}
 #library(knitr)
-knitr::include_graphics("/count_density_distribution.jpeg") 
+knitr::include_graphics("./count_density_distribution.jpeg") 
 ```
 
 4. 
@@ -780,7 +780,7 @@ dev.off()
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution 2"}
 #library(knitr)
-knitr::include_graphics("/cut_count_density_distribution.jpeg") 
+knitr::include_graphics("./cut_count_density_distribution.jpeg") 
 ```
 
 
@@ -1031,7 +1031,7 @@ plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
 #library(knitr)
-knitr::include_graphics("/PCA_GATA3_PRO.pdf") 
+knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
