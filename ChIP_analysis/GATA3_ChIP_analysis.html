@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-15" />
+<meta name="date" content="2023-08-16" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-15</h4>
+<h4 class="date">2023-08-16</h4>
 
 </div>
 
@@ -725,40 +725,33 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#removing-peaks-on-contigs-and-within-blacklisted-regions" id="toc-removing-peaks-on-contigs-and-within-blacklisted-regions"><span class="toc-section-number">6.1</span> Removing peaks on contigs and within blacklisted regions</a></li>
 </ul></li>
-<li><a href="#differential-expression-analysis-with-deseq2" id="toc-differential-expression-analysis-with-deseq2"><span class="toc-section-number">7</span> Differential expression analysis with DEseq2</a>
+<li><a href="#de-novo-motif-analysis-at-peaks" id="toc-de-novo-motif-analysis-at-peaks"><span class="toc-section-number">7</span> De novo motif analysis at peaks</a>
 <ul>
-<li><a href="#counting-size-factors-from-libraries" id="toc-counting-size-factors-from-libraries"><span class="toc-section-number">7.1</span> Counting size factors from libraries</a></li>
-<li><a href="#r" id="toc-r"><span class="toc-section-number">7.2</span> R</a></li>
-<li><a href="#counting-reads-in-peaks" id="toc-counting-reads-in-peaks"><span class="toc-section-number">7.3</span> Counting reads in peaks `</a></li>
+<li><a href="#gata3-peaks" id="toc-gata3-peaks"><span class="toc-section-number">7.1</span> gata3 peaks</a></li>
+<li><a href="#er-peaks" id="toc-er-peaks"><span class="toc-section-number">7.2</span> ER peaks</a></li>
 </ul></li>
-<li><a href="#counting-differential-binding" id="toc-counting-differential-binding"><span class="toc-section-number">8</span> Counting differential binding</a></li>
-<li><a href="#ranking-and-quantile-parsing-of-chip-peaks" id="toc-ranking-and-quantile-parsing-of-chip-peaks"><span class="toc-section-number">9</span> Ranking and quantile parsing of ChIP peaks</a></li>
-<li><a href="#determine-functional-peaks" id="toc-determine-functional-peaks"><span class="toc-section-number">10</span> Determine functional peaks</a>
+<li><a href="#differential-expression-analysis-with-deseq2" id="toc-differential-expression-analysis-with-deseq2"><span class="toc-section-number">8</span> Differential expression analysis with DEseq2</a>
 <ul>
-<li><a href="#integration-with-pro-seq-data" id="toc-integration-with-pro-seq-data"><span class="toc-section-number">10.1</span> Integration with PRO-seq data</a></li>
-<li><a href="#making-cdf-plots" id="toc-making-cdf-plots"><span class="toc-section-number">10.2</span> Making CDF plots</a>
-<ul>
-<li><a href="#gata3" id="toc-gata3"><span class="toc-section-number">10.2.1</span> GATA3</a></li>
-<li><a href="#er" id="toc-er"><span class="toc-section-number">10.2.2</span> ER</a></li>
+<li><a href="#counting-size-factors-from-libraries" id="toc-counting-size-factors-from-libraries"><span class="toc-section-number">8.1</span> Counting size factors from libraries</a></li>
+<li><a href="#r" id="toc-r"><span class="toc-section-number">8.2</span> R</a></li>
+<li><a href="#counting-reads-in-peaks" id="toc-counting-reads-in-peaks"><span class="toc-section-number">8.3</span> Counting reads in peaks `</a></li>
 </ul></li>
-</ul></li>
-<li><a href="#heatmap-of-gata3-functional-and-non-functional-peaks" id="toc-heatmap-of-gata3-functional-and-non-functional-peaks"><span class="toc-section-number">11</span> heatmap of GATA3 functional and non-functional peaks</a></li>
-<li><a href="#motif-analysis-of-other-and-functional-znf143-peaks" id="toc-motif-analysis-of-other-and-functional-znf143-peaks"><span class="toc-section-number">12</span> motif analysis of other and functional ZNF143 peaks</a></li>
-<li><a href="#deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" id="toc-deeptools-heatmap-of-znf143-functional-and-non-functional-peaks"><span class="toc-section-number">13</span> deeptools heatmap of ZNF143 functional and non-functional peaks</a></li>
-<li><a href="#de-novo-motif-analysis-of-znf143-peaks" id="toc-de-novo-motif-analysis-of-znf143-peaks"><span class="toc-section-number">14</span> De novo motif analysis of ZNF143 peaks</a></li>
-<li><a href="#jinhong-to-do" id="toc-jinhong-to-do"><span class="toc-section-number">15</span> Jinhong: To do</a>
+<li><a href="#counting-differential-binding" id="toc-counting-differential-binding"><span class="toc-section-number">9</span> Counting differential binding</a></li>
+<li><a href="#ranking-and-quantile-parsing-of-chip-peaks" id="toc-ranking-and-quantile-parsing-of-chip-peaks"><span class="toc-section-number">10</span> Ranking and quantile parsing of ChIP peaks</a></li>
+<li><a href="#determine-functional-peaks" id="toc-determine-functional-peaks"><span class="toc-section-number">11</span> Determine functional peaks</a>
 <ul>
-<li><a href="#run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" id="toc-run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures"><span class="toc-section-number">15.1</span> run through the entire vignette and add context paragraphs and include figures</a></li>
-<li><a href="#make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" id="toc-make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks"><span class="toc-section-number">15.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</a></li>
-<li><a href="#make-a-composite-fimo-motif-signal-at-peak-summits" id="toc-make-a-composite-fimo-motif-signal-at-peak-summits"><span class="toc-section-number">15.3</span> make a composite FIMO motif signal at peak summits</a></li>
-<li><a href="#de-novo-motif-analysis-on-other-non-functional-peaks" id="toc-de-novo-motif-analysis-on-other-non-functional-peaks"><span class="toc-section-number">15.4</span> de novo motif analysis on other (non-functional peaks)</a></li>
-<li><a href="#calculate-the-fraction-of-reads-in-peaks-frip-score-for" id="toc-calculate-the-fraction-of-reads-in-peaks-frip-score-for"><span class="toc-section-number">15.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</a>
+<li><a href="#integration-with-pro-seq-data" id="toc-integration-with-pro-seq-data"><span class="toc-section-number">11.1</span> Integration with PRO-seq data</a></li>
+<li><a href="#making-cdf-plots" id="toc-making-cdf-plots"><span class="toc-section-number">11.2</span> Making CDF plots</a>
 <ul>
-<li><a href="#the-full-set-of-znf143-narrowpeaks" id="toc-the-full-set-of-znf143-narrowpeaks"><span class="toc-section-number">15.5.1</span> the full set of ZNF143 narrowPeaks</a></li>
-<li><a href="#functional-peaks-use-narrowpeaks-file" id="toc-functional-peaks-use-narrowpeaks-file"><span class="toc-section-number">15.5.2</span> functional peaks (use narrowPeaks file)</a></li>
-<li><a href="#other-non-func-peaks-use-narrowpeaks-file" id="toc-other-non-func-peaks-use-narrowpeaks-file"><span class="toc-section-number">15.5.3</span> other (non-func) peaks (use narrowPeaks file)</a></li>
+<li><a href="#gata3" id="toc-gata3"><span class="toc-section-number">11.2.1</span> GATA3</a></li>
+<li><a href="#er" id="toc-er"><span class="toc-section-number">11.2.2</span> ER</a></li>
 </ul></li>
 </ul></li>
+<li><a href="#fraction-of-reads-in-peaks-frip" id="toc-fraction-of-reads-in-peaks-frip"><span class="toc-section-number">12</span> Fraction of Reads in Peaks (FRiP)</a>
+<ul>
+<li><a href="#counting-reads-in-peaks-1" id="toc-counting-reads-in-peaks-1"><span class="toc-section-number">12.1</span> counting reads in peaks</a></li>
+</ul></li>
+<li><a href="#heatmap-of-gata3-functional-and-non-functional-peaks" id="toc-heatmap-of-gata3-functional-and-non-functional-peaks"><span class="toc-section-number">13</span> heatmap of GATA3 functional and non-functional peaks</a></li>
 </ul>
 </div>
 
@@ -1096,18 +1089,13 @@ do
     grep -v &quot;random&quot; ${name}_summits.bed | grep -v &quot;chrUn&quot; | grep -v &quot;chrEBV&quot; | grep -v &quot;chrM&quot; | grep -v &quot;alt&quot; | intersectBed -v -a - -b $blacklist &gt; ${name}_summits_final.bed
     slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_100window.bed
     slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_400window.bed
-done
-
-for i in *_summits.bed
-do
-    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_summits.bed&quot; &#39;{print $1}&#39;)
-    echo $name
-    
-    slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_100window.bed
-   #    slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_400window.bed
 done</code></pre>
-<p>gata3 peaks<br />
-</p>
+</div>
+</div>
+<div id="de-novo-motif-analysis-at-peaks" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> De novo motif analysis at peaks</h1>
+<div id="gata3-peaks" class="section level2" number="7.1">
+<h2><span class="header-section-number">7.1</span> gata3 peaks</h2>
 <pre class="bash"><code>#CTCF_ChIP_summit_100window.bed  
 #GATA_ChIP_summit_100window.bed
 #CTER_ChIP_summit_100window.bed  
@@ -1131,8 +1119,9 @@ sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 &gt; ${name}_top2000_su
 name=${name}_top2000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta</code></pre>
-<p>ER peaks<br />
-</p>
+</div>
+<div id="er-peaks" class="section level2" number="7.2">
+<h2><span class="header-section-number">7.2</span> ER peaks</h2>
 <pre class="bash"><code>name=ER_ChIP
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 
@@ -1143,12 +1132,14 @@ sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 &gt; ${name}_top2000_su
 name=${name}_top2000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta</code></pre>
+<p>We have found two motifs with top 2000 most significant peaks, they match to ESR1 and Sox:</p>
+<pre class="bash"><code># motif plot</code></pre>
 </div>
 </div>
-<div id="differential-expression-analysis-with-deseq2" class="section level1" number="7">
-<h1><span class="header-section-number">7</span> Differential expression analysis with DEseq2</h1>
-<div id="counting-size-factors-from-libraries" class="section level2" number="7.1">
-<h2><span class="header-section-number">7.1</span> Counting size factors from libraries</h2>
+<div id="differential-expression-analysis-with-deseq2" class="section level1" number="8">
+<h1><span class="header-section-number">8</span> Differential expression analysis with DEseq2</h1>
+<div id="counting-size-factors-from-libraries" class="section level2" number="8.1">
+<h2><span class="header-section-number">8.1</span> Counting size factors from libraries</h2>
 <p>Here we use <code>samtools</code> to count the read size of each library. The Flag is user-defined, the flag <code>0x3</code> in the command means read paired and read mapped in proper pair. We can use this website: <a href="https://broadinstitute.github.io/picard/explain-flags.html" class="uri">https://broadinstitute.github.io/picard/explain-flags.html</a> to understand what property and what flag we want to specify.</p>
 <pre class="bash"><code>
 #calculate the size factors of each library
@@ -1257,8 +1248,8 @@ do
 done 
 </code></pre>
 </div>
-<div id="r" class="section level2" number="7.2">
-<h2><span class="header-section-number">7.2</span> R</h2>
+<div id="r" class="section level2" number="8.2">
+<h2><span class="header-section-number">8.2</span> R</h2>
 <p>Now we are moving to the R section. We will load <code>R/4.1.2</code>, which has many pre-installed libraries on Xanadu.</p>
 <pre class="r"><code>module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries pre-installed. 
 
@@ -1416,8 +1407,8 @@ categorize.deseq.df.activated &lt;- function(df, fdr = 0.1, log2fold = 0.0, trea
 GATA.SF &lt;- read.table(&quot;GATA_reads.txt&quot;, sep = &#39;\t&#39;, header = TRUE)[,-1]
 GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF)</code></pre>
 </div>
-<div id="counting-reads-in-peaks" class="section level2" number="7.3">
-<h2><span class="header-section-number">7.3</span> Counting reads in peaks `</h2>
+<div id="counting-reads-in-peaks" class="section level2" number="8.3">
+<h2><span class="header-section-number">8.3</span> Counting reads in peaks `</h2>
 <pre class="r"><code># recall that these summit_XXXwindow.bed has the peak region info.
 a =  read.table(&#39;GATA_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
 b1 = read.table(&#39;GATActrl_ChIP_summit_400window.bed&#39;, sep = &quot;\t&quot;, header=FALSE)
@@ -1444,8 +1435,8 @@ CTCF.counts.df= get.counts.interval(d, &quot;./non_normalized_bw/non_merge&quot;
 CTER.counts.df= get.counts.interval(e, &quot;./non_normalized_bw/non_merge&quot;,&quot;MCF&quot;)</code></pre>
 </div>
 </div>
-<div id="counting-differential-binding" class="section level1" number="8">
-<h1><span class="header-section-number">8</span> Counting differential binding</h1>
+<div id="counting-differential-binding" class="section level1" number="9">
+<h1><span class="header-section-number">9</span> Counting differential binding</h1>
 <p>Differential expression analysis is used to identify gene expression differences across a group of samples (between different biological conditions). The Bioconductor package DEseq2 is commonly used.<br />
 </p>
 <ol style="list-style-type: decimal">
@@ -1548,8 +1539,8 @@ DE.results = results(dds) # use `contrast` to compare any two groups: contrast =
 
 save.image(&#39;230731_GATA3_ER_ChIP_deseq.Rdata&#39;) </code></pre>
 </div>
-<div id="ranking-and-quantile-parsing-of-chip-peaks" class="section level1" number="9">
-<h1><span class="header-section-number">9</span> Ranking and quantile parsing of ChIP peaks</h1>
+<div id="ranking-and-quantile-parsing-of-chip-peaks" class="section level1" number="10">
+<h1><span class="header-section-number">10</span> Ranking and quantile parsing of ChIP peaks</h1>
 <p>Generate BED files that are ranked by their intensity, parsed into separate files, and named according to their quantile.</p>
 <pre class="r"><code>#CTCF_ChIP_summits_final.bed  
 #GATA_ChIP_summits_final.bed
@@ -1560,14 +1551,7 @@ save.image(&#39;230731_GATA3_ER_ChIP_deseq.Rdata&#39;) </code></pre>
 <ol style="list-style-type: decimal">
 <li>GATA</li>
 </ol>
-<pre class="r"><code>#CTCF_ChIP_summits_final.bed  
-#GATA_ChIP_summits_final.bed
-#CTER_ChIP_summits_final.bed  
-#GATActrl_ChIP_summits_final.bed
-#ER_ChIP_summits_final.bed    
-#GATAdegrade_ChIP_summits_final.bed
-
-#mkdir GATA
+<pre class="r"><code>#mkdir GATA
 #cd GATA #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
 module load R/4.1.2 
 R 
@@ -1607,14 +1591,7 @@ j = i
 <ol start="2" style="list-style-type: decimal">
 <li>ER</li>
 </ol>
-<pre class="r"><code>#CTCF_ChIP_summits_final.bed  
-#GATA_ChIP_summits_final.bed
-#CTER_ChIP_summits_final.bed  
-#GATActrl_ChIP_summits_final.bed
-#ER_ChIP_summits_final.bed    
-#GATAdegrade_ChIP_summits_final.bed
-
-#mkdir ER
+<pre class="r"><code>#mkdir ER
 #cd ER #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/ER
 
 module load R/4.1.2 
@@ -1647,10 +1624,10 @@ write.table(file = paste0(&#39;quantile&#39;, as.character(q[count]), &#39;.bed&
 j = i
 }</code></pre>
 </div>
-<div id="determine-functional-peaks" class="section level1" number="10">
-<h1><span class="header-section-number">10</span> Determine functional peaks</h1>
-<div id="integration-with-pro-seq-data" class="section level2" number="10.1">
-<h2><span class="header-section-number">10.1</span> Integration with PRO-seq data</h2>
+<div id="determine-functional-peaks" class="section level1" number="11">
+<h1><span class="header-section-number">11</span> Determine functional peaks</h1>
+<div id="integration-with-pro-seq-data" class="section level2" number="11.1">
+<h2><span class="header-section-number">11.1</span> Integration with PRO-seq data</h2>
 <p>In the PRO-seq experiment, we have 4 combinations of treatment, either with 30min E2 (to activated the ER activity), or 30min dTAG treatment (to degrade the degron-tagged GATA3):<br />
 In the PRO-seq analysis, we have compared the treatment vs. control as below, and have identified activated/repressed genes, comparable genes that are unchanged but matched for the expression levels.</p>
 <ol style="list-style-type: decimal">
@@ -1678,8 +1655,8 @@ cat dTAGV1_E2_vs_control_E2_activated_genes.bed dTAGV1_E2_vs_control_E2_activate
 #MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed     (degrade GATA3 when ER is not activated)
 cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed &gt; /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed</code></pre>
 </div>
-<div id="making-cdf-plots" class="section level2" number="10.2">
-<h2><span class="header-section-number">10.2</span> Making CDF plots</h2>
+<div id="making-cdf-plots" class="section level2" number="11.2">
+<h2><span class="header-section-number">11.2</span> Making CDF plots</h2>
 <p>load key packages</p>
 <pre class="r"><code>#module load R/4.1.2 
 #R
@@ -1695,7 +1672,6 @@ library(bigWig)
 library(gplots)
 source(&#39;https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R&#39;)
 source(&#39;https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R&#39;)
-source(&#39;https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysis/cdf_functions.R&#39;)
 
 # cd your/package/directory
 #wget https://github.com/arq5x/bedtools2/releases/download/v2.29.1/bedtools-2.29.1.tar.gz
@@ -1703,7 +1679,7 @@ source(&#39;https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysi
 #cd bedtools2
 #make
 
-
+#source(&#39;https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysis/cdf_functions.R&#39;)
 bedTools.closest &lt;- function(functionstring=&quot;/home/FCAM/ssun/packages/bedtools2/bin/closestBed&quot;,bed1,bed2,opt.string=&quot;&quot;) {
   
   options(scipen =99) # not to use scientific notation when writing out
@@ -1714,7 +1690,7 @@ bedTools.closest &lt;- function(functionstring=&quot;/home/FCAM/ssun/packages/be
   
   # create the command string and call the command using system()
   command1=paste(&#39;sort -k1,1 -k2,2n&#39;, &#39;a.file.bed&#39;, &#39;&gt; a.file.sorted.bed&#39;)
-  cat(command1,&quot;\n&quot;)
+  cat(command1,&quot;\n&quot;) #sort -k1,1 -k2,2n a.file.bed &gt; a.file.sorted.bed
   try(system(command1))
   command2=paste(&#39;sort -k1,1 -k2,2n&#39;, &#39;b.file.bed&#39;, &#39;&gt; b.file.sorted.bed&#39;)
   cat(command2,&quot;\n&quot;)
@@ -1734,6 +1710,26 @@ bedTools.closest &lt;- function(functionstring=&quot;/home/FCAM/ssun/packages/be
   return(res)
 }
 
+cdf.deseq.df &lt;- function(genes = gene.file, chip.peaks = chip.peaks, cat = &quot;Repressed&quot;) {
+  bed.tss.activated = get.tss(genes[genes$V5 == cat,])
+  bed.tss.unchanged = get.tss(genes[genes$V5 == paste0(&quot;Matched to &quot;, cat),])
+  act.distance = bedTools.closest(bed1 = bed.tss.activated, bed2 = chip.peaks[,c(1:3)], opt.string = &#39;-D a&#39;)
+  unreg.distance = bedTools.closest(bed1 = bed.tss.unchanged, bed2 = chip.peaks[,c(1:3)], opt.string = &#39;-D a&#39;)
+
+  df.up.can = cbind(act.distance[,c(4, 10)], cat)
+  #df.un.can = cbind(unreg.distance[,c(4, 10)], paste0(&quot;Matched to &quot;, cat))
+  df.un.can = cbind(unreg.distance[,c(4, 12)], paste0(&quot;Matched to &quot;, cat)) 
+
+  colnames(df.up.can) = c(colnames(df.up.can)[1:2], &#39;status&#39;)
+  colnames(df.un.can) = c(colnames(df.up.can)[1:2], &#39;status&#39;)
+
+  df.all = rbind(df.up.can, df.un.can)
+  df.all$status = factor(df.all$status, levels = c(cat, paste0(&quot;Matched to &quot;, cat)))
+  return(df.all)
+}
+
+
+# plot_cdf function has been modified on some plot parameters
 plot_cdf &lt;- function(df.all, tf=&quot;quantile&quot;, cat = &quot;Repressed&quot;, col.lines = c(&quot;#ce228e&quot;, &quot;grey60&quot;, &quot;#2290cf&quot;,&quot;grey90&quot;), line.type = c(1), cex = 1) {
 pdf(paste0(tf, &quot;_FIG_cdf_compare_Reg_classes_&quot;, cat, &quot;.pdf&quot;), width=10, height=5) 
     print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
@@ -1757,8 +1753,11 @@ pdf(paste0(tf, &quot;_FIG_cdf_compare_Reg_classes_&quot;, cat, &quot;.pdf&quot;)
          }))
     dev.off()
 }</code></pre>
-<div id="gata3" class="section level3" number="10.2.1">
-<h3><span class="header-section-number">10.2.1</span> GATA3</h3>
+<div id="troubleshoot" class="section level4" number="11.2.0.1">
+<h4><span class="header-section-number">11.2.0.1</span> troubleshoot</h4>
+</div>
+<div id="gata3" class="section level3" number="11.2.1">
+<h3><span class="header-section-number">11.2.1</span> GATA3</h3>
 <p>1.dTAGV1_E2_vs_control_E2</p>
 <pre class="r"><code># cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
 col.lines = c(&quot;#FF0000&quot;, &quot;grey60&quot;)
@@ -1782,8 +1781,8 @@ for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July20
     quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
     print(quantile.name)
     df.all = cdf.deseq.df(genes = gene.file,
-        chip.peaks=read.table(chip.peak, header=FALSE),
-    cat = cat)
+                          chip.peaks=read.table(chip.peak, header=FALSE),
+                          cat = cat)
     x = paste(as.character(df.all[,3]), quantile.name)
     df.all[,3] = x
     df.cdf = rbind(df.cdf, df.all)
@@ -1826,15 +1825,15 @@ plot_cdf(df.cdf, tf = &quot;GATA3_dTAGV1_E2_vs_control_E2&quot;, cat = cat, col.
 <p>choose a cut-off based on the CDF plot<br />
 </p>
 <pre class="r"><code>#Let&#39;s choose a cutoff of 0.85
-quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
-write.table(quantiles[16][[1]], file = &quot;cutoff.txt&quot;, col.names = F, row.names = F, quote = F)</code></pre>
+#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#write.table(quantiles[16][[1]], file = &quot;cutoff.txt&quot;, col.names = F, row.names = F, quote = F)</code></pre>
 <p>2.dTAGV1_NoE2_vs_control_NoE2</p>
 <pre class="r"><code># cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
 col.lines = c(&quot;#FF0000&quot;, &quot;grey60&quot;)
 gene.file=read.table(file = &quot;MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed&quot;, sep=&quot;\t&quot;, header=FALSE)</code></pre>
 </div>
-<div id="er" class="section level3" number="10.2.2">
-<h3><span class="header-section-number">10.2.2</span> ER</h3>
+<div id="er" class="section level3" number="11.2.2">
+<h3><span class="header-section-number">11.2.2</span> ER</h3>
 <p>1.control_E2_vs_control_NoE2</p>
 <pre class="r"><code># cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/ER
 col.lines = c(&quot;#FF0000&quot;, &quot;grey60&quot;)
@@ -1905,38 +1904,112 @@ plot_cdf(df.cdf, tf = &quot;GATA3_dTAGV1_E2_vs_dTAGV1_NoE2&quot;, cat = cat, col
 <p>choose a cut-off based on the CDF plot<br />
 </p>
 <pre class="r"><code>#Let&#39;s choose a cutoff of 0.85
-quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
-write.table(quantiles[16][[1]], file = &quot;cutoff.txt&quot;, col.names = F, row.names = F, quote = F)</code></pre>
+#peak.intensities = read.table(&#39;ZNF143_ChIP_summit_counts.bed&#39;, header =FALSE)
+#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#write.table(quantiles[16][[1]], file = &quot;cutoff.txt&quot;, col.names = F, row.names = F, quote = F)</code></pre>
+<p>We can use awk to parse the peak file to only include peaks with intensities above are threshold.</p>
+<pre class="bash"><code>#cutoff=$(cat cutoff.txt)
+#awk -v cutoff=$cutoff -F&quot;\t&quot; &#39;$5&gt;cutoff&#39; ZNF143_ChIP_summits_final.bed &gt; ZNF143_functional_peaks.bed
+#awk -v cutoff=$cutoff -F&quot;\t&quot; &#39;$5&lt;=cutoff&#39; ZNF143_ChIP_summits_final.bed &gt; ZNF143_other_peaks.bed</code></pre>
 </div>
 </div>
 </div>
-<div id="heatmap-of-gata3-functional-and-non-functional-peaks" class="section level1" number="11">
-<h1><span class="header-section-number">11</span> heatmap of GATA3 functional and non-functional peaks</h1>
-<p>deeptools
-# Fraction of Reads in Peaks (FRiP)</p>
-</div>
-<div id="motif-analysis-of-other-and-functional-znf143-peaks" class="section level1" number="12">
-<h1><span class="header-section-number">12</span> motif analysis of other and functional ZNF143 peaks</h1>
-<pre class="r"><code>chr = sapply(strsplit(names(func.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 1)
-rnge = sapply(strsplit(names(func.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 2)
-start = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 1)) + 200
-end = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 2)) - 200
+<div id="fraction-of-reads-in-peaks-frip" class="section level1" number="12">
+<h1><span class="header-section-number">12</span> Fraction of Reads in Peaks (FRiP)</h1>
+<p>running this part need the functional_peaks.bed and other_peaks.bed from previous section<br />
+</p>
+<div id="counting-reads-in-peaks-1" class="section level2" number="12.1">
+<h2><span class="header-section-number">12.1</span> counting reads in peaks</h2>
+<p>GATA peaks<br />
+</p>
+<pre class="bash"><code>#CTCF_ChIP_summit_400window.bed  
+#GATA_ChIP_summit_400window.bed
+#CTER_ChIP_summit_400window.bed  
+#GATActrl_ChIP_summit_400window.bed
+#ER_ChIP_summit_400window.bed    
+#GATAdegrade_ChIP_summit_400window.bed
 
-write.table(cbind(chr, start, end), file = &quot;ZNF143_functional_peaks.bed&quot;, quote = FALSE,
-col.names =FALSE, row.names=FALSE, sep = &quot;\t&quot;)
+for i in *_summit_400window.bed
+do
+    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_summit_400window.bed&quot; &#39;{print $1}&#39;)
+    nme=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_ChIP_summit_400window.bed&quot; &#39;{print $1}&#39;)
+    #echo $i
+    echo $nme
+    echo $name
+
+  sort -k1,1 -k2,2n $i &gt; ${name}_summit_window_sorted.bed
+  intersectBed -u -a ${name}_summit_window_sorted.bed -b ${nme}_functional_peaks.bed &gt;  ${name}_functional_summit_window_sorted.bed
 
 
-chr = sapply(strsplit(names(other.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 1)
-rnge = sapply(strsplit(names(other.znf143.peaks), &quot;:&quot;), &quot;[&quot;, 2)
-start = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 1)) + 200
-end = as.numeric(sapply(strsplit(rnge, &quot;-&quot;), &quot;[&quot;, 2)) - 200
+  peaks=${name}_functional_summit_window_sorted.bed
+  sort -k1,1 -k2,2n $i &gt; ${name}_summit_400window_sorted.bed
+  summitWin=${name}_summit_400window_sorted.bed
 
-write.table(cbind(chr, start, end), file = &quot;ZNF143_other_peaks.bed&quot;, quote = FALSE,
-col.names =FALSE, row.names=FALSE, sep = &quot;\t&quot;)</code></pre>
+  for i in *_not_scaled.bed
+  do
+      nm=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_not_scaled.bed&quot; &#39;{print $1}&#39;)
+      sort -k1,1 -k2,2n $i &gt; ${nm}_sorted.bed
+      mapBed -null &#39;0&#39; -a $peaks -b ${nm}_sorted.bed &gt; ${nm}_peak_counts.txt
+      mapBed -null &#39;0&#39; -a $summitWin -b ${nm}_sorted.bed &gt; ${name}_summit_counts.bed
+  done
+
+  for i in *_peak_counts.txt
+  do
+      nam=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_peak_counts.txt&quot; &#39;{print $1}&#39;)
+      echo $nam &gt; ${nam}_FRiP.txt
+      awk &#39;{print $NF}&#39; ${nam}_peak_counts.txt &gt; ${nam}_peak_counts_only.txt
+      RiP=$(awk &#39;{sum+=$1;} END{print sum;}&#39; ${nam}_peak_counts_only.txt)
+      echo $nam | cat - ${nam}_peak_counts_only.txt &gt; ${nam}_peak_counts.txt
+      aligned_reads=$(samtools view -c -f 0x42 ${nam}.bam)
+      FRiP=$(echo &quot;scale=2 ; $RiP / $aligned_reads&quot; | bc)
+      echo $FRiP &gt;&gt; ${nam}_FRiP.txt
+      rm ${nam}_peak_counts_only.txt
+  done
+
+  echo -e &quot;chr\tstart\tend\tname\tqvalue&quot; | cat - $peaks | paste -d&#39;\t&#39; - *peak_counts.txt &gt;            Combined_${nme}_peak_counts.txt
+  echo -e &quot;Name&quot; &gt; rowname.txt
+  echo -e &quot;FrIP&quot; &gt;&gt; rowname.txt
+  paste -d&#39;\t&#39; rowname.txt *.hg38_FRiP.txt &gt; Combined_${nme}_FRiP.txt
+  rm rowname.txt
+done</code></pre>
+<p>ER peaks<br />
+</p>
 </div>
-<div id="deeptools-heatmap-of-znf143-functional-and-non-functional-peaks" class="section level1" number="13">
-<h1><span class="header-section-number">13</span> deeptools heatmap of ZNF143 functional and non-functional peaks</h1>
-<pre class="bash"><code>
+</div>
+<div id="heatmap-of-gata3-functional-and-non-functional-peaks" class="section level1" number="13">
+<h1><span class="header-section-number">13</span> heatmap of GATA3 functional and non-functional peaks</h1>
+<p>deeptools</p>
+<!-- 
+# ###############################below not runned###############################################
+# motif analysis of other and functional ZNF143 peaks
+
+
+
+```r
+chr = sapply(strsplit(names(func.znf143.peaks), ":"), "[", 1)
+rnge = sapply(strsplit(names(func.znf143.peaks), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 200
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 200
+
+write.table(cbind(chr, start, end), file = "ZNF143_functional_peaks.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+
+chr = sapply(strsplit(names(other.znf143.peaks), ":"), "[", 1)
+rnge = sapply(strsplit(names(other.znf143.peaks), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 200
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 200
+
+write.table(cbind(chr, start, end), file = "ZNF143_other_peaks.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+```
+
+
+# deeptools heatmap of ZNF143 functional and non-functional peaks
+
+
+```bash
+
 module load deeptools/3.5.0
 module load bedtools
 
@@ -1949,8 +2022,8 @@ computeMatrix reference-point --referencePoint center -b 500 -a 500 -p 2 --missi
   
 #Make the heatmap
 plotHeatmap -m matrix_HA_ChIP_ZNF143_peaks.gz -out heatmap_HA_ChIP_ZNF143_peaks.pdf --heatmapHeight 7 \
-   --regionsLabel &quot;ZNF143 peaks&quot; --xAxisLabel &quot;Distance from summit&quot; \
-   --samplesLabel &quot;DMSO&quot; &quot;dTAG&quot; --colorMap Purples -min 0 -max 300 --whatToShow &quot;heatmap and colorbar&quot; 
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 300 --whatToShow "heatmap and colorbar" 
    
    
    #Make the matrix (this can be used for a composite profile as well)
@@ -1962,18 +2035,22 @@ computeMatrix reference-point --referencePoint center -b 500 -a 500 -p 2 --missi
   
 #Make the heatmap
 plotHeatmap -m all_matrix_HA_ChIP_ZNF143_peaks.gz -out other_heatmap_HA_ChIP_ZNF143_peaks.pdf --heatmapHeight 7 \
-   --regionsLabel &quot;ZNF143 peaks&quot; --xAxisLabel &quot;Distance from summit&quot; \
-   --samplesLabel &quot;DMSO&quot; &quot;dTAG&quot; --colorMap Purples -min 0 -max 300 --whatToShow &quot;heatmap and colorbar&quot; 
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 300 --whatToShow "heatmap and colorbar" 
 
 #so we can see peaks
 plotHeatmap -m all_matrix_HA_ChIP_ZNF143_peaks.gz -out other_heatmap_HA_ChIP_ZNF143_peaks_scaled.pdf --heatmapHeight 7 \
-   --regionsLabel &quot;ZNF143 peaks&quot; --xAxisLabel &quot;Distance from summit&quot; \
-   --samplesLabel &quot;DMSO&quot; &quot;dTAG&quot; --colorMap Purples -min 0 -max 13 --whatToShow &quot;heatmap and colorbar&quot; </code></pre>
-</div>
-<div id="de-novo-motif-analysis-of-znf143-peaks" class="section level1" number="14">
-<h1><span class="header-section-number">14</span> De novo motif analysis of ZNF143 peaks</h1>
-<p>I am brute forcing my way through an iterative and exhaustive motif analysis. This should be written into a systematic loop. The reason I did not is because I am manualy looking at the top hit to ensure that it is a ZNF143 motif variant before going on to the next iteration. Any student using this for their work needs to put in the work to automate systematic iterative exhaustive de novo motif analysis.</p>
-<pre class="bash"><code>module load meme/5.4.1
+   --regionsLabel "ZNF143 peaks" --xAxisLabel "Distance from summit" \
+   --samplesLabel "DMSO" "dTAG" --colorMap Purples -min 0 -max 13 --whatToShow "heatmap and colorbar" 
+```
+
+
+# De novo motif analysis of ZNF143 peaks
+
+I am brute forcing my way through an iterative and exhaustive motif analysis. This should be written into a systematic loop. The reason I did not is because I am manualy looking at the top hit to ensure that it is a ZNF143 motif variant before going on to the next iteration. Any student using this for their work needs to put in the work to automate systematic iterative exhaustive de novo motif analysis.
+
+```bash
+module load meme/5.4.1
 module load bedtools
 
 genome=/home/FCAM/meds5420/genomes/hg38.fa
@@ -1981,16 +2058,16 @@ sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
 
 for i in ZNF143_*_peaks.bed
 do
-    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_peaks.bed&quot; &#39;{print $1}&#39;)
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
     echo $name
-    slopBed -b 70 -i $i -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_140window.bed
-    slopBed -b 200 -i $i -g $sizes  | sort -k1,1 -k2,2n &gt; ${name}_summit_400window.bed
+    slopBed -b 70 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
+    slopBed -b 200 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
     fastaFromBed -fi $genome -bed ${name}_summit_140window.bed -fo ${name}_summit_140window.fasta
 done
 
 for i in ZNF143_*_peaks.bed
 do
-    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_peaks.bed&quot; &#39;{print $1}&#39;)
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
     echo $name
     meme -p 16 -oc ${name}_motif_functional.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_140window.fasta
 done
@@ -1998,9 +2075,9 @@ done
 
 fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional.fimo_output ZNF143_functional_motif_functional.meme_output/meme.txt $genome
 
-tail -n +2 ZNF143_functional_motif_functional.fimo_output/fimo.tsv | awk &#39;{OFS=&quot;\t&quot;;} {print $3,$4,$5,$7,$8,$6}&#39; | grep -v Individual| grep -v format | grep -v &quot;max-stored-scores&quot; | sort -k1,1 -k2,2n | tail -n +2 &gt; fimo_ZNF143_functional_round1.bed
+tail -n +2 ZNF143_functional_motif_functional.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round1.bed
 
-intersectBed -v -wa -a ZNF143_functional_summit_140window.bed -b fimo_ZNF143_functional_round1.bed &gt; ZNF143_ChIP_summit_140window_no_func_motif_1.bed
+intersectBed -v -wa -a ZNF143_functional_summit_140window.bed -b fimo_ZNF143_functional_round1.bed > ZNF143_ChIP_summit_140window_no_func_motif_1.bed
 
 fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1.fasta
 
@@ -2008,9 +2085,9 @@ meme -p 16 -oc ZNF143_functional_motif_functional_second.meme_output -nmotifs 1 
 
 fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional_second.fimo_output ZNF143_functional_motif_functional_second.meme_output/meme.txt $genome
 
-tail -n +2 ZNF143_functional_motif_functional_second.fimo_output/fimo.tsv | awk &#39;{OFS=&quot;\t&quot;;} {print $3,$4,$5,$7,$8,$6}&#39; | grep -v Individual| grep -v format | grep -v &quot;max-stored-scores&quot; | sort -k1,1 -k2,2n | tail -n +2 &gt; fimo_ZNF143_functional_round2.bed
+tail -n +2 ZNF143_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round2.bed
 
-intersectBed -v -wa -a ZNF143_ChIP_summit_140window_no_func_motif_1.bed -b fimo_ZNF143_functional_round2.bed &gt; ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
+intersectBed -v -wa -a ZNF143_ChIP_summit_140window_no_func_motif_1.bed -b fimo_ZNF143_functional_round2.bed > ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
 
 fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.fasta
 
@@ -2022,8 +2099,10 @@ wc -l ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
 wc -l ZNF143_functional_summit_140window.bed
 
 #96% have either motif
-# what comparison comparison set of regions can we use as a control?</code></pre>
-<!--
+# what comparison comparison set of regions can we use as a control?
+```
+
+
 # make a barchart for fraction of peaks with motifs 
 
 
@@ -2057,33 +2136,27 @@ other.znf143.peaks = peak.intensities[peak.intensities < quantile(peak.intensiti
 ```
 
 
--->
-</div>
-<div id="jinhong-to-do" class="section level1" number="15">
-<h1><span class="header-section-number">15</span> Jinhong: To do</h1>
-<div id="run-through-the-entire-vignette-and-add-context-paragraphs-and-include-figures" class="section level2" number="15.1">
-<h2><span class="header-section-number">15.1</span> run through the entire vignette and add context paragraphs and include figures</h2>
-</div>
-<div id="make-a-composite-pswm-of-motif-1-and-motif-2-from-the-functional-peaks" class="section level2" number="15.2">
-<h2><span class="header-section-number">15.2</span> make a composite PSWM of motif 1 and motif 2 from the functional peaks</h2>
-</div>
-<div id="make-a-composite-fimo-motif-signal-at-peak-summits" class="section level2" number="15.3">
-<h2><span class="header-section-number">15.3</span> make a composite FIMO motif signal at peak summits</h2>
-</div>
-<div id="de-novo-motif-analysis-on-other-non-functional-peaks" class="section level2" number="15.4">
-<h2><span class="header-section-number">15.4</span> de novo motif analysis on other (non-functional peaks)</h2>
-</div>
-<div id="calculate-the-fraction-of-reads-in-peaks-frip-score-for" class="section level2" number="15.5">
-<h2><span class="header-section-number">15.5</span> Calculate the fraction of reads in peaks (FRiP) score for:</h2>
-<div id="the-full-set-of-znf143-narrowpeaks" class="section level3" number="15.5.1">
-<h3><span class="header-section-number">15.5.1</span> the full set of ZNF143 narrowPeaks</h3>
-</div>
-<div id="functional-peaks-use-narrowpeaks-file" class="section level3" number="15.5.2">
-<h3><span class="header-section-number">15.5.2</span> functional peaks (use narrowPeaks file)</h3>
-</div>
-<div id="other-non-func-peaks-use-narrowpeaks-file" class="section level3" number="15.5.3">
-<h3><span class="header-section-number">15.5.3</span> other (non-func) peaks (use narrowPeaks file)</h3>
-<!--
+
+
+# Jinhong: To do
+
+## run through the entire vignette and add context paragraphs and include figures
+
+## make a composite PSWM of motif 1 and motif 2 from the functional peaks
+
+## make a composite FIMO motif signal at peak summits
+
+## de novo motif analysis on other (non-functional peaks)
+
+## Calculate the fraction of reads in peaks (FRiP) score for:
+
+### the full set of ZNF143 narrowPeaks
+
+### functional peaks (use narrowPeaks file)
+
+### other (non-func) peaks (use narrowPeaks file)
+
+
 
 
 ```r
@@ -2366,8 +2439,7 @@ DO MAST IN THESE WITH THE TOP DE NOVO MOTIF.
 ```
 
 
--->
-<!-- 
+ 
 
 ```bash
 
@@ -2642,8 +2714,6 @@ all.SF[19:21] = norm.degronpeaks.SF[4:6]
 names(all.SF) = colnames(all.regions)
 
 -->
-</div>
-</div>
 </div>
 
 
