@@ -324,51 +324,68 @@ table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
 #gunzip ${name}_PE2_final.fastq.gz
 
 echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
-
+# remove adapter sequences and discard reads that have insert sizes of one base. If the adapters ligate directly to one another, the UMI is treated as an insert to cutadapt and the effective insert length is equal to the UMI length. The option -m $((UMI_length+2)) provides a one base buffer and discards reads with a length of less than the UMI length + 2.
 cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_dep1_PE1.fastq \
         -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt
 cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_dep1_PE2.fastq \
         -o ${name}_PE2_noadap.fastq --too-short-output ${name}_PE2_short.fastq > ${name}_PE2_cutadapt.txt
 
-PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk '{print $1/4}')
-PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk '{print $1/4}')
-AAligation=$(echo "scale=2 ; $PE1_w_Adapter / $PE1_total" | bc)
+PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk '{print $1/4}') # calculate the raw sequencing depth
+PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk '{print $1/4}') # calculate the raw sequencing depth on files containing reads with 0 or 1 base insertions
+AAligation=$(echo "scale=2 ; $PE1_w_Adapter / $PE1_total" | bc) # adapter/adapter ligation product value
 echo -e  "value\texperiment\tthreshold\tmetric" > ${name}_QC_metrics.txt
 echo -e "$AAligation\t$name\t0.80\tAdapter/Adapter" >> ${name}_QC_metrics.txt
+
+
 echo 'removing short RNA insertions in' $name
-seqtk seq -L $((UMI_length+10)) ${name}_PE1_noadap.fastq > ${name}_PE1_noadap_trimmed.fastq 
+seqtk seq -L $((UMI_length+10)) ${name}_PE1_noadap.fastq > ${name}_PE1_noadap_trimmed.fastq # removes reads that are shorter than 10 bases
+
+
 echo 'removing PCR duplicates from' $name
-fqdedup -i ${name}_PE1_noadap_trimmed.fastq -o ${name}_PE1_dedup.fastq
-PE1_noAdapter=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}')
-fastq_pair -t $PE1_noAdapter ${name}_PE1_dedup.fastq ${name}_PE2_noadap.fastq
+fqdedup -i ${name}_PE1_noadap_trimmed.fastq -o ${name}_PE1_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l ${name}_PE1_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter ${name}_PE1_dedup.fastq ${name}_PE2_noadap.fastq #pair FASTQ files
+
 
 echo 'calculating and plotting RNA insert sizes from' $name
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
 flash -q --compress-prog=gzip --suffix=gz ${name}_PE1_dedup.fastq.paired.fq \
         ${name}_PE2_noadap.fastq.paired.fq -o ${name}
-
 insert_size.R ${name}.hist ${UMI_length}
+
+
 echo 'trimming off the UMI from' $name
+# removes the UMI and reverse complements from paired end reads
 seqtk trimfq -b ${UMI_length} ${name}_PE1_dedup.fastq | seqtk seq -r - > ${name}_PE1_processed.fastq
 seqtk trimfq -e ${UMI_length} ${name}_PE2_noadap.fastq | seqtk seq -r - > ${name}_PE2_processed.fastq
+
 
 echo 'aligning' $name 'to rDNA and removing aligned reads'
     bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U ${name}_PE1_processed.fastq 2>${name}_bowtie2_rDNA.log | \
         samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
 reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
 fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
+
 
 echo 'aligning' $name 'to the genome'
 bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 ${name}_PE1.rDNA.fastq.paired.fq \
         -2 ${name}_PE2_processed.fastq.paired.fq 2>${name}_bowtie2.log | samtools view -b - | \
-        samtools sort - -o ${name}.bam
+        samtools sort - -o ${name}.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
 
+#calculate the total number of rDNA-aligned reads
 PE1_prior_rDNA=$(wc -l ${name}_PE1_processed.fastq | awk '{print $1/4}')
 PE1_post_rDNA=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
 total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
 concordant_pe1=$(samtools view -c -f 0x42 ${name}.bam)
 total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
 rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
 echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> ${name}_QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
 map_pe1=$(samtools view -c -f 0x42 ${name}.bam)
 pre_alignment=$(wc -l ${name}_PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
 alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
@@ -460,13 +477,14 @@ done
 
 ```
 
-## Plot all QC metrics \
+## Plot all QC metrics 
 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load R/4.1.2
 
 cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
-plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO
+plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO # pdf output
+
 ```
 
 the GATA3_degron_PRO QC metrics plot:
@@ -476,7 +494,9 @@ library(knitr)
 knitr::include_graphics("./GATA3_degron_PRO.pdf") 
 ```
 
-# primaryTranscriptAnnotation (PTA)
+# primaryTranscriptAnnotation (PTA) 
+The purpose of this analysis is to define primary transcripts 
+
 ## Data pre-process
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
@@ -501,7 +521,7 @@ PRO_normalization -c /home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 #and assumes that you are running the script in the directory with your bigWigs 
 ```
 
-## Input for PTA
+### Input for PTA
 get the merged bigWigs (minus and plus) for primaryTranscriptAnnotation （PE1 data） \
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -522,7 +542,7 @@ get the merged bigWigs (minus and plus) for primaryTranscriptAnnotation （PE1 d
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 
-reps=8
+reps=12
 pair="_PE1"
 name="MCF7_dTAGGATAClone522_30min"
 chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes 
@@ -547,7 +567,7 @@ rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg
 ```
 
-## Input for TSS
+### Input for TSS
 get the merged plus and minus for TSS inference (PE2 data) \
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -568,7 +588,7 @@ get the merged plus and minus for TSS inference (PE2 data) \
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 
-reps=8
+reps=12
 pair="_PE2"
 name="MCF7_dTAGGATAClone522_30min"
 chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
@@ -870,9 +890,11 @@ sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 ```
 
 
-# Differential expression analysis 
+# Differential expression analysis with DESeq2
 
-load key packages and functions \
+The differential expression analysis quantifies transcriptomic changes upon treating MCF7 cells with 4 combinations of treatment use 30min estrogen (E2) or 30min dTAG (degrading GATA3). \ 
+
+## load key packages and functions 
 ```{r engine='R', eval=F, echo=TRUE}
 module load R/4.1.2
 R
@@ -954,8 +976,6 @@ plotPCAlattice <- function(df, file = 'PCA_lattice.pdf') {
   dev.off()
 }
 
-
-
 #run.deseq.list <- function(mat, untreated = 4, treated=4) {
 # sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
   
@@ -989,7 +1009,8 @@ tighten_summit_window <- function(res.deseq) {
 }
 ```
 
-load the unnormalized bigWig PRO data \
+## load the unnormalized bigWig PRO data 
+
 estimate read size use the `DESeq2` function `estimateSizeFactorsForMatrix`: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1135,6 +1156,10 @@ dev.off()
 #save.image('230810_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
 ```
 
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
+#library(knitr)
+knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.pdf") 
+```
 
 ## 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1221,6 +1246,10 @@ dev.off()
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
 ```
 
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
+#library(knitr)
+knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf") 
+```
 
 ## 3) dTAGV1_E2_vs_control_E2 \ 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1306,6 +1335,12 @@ dev.off()
 
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
 ```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
+#library(knitr)
+knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.pdf") 
+```
+
 
 ## 4) dTAGV1_NoE2_vs_control_NoE2 \ 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1397,4 +1432,10 @@ dev.off()
 #save.image('230810_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
 
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
+#library(knitr)
+knitr::include_graphics("./MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.pdf") 
+```
+
+# integrate with ChIP...
 The above activated, repressed, and matched files in bed format are going to be integrated with our ChIP exp to determine functional ChIP peaks. \
