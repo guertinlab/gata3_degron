@@ -55,22 +55,29 @@ done
 ## Cut off the adapter with `cutadapt`
 
 In our daily workflow in the lab we use
-`cutadapt` to remove adapeter sequences. The options we use below are `-j` for the number of cores
-to use, `-m` specifies the minimal lenght of a read to keep after
-adapter sequence removal, and `-O` is the number of bases to trim off the
-end of the read if it overlaps with the adapter sequence. If the
-genome is 25% of each base, then you would expect one quarter of the
+`cutadapt` to remove adapter sequences. The options we use below are:
+
+- `-j` for the number of cores to use
+- `-m` specifies the minimal length of a read to keep after adapter sequence removal
+- `-O` is the number of bases to trim off the end of the read if it overlaps with the adapter sequence 
+- `-a` adapter sequence of PE1 reads 
+- `-A` adapter sequence of PE2 reads
+- `-o` PE1 output file 
+- `-p` PE2 output file
+
+If the genome contains 25% of each base, then you would expect one quarter of the
 reads that have no adapter to have the trailing base
 trimmed. Likewise, approximately 1/16 of the remaining
 reads without the adapter will have the final two bases
 trimmed. Technically these values are not exact, because the reads with
 matches to longer trailing k-mers (in this case 19-mers) would be
-removed first, then 18-mer matches removed, etcetera... The `-a` and `-A`
+removed first, then 18-mer matches removed, etcetera...  \
+
+The `-a` and `-A`
 options are the adapter sequences of the PE1 and PE2 reads.  The
 output file is `-o` (PE1) and `-p` PE2. The last two positional
-areguments are the input `fastq` files. Of course we save the output
-to a log file
-
+areguments are the input `fastq` files. We save the output
+to a log file.
 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load cutadapt
@@ -149,7 +156,7 @@ hostname
 
 name=230718
 
-# I have seqOutBias and other useful tools export to my Path
+# I have seqOutBias and other packages export to my Path
 export PATH=$PATH:/home/FCAM/ssun/packages/
 
 module load samtools/1.16.1
@@ -307,7 +314,7 @@ trackhub link: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 # Peak calling
 
 We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment files against the control genomic input. \
-In the below chunk, I am taking all files with same ChIP factor as my input (`-t`) to account for all possible binding regions; I have one GATA ChIP with degradation treatment, this will be considered separatly as one treatment. My control genomic input is all the IgG file (`-c`). \
+In the below chunk, I am taking all sorted bam files with same ChIP factor as my input (`-t`) to account for all possible binding regions; I have one GATA ChIP with degradation treatment, this will be considered separately as one treatment. My control genomic input is all the IgG file (`-c`). \
 The reason we want to call peaks on all files of same ChIP factors is that: taking intersection of peaks between replicates/conditions will result in high false negative rates. We may lose important binding regions for transcription factor analysis. Here we are doing a compromise to call every peaks on all files and later in downstream analysis we will decide the functional peaks. \
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -350,7 +357,12 @@ set of region in the genome in `bed` format that have an over-representation of
 reads regardless of the experiment. We also remove peaks on non-canonical chromosomes with
 `grep -v`. \
 
-We use `bedtools slop` to change boundaries by adding a fixed number of bases in each direction (`-b`). 
+All intervals in the summits file span one base, and we use `bedtools slop` to change boundaries by adding a fixed number of bases in each direction (`-b`). These 101 base intervals will be used as input for de novo motif analysis. The 401 base intervals will be used to calculate peak intensity. The rationale for a smaller window for motif analysis is the following: \
+1) the motif is typically very close to the peak summit, \
+2) larger window increases the computation time substantially, and \
+3) the flanking sequence is less enriched for the relevant motifs and de novo motif analysis is less sensitive with higher noise relative to background. \
+
+We use a standard window size to calculate peak intensity, but we use a much wider window because signal 200 bases up or downstream can result from signal. We could increase the window to 600 bases and that would be fine as well. You can vary this window systematically and determine if varying the window affects the relative peak intensity rank. We use the same window size for each peak because otherwise wider windows (note the narrowPeaks file outputs are variable width) would inherently have more reads. 
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
