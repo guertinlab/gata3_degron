@@ -120,7 +120,7 @@ do
 
 	echo $i
 	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 >> readsize.txt
-done | tee -a readsize_log.txt
+done 2>&1 | tee -a readsize_log.txt
 #First column (with number) read number and second column (with number) read length.
 
 
@@ -757,6 +757,12 @@ largest.interval.bed = get.largest.interval(bed=gencode.transcript)
 # Evaluate reads and compute densities for each transcript of each gene.
 transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
 
+# str(transcript.reads)
+#List of 2
+# $ counts : Named num [1:19650] 0 0 0 249 144 ...
+#  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
+# $ density: Named num [1:19650] 0 0 0 0.01207 0.00954 ...
+#  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
 ```
 
 3. Evaluate count and density distribution \
@@ -808,6 +814,15 @@ knitr::include_graphics("./cut_count_density_distribution.jpeg")
 ```{r engine='R', eval=F, echo=TRUE}
 unexp = names(transcript.reads$counts)[ind.cut]
 largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]
+
+#head(largest.interval.bed)
+#        chr    start      end    gene xy strand
+#57158 chr19 58345183 58353492    A1BG na      -
+#31276 chr10 50799409 50885675    A1CF na      -
+#37570 chr12  9067708  9115919     A2M na      -
+#37561 chr12  8822621  8876787   A2ML1 na      +
+#1408   chr1 33306766 33321098 A3GALT2 na      -
+#60649 chr22 42692121 42720870  A4GALT na      -
 ```
 
 6. TSS identification and remove overlaps \
@@ -873,7 +888,7 @@ tau.dist = 50000
 frac.max = 1
 frac.min = 0.3
 
-#save.image('230808_GATA3_pro_TSS.Rdata')
+#save.image('230817_GATA3_pro_TSS.Rdata')
 
 inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           bw.plus=bw.plus, bw.minus=bw.minus,
@@ -881,18 +896,23 @@ inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           pk.thresh=pk.thresh, knot.thresh=knot.thresh,
                           cnt.thresh=cnt.thresh, tau.dist=tau.dist,
                           frac.max=frac.max, frac.min=frac.min,
-                          knot.div=knot.div)						  
+                          knot.div=knot.div)	# this takes long time to run					  
 final.coords = inferred.coords$bed		
 
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
-#save.image('230809_GATA3_pro_TSS.Rdata')
+#save.image('230817_GATA3_pro_TSS2.Rdata')
 ```
 
 
 # Differential expression analysis with DESeq2
 
-The differential expression analysis quantifies transcriptomic changes upon treating MCF7 cells with 4 combinations of treatment use 30min estrogen (E2) or 30min dTAG (degrading GATA3). \ 
+The differential expression analysis quantifies transcriptomic changes upon treating MCF7 cells with 4 combinations of treatment use 30min estrogen (E2) or 30min dTAG (degrading GATA3): \ 
+-four groups of treatment, each with 3 reps:
+-control+ E2 \
+-control+ control \
+-dTAG+control \
+-dTAG+E2 \
 
 ## load key packages and functions 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1022,7 +1042,7 @@ counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_
 estimateSizeFactorsForMatrix(counts.df)
 ```
 
-In this PRO exp, we have 4 levels
+In this PRO exp, we have 4 levels, here we define the sample conditions based on our experiment treatment set the levels.
 ```{r engine='R', eval=F, echo=TRUE}
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
                            levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
@@ -1039,7 +1059,7 @@ res = results(dds)
 rld <- rlog(dds)
 ```
 
-PCA \
+## PCA 
 
 ```{r engine='R', eval=F, echo=TRUE}
 #PCA for experiments
@@ -1055,6 +1075,23 @@ plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
 knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
 ```
 
+In the above PCA, we can see a clear separation between libraries with or without dTAG treatment (if GATA3 is degraded). We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups.
+```{r engine='R', eval=F, echo=TRUE}
+#PCA for experiments
+plotPCA(rld)
+
+pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
+pca.plot$sample.conditions = rownames(pca.plot)
+plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
+#library(knitr)
+knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
+```
+
+
+## DEseq2
 ```{r engine='R', eval=F, echo=TRUE}
 rep = factor(sapply(strsplit(colnames(counts.df), 'rep'), '[', 2))
 # [1] "1" "2" "3" "1" "2" "3" "1" "2" "3" "1" "2" "3"
@@ -1073,7 +1110,7 @@ we want to compare: \
 3) "dTAGV1_E2" vs. "control_E2" : compare between with or without GATA3 (when ER is activated) \  
 4) "dTAGV1_NoE2" vs. "control_NoE2": compare between with or without GATA3 (when ER is not activated) \ 
 
-## 1) control_E2_vs_control_NoE2 \
+### 1) control_E2_vs_control_NoE2 \
 ```{r engine='R', eval=F, echo=TRUE}
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
@@ -1161,7 +1198,7 @@ dev.off()
 knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.pdf") 
 ```
 
-## 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
+### 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
 ```{r engine='R', eval=F, echo=TRUE}
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
@@ -1251,7 +1288,7 @@ dev.off()
 knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf") 
 ```
 
-## 3) dTAGV1_E2_vs_control_E2 \ 
+### 3) dTAGV1_E2_vs_control_E2 \ 
 ```{r engine='R', eval=F, echo=TRUE}
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
@@ -1342,7 +1379,7 @@ knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.pdf")
 ```
 
 
-## 4) dTAGV1_NoE2_vs_control_NoE2 \ 
+### 4) dTAGV1_NoE2_vs_control_NoE2 \ 
 ```{r engine='R', eval=F, echo=TRUE}
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
