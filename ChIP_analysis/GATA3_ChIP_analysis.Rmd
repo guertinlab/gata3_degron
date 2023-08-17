@@ -36,8 +36,37 @@ MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER de
 Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.
 
 # ChIP-seq analysis
+## check fastq file quality
 
-First we name the experiments with the trailing name being `PE1` or
+unzip GATA3_ChIP.zip
+```{r engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=fastqc.sh     # name for job
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 32                  
+#SBATCH -p general           
+#SBATCH --qos=general       
+#SBATCH --mem=32G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o fastqc.sh_%j.out
+#SBATCH -e fastqc.sh_%j.err
+
+#mkdir fastqc_out
+#cd fastqc_out
+module load fastqc 
+
+for i in ../*fastq.gz
+do
+  echo $i
+  fastqc $i 
+done
+```
+
+
+## Renaming Data
+We want to name the experiments with the trailing name being `PE1` or
 `PE2` for paired end data. 
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -222,6 +251,95 @@ done
 
 ```
 
+### extract the read depth and scale factor from the analysis
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *chip_alignment*.out
+do
+  name=$(echo $i | awk -F".sh" '{print $1}')
+  echo $name
+  echo "scale factor"
+  scalee=$(cat $i | tail -1)
+  echo $scalee
+  echo "read depth"
+  depth=$(bc <<< "scale=1 ; 10000000 / $scalee")
+  echo $depth
+done 2>&1 | tee read_depth.txt
+```
+
+```{r engine='bash', eval=F, echo=F}
+chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep1 29411764.7
+chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep2 41152263.3
+chip_alignment_MCF7_dTAGGATA522_CTCF_CE_rep1 34722222.2
+chip_alignment_MCF7_dTAGGATA522_CTCF_dE_rep1 49751243.7
+chip_alignment_MCF7_dTAGGATA522_CTER_CE_rep1 40816326.5
+chip_alignment_MCF7_dTAGGATA522_CTER_dE_rep1 47393364.9
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep1 34722222.2
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep2 41152263.3
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep1 36363636.3
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep1 30581039.7
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep2 28985507.2
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep3 30769230.7
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep1 44642857.1
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1 29761904.7
+
+```
+
+alternative methods:
+```{r engine='bash', eval=F, echo=F}
+#  average coverage for all covered regions
+samtools depth  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
+
+# include regions that were not covered in this calculation
+samtools depth -a  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
+
+# get average X coverage: divide by total size of the genome, instead of dividing by NR in the command above.
+samtools view -H *bamfile* | grep -P '^@SQ' | cut -f 3 -d ':' | awk '{sum+=$1} END {print sum}' > totalsize # The total size
+samtools depth  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
+samtools depth -a *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
+```
+
+### extract the alignment rate from the analysis
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *chip_alignment*.err
+do
+  name=$(echo $i | awk -F".sh" '{print $1}')
+  echo $name
+  alignrate=$(cat $i | grep "overall alignment rate")
+  echo $alignrate
+done 2>&1 | tee alignment_rate.txt
+```
+
+```{r engine='bash', eval=F, echo=F}
+chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep1
+99.19% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep2
+99.12% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_CTCF_CE_rep1
+99.09% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_CTCF_dE_rep1
+99.11% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_CTER_CE_rep1
+99.02% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_CTER_dE_rep1
+98.92% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep1
+98.96% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep2
+98.96% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep1
+98.82% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep1
+98.88% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep2
+98.82% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep3
+98.98% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep1
+98.97% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1
+98.54% overall alignment rate
+
+```
 
 # Combining replicates for the genome browser
 
@@ -313,9 +431,15 @@ trackhub link: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 
 # Peak calling
 
+We want to call a set of universal peaks for the same ChIP factors. The reasons are: taking intersection of peaks between replicates/conditions will result in high false negative rates. We may lose important binding regions for transcription factor analysis. Here we are doing a compromise to call every peaks on all files and later in downstream analysis we will decide the functional peaks. \
+
 We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment files against the control genomic input. \
-In the below chunk, I am taking all sorted bam files with same ChIP factor as my input (`-t`) to account for all possible binding regions; I have one GATA ChIP with degradation treatment, this will be considered separately as one treatment. My control genomic input is all the IgG file (`-c`). \
-The reason we want to call peaks on all files of same ChIP factors is that: taking intersection of peaks between replicates/conditions will result in high false negative rates. We may lose important binding regions for transcription factor analysis. Here we are doing a compromise to call every peaks on all files and later in downstream analysis we will decide the functional peaks. \
+`-t/--treatment FILENAME` takes your treatment file. If there is more than one alignment file, we can specify them as `-t A B C`. MACS will pool up all these files together. \
+`-c/--control` takes the control file. Here we pool all the IgG file. \
+`-n/--name` is the output name we give. \
+`-f/--format FORMAT` we specify BAMPE format for the output. \
+`-g/--gsize` is the mappable genome size or effective genome size. The actual mappable genome size is ~70% to 90% of the genome size due to the repetitive features on the chromosomes. Here we use the default hs --2.7e9 (for human genome). \
+`-q/--qvalue` is the FDR cutoff to call signidicant regions. \
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
@@ -340,11 +464,11 @@ mkdir temp_macs
 macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # ER (merged from ER_CE_2files,dE)
 macs3 callpeak --call-summits -t *_ER_*bam -c *IgG*bam -n ER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-# GATA (merged from GATA_CC,CE,dE)
+# GATA (merged from GATA_CC,CE)
 macs3 callpeak --call-summits -t *GATA_C*bam -c *IgG*bam -n GATActrl_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # GATA_degrade (gata_dE)
 macs3 callpeak --call-summits -t *GATA_d*bam -c *IgG*bam -n GATAdegrade_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-# GATA all
+# GATA all (merged from GATA_CC,CE,dE)
 macs3 callpeak --call-summits -t *_GATA_*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # CTER
 macs3 callpeak --call-summits -t *CTER_*bam -c *IgG*bam -n CTER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
@@ -379,8 +503,8 @@ We use a standard window size to calculate peak intensity, but we use a much wid
 #SBATCH -e remove_peak.sh_%j.err
 module load deeptools/3.5.0
 module load bedtools
-wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
-gunzip hg38-blacklist.v2.bed.gz
+#wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+#gunzip hg38-blacklist.v2.bed.gz
 blacklist=hg38-blacklist.v2.bed
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
@@ -391,57 +515,94 @@ do
 	echo $name
 	grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ${name}_summits_final.bed
 	slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_100window.bed
-   	slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
+  slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
 done
 ```
 
-# De novo motif analysis at peaks
-
-## gata3 peaks
+check peak numbers we called for each factor
 ```{r engine='bash', eval=F, echo=TRUE}
-#CTCF_ChIP_summit_100window.bed  
-#GATA_ChIP_summit_100window.bed
-#CTER_ChIP_summit_100window.bed  
-#GATActrl_ChIP_summit_100window.bed
-#ER_ChIP_summit_100window.bed    
-#GATAdegrade_ChIP_summit_100window.bed
+83228 CTCF_ChIP_summits_final.bed
+   40993 CTER_ChIP_summits_final.bed
+     127 ER_ChIP_summits_final.bed
+   65904 GATA_ChIP_summits_final.bed
+  # 78974 GATActrl_ChIP_summits_final.bed
+  #   374 GATAdegrade_ChIP_summits_final.bed
+```
 
+ER set has only 127 peaks, we can loosen the q-value cutoff from 0.01 to 0.05, see if we can improve the peak call of ER.
+```{r engine='bash', eval=F, echo=TRUE}
+# ER (merged from ER_CE_2files,dE) use 0.05 mFDR cutoff
+macs3 callpeak --call-summits -t *_ER_*bam -c *IgG*bam -n ER05_ChIP -g hs -q 0.05 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+
+#module load deeptools/3.5.0
+#module load bedtools
+#blacklist=hg38-blacklist.v2.bed
+#sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+grep -v "random" ER05_ChIP_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ER05_ChIP_summits_final.bed
+slopBed -b 50 -i ER05_ChIP_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ER05_ChIP_summit_100window.bed
+
+#wc -l ER05_ChIP_summits_final.bed
+#208, still low. ER ChIP library seems to be not great...
+```
+
+# Check the top De novo motif analysis at universal peak set
+
+De novo motif analysis uses tools like `MEME`, `TOMTOM`, `MAST` and `FIMO` to analyze binding site. The `MEME` analysis suite allows users to indentify (de novo) enriched motifs with a set of sequences, and compare to databases of known motifs; it also allow users to search for motifs of interest within a set of sequences... The user manual and more usage can be found here：https://meme-suite.org/meme/doc/meme.html \
+
+## quality check
+In this analysis, we will first convert the coordinate bed file to a sequence fasta file, then we perform de novo motif analysis with `meme`. But first, we want to do a quick quality check by manually looking at the top hit to ensure that it is a GATA motif variant for GATA peaks, and ER motif variant for ER peaks. \
+### GATA peaks
+```{r engine='bash', eval=F, echo=TRUE}
+module load deeptools/3.5.0
 module load meme/5.4.1
 module load bedtools
-
 genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
+#GATA_ChIP_summit_100window.bed
+#ER_ChIP_summit_100window.bed    
 name=GATA_ChIP
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 
-meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
-
-#Just did the top 2000 peaks to make it faster
+# Just did the top 2000 GATA peaks to make it faster
 sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 > ${name}_top2000_summit_100window.bed
 name=${name}_top2000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
+```
+
+by searching the top 2000 most significant GATA peaks, we find the top motif match to the GATA motif.
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the GATA motif"}
+library(knitr)
+knitr::include_graphics("./GATA_ChIP_top2000_motif.meme_output/logo1.png") 
 ```
 
 
-## ER peaks
+### ER peaks:
+
+Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` we get 127 peaks; using q-value cutoff of 0.05 in `macs3--callpeak` we get 208 peaks. So we will `meme` de novo motif analysis search on the entire set.
+
 ```{r engine='bash', eval=F, echo=TRUE}
 name=ER_ChIP
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 
-meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
-
-#Just did the top 2000 peaks to make it faster
-sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 > ${name}_top2000_summit_100window.bed
-name=${name}_top2000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-meme -oc ${name}_motif.meme_output -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal ER mortif is AGGTCA, minw can be set to 6
+
+name=ER05_ChIP
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
 ```
 
-We have found two motifs with top 2000 most significant peaks, they match to ESR1 and Sox:
-```{r engine='bash', eval=F, echo=TRUE}
-# motif plot
+by searching ER peaks, we find the top motif match to the ER motif.
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ESR1 motif"}
+library(knitr)
+knitr::include_graphics("./ER_ChIP_top2000_motif.meme_output/logo1.png") 
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ER motif"}
+library(knitr)
+knitr::include_graphics("./ER05_ChIP_top2000_motif.meme_output/logo_rc1.png") 
 ```
 
 
@@ -1409,12 +1570,165 @@ done
 
 ER peaks \
 
+# De novo motif analysis
+
 # heatmap of GATA3 functional and non-functional peaks
 deeptools
 
 <!-- 
 # ###############################below not runned###############################################
 # motif analysis of other and functional ZNF143 peaks
+# de novo motif analysis
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+
+genome=/home/FCAM/meds5420/genomes/hg38.fa
+sizes=/home/FCAM/meds5420/genomes/hg38.chrom.sizes
+
+for i in ZNF143_*_peaks.bed
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
+    echo $name
+    slopBed -b 70 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_140window.bed
+    slopBed -b 200 -i $i -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
+    fastaFromBed -fi $genome -bed ${name}_summit_140window.bed -fo ${name}_summit_140window.fasta
+done
+
+for i in ZNF143_*_peaks.bed
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peaks.bed" '{print $1}')
+    echo $name
+    meme -p 16 -oc ${name}_motif_functional.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_140window.fasta
+done
+
+
+fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional.fimo_output ZNF143_functional_motif_functional.meme_output/meme.txt $genome
+
+tail -n +2 ZNF143_functional_motif_functional.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round1.bed
+
+intersectBed -v -wa -a ZNF143_functional_summit_140window.bed -b fimo_ZNF143_functional_round1.bed > ZNF143_ChIP_summit_140window_no_func_motif_1.bed
+
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1.fasta
+
+meme -p 16 -oc ZNF143_functional_motif_functional_second.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_func_motif_1.fasta
+
+fimo --max-strand --max-stored-scores 10000000 --oc ZNF143_functional_motif_functional_second.fimo_output ZNF143_functional_motif_functional_second.meme_output/meme.txt $genome
+
+tail -n +2 ZNF143_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $3,$4,$5,$7,$8,$6}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_ZNF143_functional_round2.bed
+
+intersectBed -v -wa -a ZNF143_ChIP_summit_140window_no_func_motif_1.bed -b fimo_ZNF143_functional_round2.bed > ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
+
+fastaFromBed -fi $genome -bed ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed -fo ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.fasta
+
+meme -p 16 -oc ZNF143_functional_motif_functional_third.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.fasta
+
+#this returned garbage
+
+wc -l ZNF143_ChIP_summit_140window_no_func_motif_1_or_2.bed
+wc -l ZNF143_functional_summit_140window.bed
+
+#96% have either motif
+# what comparison comparison set of regions can we use as a control?
+```
+
+
+# make a barchart for fraction of peaks with motifs 
+
+```{r engine='bash', eval=F, echo=TRUE}
+#input for barchart
+
+rm barchart.txt
+for i in quantile*.bed
+do
+	name=$(echo $i | awk -F"quantile" '{print $NF}' | awk -F".bed" '{print $1}')
+	sort -k1,1 -k2,2n $i > tmp.bed
+	echo $name 
+	intersectBed -u -wa -a tmp.bed -b fimo_ZNF143.bed fimo_ZNF143_motif2.bed > overlap_${name}_znf143.bed
+	num=`wc -l overlap_${name}_znf143.bed | cut -f1 -d 'o'`
+	tot=`wc -l $i | cut -f1 -d 'q'`
+	echo ${num} pos ${name} ZNF143 >> barchart.txt
+	neg=$(expr ${tot} - ${num})
+	echo ${neg} neg ${name} ZNF143 >> barchart.txt
+done
+
+
+```
+
+####
+```{r, engine='R', eval=F, echo=T}
+
+
+length(peak.intensities[peak.intensities >= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]])
+
+func.znf143.peaks = peak.intensities[peak.intensities >= quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]
+
+other.znf143.peaks = peak.intensities[peak.intensities < quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))[13]]
+
+```
+
+
+
+
+# Jinhong: To do
+
+## run through the entire vignette and add context paragraphs and include figures
+
+## make a composite PSWM of motif 1 and motif 2 from the functional peaks
+
+## make a composite FIMO motif signal at peak summits
+
+## de novo motif analysis on other (non-functional peaks)
+
+## Calculate the fraction of reads in peaks (FRiP) score for:
+
+### the full set of ZNF143 narrowPeaks
+
+### functional peaks (use narrowPeaks file)
+
+### other (non-func) peaks (use narrowPeaks file)
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+
+
+plot.barchart <- function(df.barchart, filename = "~/Desktop/barchart.beds.broadPeaks.pdf") {
+  pdf(filename, width=12.83, height=6)
+
+  polycol <- trellis.par.get("superpose.polygon")
+  polycol$col <- c("red", "grey40")
+  trellis.par.set("superpose.polygon",polycol)
+
+
+  print(barchart(as.numeric(as.character(fraction))~factor, data = df.barchart, groups=p_n,
+                 stack=TRUE,
+                 as.table=TRUE,
+                 layout=c(1,1),
+               #auto.key = list(title = "",rows=3,fill=colors,just="bottom"),
+                 main="H3R26Cit Peaks",
+               #xlab = "HSF1 or HSF2 Peaks",
+                 ylab="Fraction Enriched Red",
+                 cex.axis=1.2,
+                 between=list(y=0.5, x=0.5),
+                 font.axis=1,
+                 par.settings=list(par.xlab.text=list(cex=1.0,font=1),
+                   par.ylab.text=list(cex=1.0,font=1),
+                   axis.text=list(cex=1,font=1),
+                   strip.background=list(col="#ecdaf5"),
+                   par.main.text=list(cex=1.2, font=1)),
+                                        #aspect = 1,
+                 scales=list(x=list(alternating=c(1,1,1,0,0,0),rot=45),
+                   y=list(alternating=c(1,1)))))
+  
+  dev.off()
+}
+
+```
+
+
+
 
 
 ```{r, engine='R', eval=F, echo=T}
