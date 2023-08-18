@@ -908,7 +908,7 @@ sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 # Differential expression analysis with DESeq2
 
 The differential expression analysis quantifies transcriptomic changes upon treating MCF7 cells with 4 combinations of treatment use 30min estrogen (E2) or 30min dTAG (degrading GATA3): \ 
--four groups of treatment, each with 3 reps:
+-four groups of treatment, each with 3 reps: \
 -control+ E2 \
 -control+ control \
 -dTAG+control \
@@ -1040,6 +1040,30 @@ counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_
 
 # estimate read size
 estimateSizeFactorsForMatrix(counts.df)
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1 
+#                                    0.9217157 
+#  MCF7_dTAGGATAClone522_30min_control_E2_rep2 
+#                                    0.8219647 
+#  MCF7_dTAGGATAClone522_30min_control_E2_rep3 
+#                                   1.0366662 
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1 
+#                                    0.6803199 
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2 
+#                                    1.3319295 
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3 
+#                                    1.0590939 
+#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1 
+#                                    1.0224496 
+#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2 
+#                                    0.8222466 
+#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3 
+#                                    1.0810677 
+# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 
+#                                    1.5296429 
+# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 
+#                                    1.0432574 
+# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 
+#                                    0.9394534 
 ```
 
 In this PRO exp, we have 4 levels, here we define the sample conditions based on our experiment treatment set the levels.
@@ -1075,21 +1099,37 @@ plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
 knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
 ```
 
-In the above PCA, we can see a clear separation between libraries with or without dTAG treatment (if GATA3 is degraded). We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups.
+In the above PCA, we can see a clear separation between libraries with or without dTAG treatment. We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups. \
+
+1) "control_E2" and "control_NoE2" \
 ```{r engine='R', eval=F, echo=TRUE}
 #PCA for experiments
-plotPCA(rld)
+rld.control.sub <- rld[, rld$condition %in% c("control_E2", "control_NoE2") ]
 
-pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
-pca.plot$sample.conditions = rownames(pca.plot)
-plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
+pca.plot1 = plotPCA(rld.control.sub, intgroup="sample.conditions", returnData=TRUE)
+pca.plot1$sample.conditions = rownames(pca.plot1)
+plotPCAlattice(pca.plot1, file = 'PCA_GATA3_PRO_control_sub.pdf')
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA E2 sub"}
 #library(knitr)
-knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
+knitr::include_graphics("./PCA_GATA3_PRO_control_sub.pdf") 
 ```
 
+2) "dTAGV1_E2" and "dTAGV1_NoE2" \
+```{r engine='R', eval=F, echo=TRUE}
+#PCA for experiments
+rld.dTAG.sub <- rld[, rld$condition %in% c("dTAGV1_E2", "dTAGV1_NoE2") ]
+
+pca.plot2 = plotPCA(rld.dTAG.sub, intgroup="sample.conditions", returnData=TRUE)
+pca.plot2$sample.conditions = rownames(pca.plot2)
+plotPCAlattice(pca.plot2, file = 'PCA_GATA3_PRO_dTAG_sub.pdf')
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA dTAG sub"}
+#library(knitr)
+knitr::include_graphics("./PCA_GATA3_PRO_dTAG_sub.pdf") 
+```
 
 ## DEseq2
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1101,7 +1141,7 @@ sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE
 
 deseq.df = DESeqDataSetFromMatrix(counts.df, cbind.data.frame(sample.conditions, rep), ~ rep + sample.conditions)
 deseq.df = DESeq(deseq.df)
-#save.image('230810_GATA3_pro_DEA.Rdata')
+#save.image('230817_GATA3_pro_DEA.Rdata')
 ```
 
 we want to compare: \
@@ -1111,14 +1151,18 @@ we want to compare: \
 4) "dTAGV1_NoE2" vs. "control_NoE2": compare between with or without GATA3 (when ER is not activated) \ 
 
 ### 1) control_E2_vs_control_NoE2 \
+
+Here we use `contrast` to extract comparisons between "control_E2" and "control_NoE2"; \
+we want to try a few p-value cutoff and see how many coordinates fall into the range.
 ```{r engine='R', eval=F, echo=TRUE}
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
 
-res.deseq = results(deseq.df, contrast = c("sample.conditions", "control_E2", "control_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+res.deseq = results(deseq.df, contrast = c("sample.conditions", "control_E2", "control_NoE2")) #compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
 #[1] 131
-
+sum(res.deseq$padj < 0.5 & !is.na(res.deseq$padj))
+#[1] 274
 
 # activated
 activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
@@ -1163,39 +1207,38 @@ df.x = rbind(df.x, repressed)
 ```
 
 MA plot \
+Using a padj cutoff of 0.1, we got 4 repressed genes and 127 activated genes under E2 treatment (control_E2_vs_control_NoE2). This is expected because we know that ER is an activator and induce ER activity will result in ER-regulated gene activation. \
 ```{r engine='R', eval=F, echo=TRUE}
-# Unchanged is the combine matched genes.
-unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
-unchanged.df$treatment="Unchanged"
-# nrow(unchanged.df)
-#[1] 131
+ma.df=df.x
+# repressed: 4; activated: 127
 
-df.y=rbind(unchanged.df, repressed, activated) # repressed: 4; activated: 127
+ma.plot.jpeg.lattice <- function(ma.df, filename = 'file.name', 
+         title.main = "Differential PRO-seq Expression",
+         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
+  {
+  jpeg(paste("MA_plot_", filename, "_response.jpeg", sep=''), quality=100, height=2500, width=3000, pointsize=8, res=600)
+  # pdf(paste("MA_plot_", filename, ".pdf", sep=''), width=4, height=4)
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$treatment,
+               col= col,
+               main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylim=c(-2,2),
+               xlim=c(1.5,4.5),
+               ylab=expression("log"[2]~"PRO-seq fold change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+  }
 
-pdf("MA_plot_control_E2_vs_control_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
-print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
-             groups=df.y$treatment,
-             col=c("red", "blue", "grey90", "grey60"),
-             scales="free",
-             aspect=1,
-             ylim=c(-7.2, 7.2),
-             xlim=c(-1,5.2),
-             par.strip.text=list(cex=1.0, font = 1),
-             pch=20,
-             cex=0.5,
-             ylab=expression("control_E2_vs_control_NoE2 log"[2]~"PRO fold change"),
-             xlab=expression("log"[10]~"Mean of Normalized Counts"),
-             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
-                              par.ylab.text=list(cex=1.1,font=2),
-                              strip.background=list(col="grey85"))))
-dev.off()
+ma.plot.jpeg.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
 
-#save.image('230810_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
+#save.image('230818_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.pdf") 
+knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.jpeg") 
 ```
 
 ### 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
@@ -1205,7 +1248,9 @@ knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.pdf")
 
 res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_E2" , "dTAGV1_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
-#[1] 190
+#[1] 191
+sum(res.deseq$padj < 0.5 & !is.na(res.deseq$padj))
+#[1] 433
 
 
 # activated
@@ -1252,40 +1297,17 @@ df.x = rbind(df.x, repressed)
 
 MA plot \
 ```{r engine='R', eval=F, echo=TRUE}
-# Unchanged is the combine matched genes.
-unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
-unchanged.df$treatment="Unchanged"
-# nrow(unchanged.df)
-#[1] 190
-#nrow(repressed)
-#nrow(activated)
+ma.df=df.x
+# repressed: 12; activated: 179
 
-df.y=rbind(unchanged.df, repressed, activated) # repressed: 12; activated: 178
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
 
-pdf("MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
-print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
-             groups=df.y$treatment,
-             col=c("red", "blue", "grey90", "grey60"),
-             scales="free",
-             aspect=1,
-             ylim=c(-7.2, 7.2),
-             xlim=c(-1,5.2),
-             par.strip.text=list(cex=1.0, font = 1),
-             pch=20,
-             cex=0.5,
-             ylab=expression("dTAGV1_E2_vs_dTAGV1_NoE2 log"[2]~"PRO fold change"),
-             xlab=expression("log"[10]~"Mean of Normalized Counts"),
-             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
-                              par.ylab.text=list(cex=1.1,font=2),
-                              strip.background=list(col="grey85"))))
-dev.off()
-
-#save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
+#save.image('230818_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf") 
+knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.jpeg") 
 ```
 
 ### 3) dTAGV1_E2_vs_control_E2 \ 
@@ -1295,7 +1317,7 @@ knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.pdf")
 
 res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_E2" , "control_E2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
-#[1] 1009
+#[1] 1012
 
 
 # activated
@@ -1342,40 +1364,17 @@ df.x = rbind(df.x, repressed)
 
 MA plot \
 ```{r engine='R', eval=F, echo=TRUE}
-# Unchanged is the combine matched genes.
-unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
-unchanged.df$treatment="Unchanged"
-# nrow(unchanged.df)
-#[1] 1009
-#nrow(repressed)
-#nrow(activated)
+ma.df=df.x
+# repressed: 492; activated: 520
 
-df.y=rbind(unchanged.df, repressed, activated) # repressed: 491; activated: 518
-
-pdf("MA_plot_dTAGV1_E2_vs_control_E2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
-print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
-             groups=df.y$treatment,
-             col=c("red", "blue", "grey90", "grey60"),
-             scales="free",
-             aspect=1,
-             ylim=c(-7.2, 7.2),
-             xlim=c(-1,5.2),
-             par.strip.text=list(cex=1.0, font = 1),
-             pch=20,
-             cex=0.5,
-             ylab=expression("dTAGV1_E2_vs_control_E2 log"[2]~"PRO fold change"),
-             xlab=expression("log"[10]~"Mean of Normalized Counts"),
-             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
-                              par.ylab.text=list(cex=1.1,font=2),
-                              strip.background=list(col="grey85"))))
-dev.off()
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
 
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.pdf") 
+knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.jpeg") 
 ```
 
 
@@ -1386,11 +1385,14 @@ knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.pdf")
 
 res.deseq = results(deseq.df, contrast = c("sample.conditions", "dTAGV1_NoE2" , "control_NoE2")) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq$padj < 0.1 & !is.na(res.deseq$padj))
-#[1] 1368
-
+#[1] 1376
+sum(res.deseq$padj < 0.05 & !is.na(res.deseq$padj))
+#[1] 1165
+sum(res.deseq$padj < 0.01 & !is.na(res.deseq$padj))
+#[1] 863
 
 # activated
-activated = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+activated = res.deseq[res.deseq$padj < 0.01 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
 activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
 write.table(activated.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
   
@@ -1403,6 +1405,7 @@ df.deseq.effects.lattice = rbind(unchanged, activated)
 out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
         #Warning message:
         #Fewer control units than treated units; not all treated units will get a match.
+        #unchanged has 528 genes, changing padj cutoff to more stringent value of 0.01 would make activated genes ~461, then the warning message would not show because now you have enough unchanged to match with your activated genes.
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
@@ -1412,7 +1415,7 @@ df.x = rbind(activated, unchanged)
 
 
 # repressed
-repressed = res.deseq[res.deseq$padj < 0.1 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
+repressed = res.deseq[res.deseq$padj < 0.01 & !is.na(res.deseq$padj) & res.deseq$log2FoldChange < 0,]
 repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(repressed.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
  
@@ -1426,6 +1429,7 @@ df.deseq.effects.lattice = rbind(unchanged, repressed)
 out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
         #Warning message:
         #Fewer control units than treated units; not all treated units will get a match.
+        #changing repressed gene padj cutoff fix the warning
         
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
@@ -1437,41 +1441,21 @@ df.x = rbind(df.x, repressed)
 ```
 
 MA plot \
+GATA3 is an activator, when we treat the cells with the GATA3 degrader dTAG, we would expect to see genes that is regulated by GATA3 been repressed. \
 ```{r engine='R', eval=F, echo=TRUE}
+# padj: 0.05 activated:637 repressed:528
+# padj: 0.01 activated:461 repressed:402
 # Unchanged is the combine matched genes.
-unchanged.df = rbind(df.x[df.x$treatment=="Matched to Activated",], df.x[df.x$treatment=="Matched to Repressed",])
-unchanged.df$treatment="Unchanged"
-# nrow(unchanged.df)
-#[1] 1062
-#nrow(repressed)
-#nrow(activated)
+ma.df=df.x
 
-df.y=rbind(unchanged.df, repressed, activated) # repressed: 637; activated: 731
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
 
-pdf("MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.pdf", useDingbats = FALSE, width=4.83, height=3.33)
-print(xyplot(df.y$log2FoldChange ~ log(df.y$baseMean, base=10),
-             groups=df.y$treatment,
-             col=c("red", "blue", "grey90", "grey60"),
-             scales="free",
-             aspect=1,
-             ylim=c(-7.2, 7.2),
-             xlim=c(-1,5.2),
-             par.strip.text=list(cex=1.0, font = 1),
-             pch=20,
-             cex=0.5,
-             ylab=expression("dTAGV1_NoE2_vs_control_NoE2 log"[2]~"PRO fold change"),
-             xlab=expression("log"[10]~"Mean of Normalized Counts"),
-             ar.settings=list(par.xlab.text=list(cex=1.1,font=2),
-                              par.ylab.text=list(cex=1.1,font=2),
-                              strip.background=list(col="grey85"))))
-dev.off()
-
-#save.image('230810_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
+#save.image('230818_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.pdf") 
+knitr::include_graphics("./MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.jpeg") 
 ```
 
 # integrate with ChIP...
