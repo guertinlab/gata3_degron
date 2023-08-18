@@ -1027,7 +1027,7 @@ save.image('230731_GATA3_ER_ChIP_deseq.Rdata')
 
 # Ranking and quantile parsing of ChIP peaks
 Generate BED files that are ranked by their intensity, parsed into separate files, and named according to their quantile.
-```{r, engine='R', eval=F, echo=T}
+```{r, engine='R', eval=F, echo=TRUE}
 #CTCF_ChIP_summits_final.bed  
 #GATA_ChIP_summits_final.bed
 #CTER_ChIP_summits_final.bed  
@@ -1037,7 +1037,7 @@ Generate BED files that are ranked by their intensity, parsed into separate file
 ```
 
 1. GATA
-```{r, engine='R', eval=F, echo=T}
+```{r, engine='R', eval=F, echo=TRUE}
 #mkdir GATA
 #cd GATA #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
 module load R/4.1.2 
@@ -1080,7 +1080,7 @@ j = i
 
 2. ER
 
-```{r, engine='R', eval=F, echo=T}
+```{r, engine='R', eval=F, echo=TRUE}
 #mkdir ER
 #cd ER #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/ER
 
@@ -1131,7 +1131,7 @@ In the PRO-seq analysis, we have compared the treatment vs. control as below, an
 
 Concatenate the activated, repressed, and matched files into a list of activated and repressed genes. \
 
-```{r, engine='R', eval=F, echo=T}
+```{r, engine='R', eval=F, echo=TRUE}
 # ER
 #MCF7_GATA3_control_E2_vs_control_NoE2_annotations.bed     (compare ER activity when GATA3 is not depleated)
 cat control_E2_vs_control_NoE2_activated_genes.bed control_E2_vs_control_NoE2_activated_matched_genes.bed control_E2_vs_control_NoE2_repressed_genes.bed control_E2_vs_control_NoE2_repressed_matched_genes.bed > /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/ER/MCF7_GATA3_control_E2_vs_control_NoE2_annotations.bed  
@@ -1151,7 +1151,7 @@ cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_
 
 ## Making CDF plots
 load key packages
-```{r, engine='R', eval=F, echo=T}
+```{r, engine='R', eval=F, echo=TRUE}
 #module load R/4.1.2 
 #R
 
