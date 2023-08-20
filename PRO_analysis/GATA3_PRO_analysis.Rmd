@@ -1027,6 +1027,43 @@ tighten_summit_window <- function(res.deseq) {
   df = cbind.data.frame(chr, start, end, gene)
   return(df)
 }
+
+ma.plot.lattice <- function(ma.df, filename = 'file.name', 
+         title.main = "Differential PRO-seq Expression",
+         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
+  {
+   pdf(paste("MA_plot_", filename, ".pdf", sep=''), width=4, height=4)
+   print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$treatment,
+               col= col,
+               main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylim=c(-2,2),
+               xlim=c(1.5,4.5),
+               ylab=expression("log"[2]~"PRO-seq fold change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+  }
+
+ma.plot.jpeg.lattice <- function(ma.df, filename = 'file.name', 
+         title.main = "Differential PRO-seq Expression",
+         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
+  {
+  jpeg(paste("MA_plot_", filename, "_response.jpeg", sep=''), quality=100, height=2500, width=3000, pointsize=8, res=600)
+  # pdf(paste("MA_plot_", filename, ".pdf", sep=''), width=4, height=4)
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$treatment,
+               col= col,
+               main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylim=c(-2,2),
+               xlim=c(1.5,4.5),
+               ylab=expression("log"[2]~"PRO-seq fold change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+}
 ```
 
 ## load the unnormalized bigWig PRO data 
@@ -1210,28 +1247,19 @@ MA plot \
 Using a padj cutoff of 0.1, we got 4 repressed genes and 127 activated genes under E2 treatment (control_E2_vs_control_NoE2). This is expected because we know that ER is an activator and induce ER activity will result in ER-regulated gene activation. \
 ```{r engine='R', eval=F, echo=TRUE}
 ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res.deseq[!(rownames(res.deseq) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+
 # repressed: 4; activated: 127
 
-ma.plot.jpeg.lattice <- function(ma.df, filename = 'file.name', 
-         title.main = "Differential PRO-seq Expression",
-         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
-  {
-  jpeg(paste("MA_plot_", filename, "_response.jpeg", sep=''), quality=100, height=2500, width=3000, pointsize=8, res=600)
-  # pdf(paste("MA_plot_", filename, ".pdf", sep=''), width=4, height=4)
-  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
-               groups=ma.df$treatment,
-               col= col,
-               main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
-               ylim=c(-2,2),
-               xlim=c(1.5,4.5),
-               ylab=expression("log"[2]~"PRO-seq fold change"), 
-               xlab=expression("log"[10]~"Mean of Normalized Counts"),
-               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
-                                 par.ylab.text=list(cex=1.1,font=2))));
-  dev.off()
-  }
 
-ma.plot.jpeg.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
+ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.jpeg.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
 ```
@@ -1298,9 +1326,18 @@ df.x = rbind(df.x, repressed)
 MA plot \
 ```{r engine='R', eval=F, echo=TRUE}
 ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res.deseq[!(rownames(res.deseq) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+
 # repressed: 12; activated: 179
 
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
+ma.plot.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
 ```
@@ -1365,9 +1402,18 @@ df.x = rbind(df.x, repressed)
 MA plot \
 ```{r engine='R', eval=F, echo=TRUE}
 ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res.deseq[!(rownames(res.deseq) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+
 # repressed: 492; activated: 520
 
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
+ma.plot.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
 ```
@@ -1447,8 +1493,17 @@ GATA3 is an activator, when we treat the cells with the GATA3 degrader dTAG, we 
 # padj: 0.01 activated:461 repressed:402
 # Unchanged is the combine matched genes.
 ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res.deseq[!(rownames(res.deseq) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
 
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression", col=c("red", "grey90", "grey60", "blue"))
+
+ma.plot.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
