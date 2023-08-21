@@ -864,7 +864,7 @@ filtered.id.overlaps = remove.overlaps(bed=tss.interval.bed,
 ```
 
 7. TTS identification \ 
-TTS: triplex target DNA site that can selectively form triple-helix structure, and regulate gene expression.
+TTS: transcription termination site.
 find TTS search regions use get.end.intervals(); \
 identifying TTS use get.TTS(), which will generate a bed output with both TSSs and TTSs. \
 ```{r engine='R', eval=F, echo=TRUE}
