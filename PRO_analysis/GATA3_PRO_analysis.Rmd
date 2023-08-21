@@ -114,13 +114,14 @@ cargo build --release
 
 ## Confirming read size and UMI length
 ```{r engine='bash', eval=F, echo=TRUE}
-# retrieve the readsize of library
+# retrieve the readsize of raw library
 for i in *.fastq
 do
 
-	echo $i
-	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 >> readsize.txt
-done 2>&1 | tee -a readsize_log.txt
+	#echo $i
+	awk 'NR%4==2 {print length}' $i | sort -n | uniq -c | sort -rh | head -1 
+	# The NR%4==2 count the second line out of every block of 4.
+done 2>&1 | tee -a raw_reads_from_fastq_log.txt
 #First column (with number) read number and second column (with number) read length.
 
 
@@ -477,6 +478,43 @@ done
 
 ```
 
+```{r engine='bash', eval=F, echo=TRUE}
+# count the total aligned reads
+module load samtools/1.16.1
+for i in *.bam
+do
+  echo $i
+  samtools view -c -f 0x42 $i
+done 2>&1 | tee -a aligned_reads_from_bam_log.txt
+
+cat aligned_reads_from_bam_log.txt
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
+#7165927
+#MCF7_dTAGGATAClone522_30min_control_E2_rep2.bam
+#6368273
+#MCF7_dTAGGATAClone522_30min_control_E2_rep3.bam
+#7927577
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam
+#5383060
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2.bam
+#9783729
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3.bam
+#7954675
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1.bam
+#7797223
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2.bam
+#6695927
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3.bam
+#8281655
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1.bam
+#11240496
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2.bam
+#7969310
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3.bam
+#7076786
+
+```
+
 ## Plot all QC metrics 
 
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -487,12 +525,6 @@ plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO # pdf output
 
 ```
 
-the GATA3_degron_PRO QC metrics plot:
-
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 degron PRO seq QC metrics"}
-library(knitr)
-knitr::include_graphics("./GATA3_degron_PRO.pdf") 
-```
 
 # primaryTranscriptAnnotation (PTA) 
 The purpose of this analysis is to define primary transcripts 
@@ -767,7 +799,7 @@ transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus
 
 3. Evaluate count and density distribution \
 ```{r engine='R', eval=F, echo=TRUE}
-jpeg(file="count_density_distribution.jpeg")
+png(file="count_density_distribution.png")
 par(mfrow=c(1,2)) 
 hist(log(transcript.reads$density), breaks=200,
 col="black",xlab="log read density",main="") 
@@ -778,8 +810,8 @@ dev.off()
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution"}
-#library(knitr)
-knitr::include_graphics("./count_density_distribution.jpeg") 
+library(knitr)
+knitr::include_graphics("./png_image/count_density_distribution.png") 
 ```
 
 4. 
@@ -793,7 +825,7 @@ ind.cut.den = which(log(transcript.reads$density) < den.cut)
 ind.cut.cnt = which(log(transcript.reads$counts) < cnt.cut) 
 ind.cut = union(ind.cut.den, ind.cut.cnt)
 
-jpeg(file="cut_count_density_distribution.jpeg")
+png(file="cut_count_density_distribution.png")
 par(mfrow=c(1,2))
 hist(log(transcript.reads$density), breaks=200,
 col="black",xlab="log read density",main="") 
@@ -806,7 +838,7 @@ dev.off()
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution 2"}
 #library(knitr)
-knitr::include_graphics("./cut_count_density_distribution.jpeg") 
+knitr::include_graphics("./png_image/cut_count_density_distribution.png") 
 ```
 
 
@@ -1046,11 +1078,11 @@ ma.plot.lattice <- function(ma.df, filename = 'file.name',
   dev.off()
   }
 
-ma.plot.jpeg.lattice <- function(ma.df, filename = 'file.name', 
+ma.plot.png.lattice <- function(ma.df, filename = 'file.name', 
          title.main = "Differential PRO-seq Expression",
          col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
   {
-  jpeg(paste("MA_plot_", filename, "_response.jpeg", sep=''), quality=100, height=2500, width=3000, pointsize=8, res=600)
+  png(paste("MA_plot_", filename, "_response.png", sep=''))
   # pdf(paste("MA_plot_", filename, ".pdf", sep=''), width=4, height=4)
   print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
                groups=ma.df$treatment,
@@ -1133,7 +1165,7 @@ plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
 #library(knitr)
-knitr::include_graphics("./PCA_GATA3_PRO.pdf") 
+knitr::include_graphics("./png_image/PCA_GATA3_PRO.png") 
 ```
 
 In the above PCA, we can see a clear separation between libraries with or without dTAG treatment. We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups. \
@@ -1150,7 +1182,7 @@ plotPCAlattice(pca.plot1, file = 'PCA_GATA3_PRO_control_sub.pdf')
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA E2 sub"}
 #library(knitr)
-knitr::include_graphics("./PCA_GATA3_PRO_control_sub.pdf") 
+knitr::include_graphics("./png_image/PCA_GATA3_PRO_control_sub.png") 
 ```
 
 2) "dTAGV1_E2" and "dTAGV1_NoE2" \
@@ -1165,7 +1197,7 @@ plotPCAlattice(pca.plot2, file = 'PCA_GATA3_PRO_dTAG_sub.pdf')
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA dTAG sub"}
 #library(knitr)
-knitr::include_graphics("./PCA_GATA3_PRO_dTAG_sub.pdf") 
+knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png") 
 ```
 
 ## DEseq2
@@ -1259,14 +1291,14 @@ ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "A
 
 
 ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
-ma.plot.jpeg.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_control_E2_vs_control_NoE2_response.jpeg") 
+knitr::include_graphics("./png_image/MA_plot_control_E2_vs_control_NoE2_response.png") 
 ```
 
 ### 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
@@ -1337,14 +1369,14 @@ ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "A
 # repressed: 12; activated: 179
 
 ma.plot.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.jpeg") 
+knitr::include_graphics("./png_image/MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.png") 
 ```
 
 ### 3) dTAGV1_E2_vs_control_E2 \ 
@@ -1413,14 +1445,14 @@ ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "A
 # repressed: 492; activated: 520
 
 ma.plot.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Differential Expression (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_E2_vs_control_E2_response.jpeg") 
+knitr::include_graphics("./png_image/MA_plot_dTAGV1_E2_vs_control_E2_response.png") 
 ```
 
 
@@ -1503,14 +1535,14 @@ ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "A
 
 
 ma.plot.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
-ma.plot.jpeg.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="Differential Expression (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
 
 #save.image('230818_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
 #library(knitr)
-knitr::include_graphics("./MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.jpeg") 
+knitr::include_graphics("./png_image/MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.png") 
 ```
 
 # integrate with ChIP...
