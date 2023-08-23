@@ -426,8 +426,9 @@ do
 done
 ```
 
-trackhub link: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
+trackhub link for data merged with reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 
+trackhub link for non-merged data: http://guertinlab.cam.uchc.edu/GATA3_nonmerge_hub/hub.txt \
 
 # Peak calling
 
@@ -529,22 +530,6 @@ check peak numbers we called for each factor
   #   374 GATAdegrade_ChIP_summits_final.bed
 ```
 
-ER set has only 127 peaks, we can loosen the q-value cutoff from 0.01 to 0.05, see if we can improve the peak call of ER.
-```{r engine='bash', eval=F, echo=TRUE}
-# ER (merged from ER_CE_2files,dE) use 0.05 mFDR cutoff
-macs3 callpeak --call-summits -t *_ER_*bam -c *IgG*bam -n ER05_ChIP -g hs -q 0.05 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-
-#module load deeptools/3.5.0
-#module load bedtools
-#blacklist=hg38-blacklist.v2.bed
-#sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
-
-grep -v "random" ER05_ChIP_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ER05_ChIP_summits_final.bed
-slopBed -b 50 -i ER05_ChIP_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ER05_ChIP_summit_100window.bed
-
-#wc -l ER05_ChIP_summits_final.bed
-#208, still low. ER ChIP library seems to be not great...
-```
 
 # Check the top De novo motif analysis at universal peak set
 
@@ -552,7 +537,7 @@ De novo motif analysis uses tools like `MEME`, `TOMTOM`, `MAST` and `FIMO` to an
 
 ## quality check
 In this analysis, we will first convert the coordinate bed file to a sequence fasta file, then we perform de novo motif analysis with `meme`. But first, we want to do a quick quality check by manually looking at the top hit to ensure that it is a GATA motif variant for GATA peaks, and ER motif variant for ER peaks. \
-### GATA peaks
+## GATA peaks
 ```{r engine='bash', eval=F, echo=TRUE}
 module load deeptools/3.5.0
 module load meme/5.4.1
@@ -572,16 +557,29 @@ fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_10
 meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
 ```
 
-by searching the top 2000 most significant GATA peaks, we find the top motif match to the GATA motif.
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the GATA motif"}
-library(knitr)
-knitr::include_graphics("./GATA_ChIP_top2000_motif.meme_output/logo1.png") 
+```{r engine='bash', eval=F, echo=TRUE}
+name=GATA_ChIP
+
+# did the top 10000 GATA peaks and search for top 5 motif
+sort -nrk5,5 ${name}_summit_100window.bed | head -n 10000 > ${name}_top10000_summit_100window.bed
+name=${name}_top10000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
 ```
 
 
-### ER peaks:
+By searching the top 10,000 most significant GATA peaks, we find the top 2 motif match to the GATA motif. \
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA motif"}
+library(knitr)
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_2.png") 
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_rc1.png") 
+```
 
-Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` we get 127 peaks; using q-value cutoff of 0.05 in `macs3--callpeak` we get 208 peaks. So we will `meme` de novo motif analysis search on the entire set.
+
+## ER peaks:
+
+Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` and after removing redundant peaks we only get 127 peaks. So we will `meme` de novo motif analysis search on the entire set.
 
 ```{r engine='bash', eval=F, echo=TRUE}
 name=ER_ChIP
@@ -600,10 +598,626 @@ library(knitr)
 knitr::include_graphics("./ER_ChIP_top2000_motif.meme_output/logo1.png") 
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ER motif"}
-library(knitr)
-knitr::include_graphics("./ER05_ChIP_top2000_motif.meme_output/logo_rc1.png") 
+# FRiP for ER
+
+FRiP (Fraction of Reads in Peaks), is another quality measurement for ChIP-seq experiment. It is the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
+However, for calculating FRiP score for ER, we cannot use peaks we generated from MACS3 since we only have 127 peaks. We will do the following instead: \
+
+1. get a set of ER-ChIP peaks on MCF7 cells from published works. Here we were using the previously published work from our lab (GEO-GSE54855).\
+2. use UCSC-liftover to convert genome coordinates from hg19 to hg38.\
+3. use the above published ER peaks as the universal peak set to count reads for each replicates in our exp.\
+4. making a 400bp window around the summit; 
+
+```{r, engine='R', eval=F, echo=TRUE}
+# download the filtered ER peaks from published paper (https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1004613#pgen.1004613.s002)
+# ucsc-liftover to convert genome coordinates from hg19 to hg38
+module load deeptools/3.5.0
+module load bedtools
+#wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+#gunzip hg38-blacklist.v2.bed.gz
+blacklist=hg38-blacklist.v2.bed
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+i=hglft_genome_3b32d_275e10.bed
+
+grep -v "random" $i | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ER_published_summits_final.bed # filterred around 37 peaks
+
+slopBed -b 200 -i ER_published_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ER_published_summit_400window.bed
+
 ```
+
+use `mapBed` from bedtools to count reads of the BED file from the seqOutBias output in the ER responsive peak regions; use `samtools` commands to count the number of paired end 1 reads that aligned in a concordant pair (the mate aligned nearby). The final output file contains these two values that we use to calculate FRiP.
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load bedtools
+# module load samtools/1.12
+peaks=ER_published_summit_400window.bed
+
+for i in ../not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b ${nm}_sorted.bed > ${nm}_peak_counts.txt
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ../bam/${name}.bam) # count the total aligned reads
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - $peaks | paste -d'\t' - *peak_counts.txt > Combined_ER_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_ER_FRiP.txt
+rm rowname.txt
+```
+
+
+# FIMO for GATA peaks
+
+For GATA peak set we generated from MACS3, there are ~65904 peaks. These peaks might not all be useful for our study, so we want to discard most of them. One way is to do a FIMO analysis. FIMO measures the occurrence of a given motif in the given sequences, or whole genome. We want to keep peaks that has the GATA motif variants in them and discard peaks that only contains background motif occurrence. \
+
+## de novo motif identification
+
+In the previous de novo motif analysis part, we have identified top 2 motif are GATA3 varients. I will pull the two motif metrics out, and save each as its own file
+
+```{r, engine='R', eval=F, echo=TRUE}
+# cd to/where/you/save/meme/output
+module load gcc meme/5.4.1
+
+mkdir individual_memes
+cd individual_memes
+wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i ../GATA_ChIP_top10000_motif.meme_output/meme.txt
+
+
+#NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt  --motif1
+#WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt  --motif2
+
+```
+
+Now, I am going to use `fimo` to calculate occurrence of motif1 on entire genome, then intersect with my ChIP peak set. Do the same with motif2, and save peaks.\
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+# search whole genome for motif1 occurrence 
+fimo --max-strand --max-stored-scores 10,000,000 --oc GATA_functional_motif_functional.fimo_output NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt $genome # used default threshold 1e-4 and set 10M maximum number of motif occurrences to output all of the matches.
+
+tail -n +2 GATA_functional_motif_functional.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round1.bed # skip 1st line; grab columns of "sequence_name(chr), start, stop, score, p-value, strand" from fimo.tsv, sort by coordinates and save as output file
+
+# search whole genome for motif 2 occurrence
+fimo --max-strand --max-stored-scores 10,000,000 --oc GATA_functional_motif_functional_second.fimo_output WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt $genome
+
+
+tail -n +2 GATA_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round2.bed
+
+#wc -l fimo_GATA3_functional_round1.bed
+#414692 
+#wc -l fimo_GATA3_functional_round2.bed
+#320861
+
+
+# intersectBed
+# -v	Only report those entries in A that have no overlap in B. Restricted by -f and -r.
+# -wa	Write the original entry in A for each overlap.
+
+intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1_motif2.bed
+
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
+
+#wc -l GATA_ChIP_summit_100window_func_motif1_motif2.bed
+#17074 
+#wc -l ../GATA_ChIP_summit_100window.bed
+#65904 
+
+# 25.9% have either motif
+# 488 peaks has both motif1 and motif2
+
+
+# intersect with CTCF peaks as a control
+intersectBed -wa -a ../../../CTCF_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >CTCF_ChIP_summit_100window_func_motif1_motif2.bed
+#wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed
+#1089 
+```
+
+We will also run a MEME de novo motif search to the peak set that we did not find matches with GATA motif varient 1 or 2, to ensure that we are not missing any peaks that has GATA3 motifs.  
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1_motif2.bed -fo GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta
+
+# MEME
+meme -p 32 -oc noGATAmotif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta # normal GATA motif is GATAA, so minw can be set to 5
+```
+
+  
+parse peaks (all peaks) into different quantile file and visualize motif occurence within each quantiles.      
+```{r, engine='R', eval=F, echo=TRUE}
+module load R/4.1.2 
+R 
+peak.intensities = read.table('../GATA_ChIP_summit_100window.bed', header =FALSE) 
+chr = peak.intensities$V1
+start = peak.intensities$V2
+end = peak.intensities$V3
+quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+
+#parse peaks into different quantile file       
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
+  count = count +1
+  write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities[peak.intensities$V5 > j & peak.intensities$V5 <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+  j = i
+}
+```
+
+Draw bar graph to show peak with or without GATA3 motif variants in different intensity quantile.
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+for i in *quantile*.bed
+do
+  intersectBed -wa -a $i -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >${i}_func_motif1_motif2.bed
+done
+
+touch quantile.sum.txt
+for i in *quantile*motif2.bed
+do
+ nm=$(echo $i | awk -F".bed_func_motif1_motif2.bed" '{print $1}')
+ funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ${nm}.bed | awk '{OFS="\t";} {print $1}')
+ withMotif=$(bc <<< "scale=2 ; $funcp / $totalp")
+ noMotif=$(bc <<< "scale=2 ; 1- $withMotif")
+ echo $nm "" $withMotif "" $noMotif >> quantile.sum.txt
+done
+
+CTCF_withMotif=$(bc <<< "scale=2 ; $(wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed | awk '{OFS="\t";} {print $1}')/$(wc -l ../../../CTCF_ChIP_summit_100window.bed | awk '{OFS="\t";} {print $1}')")
+CTCF_noMotif=$(bc <<< "scale=2 ; 1- $CTCF_withMotif")
+echo "CTCF_all_contrl" "" $CTCF_withMotif "" $CTCF_noMotif >>quantile.sum.txt
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load R/4.1.2 
+R 
+
+library("lattice") 
+library("reshape2")
+
+df_sum=read.table('quantile.sum.txt', sep = "", header=FALSE)
+colnames(df_sum)=c("quantile","withMotif","noMotif")
+df_sum_long <- df_sum
+df_sum_long <- melt(df_sum_long, 
+                    id.vars="quantile",
+                    variable.name="class",
+                    value.name="fraction")
+
+pdf('percent peaks with or without GATA3 motif variant.pdf', width=8,height=5)
+my.settings <- list(
+  superpose.polygon=list(col=c("black","grey60"), border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(fraction ~ quantile,         # Stacked barplot using lattice
+         data = df_sum_long,
+         groups = class,
+         stack = TRUE,
+         auto.key=list(space="top", columns=2),
+        scales = list(x = list(rot = 45)),
+         ylab = "peak set within intensity quantile",
+         xlab = "fraction of peaks with/without GATA3 motif variant",
+         par.settings = my.settings)
+)
+dev.off()
+```
+
+# Determine functional peaks for GATA
+
+## integrated with PRO data
+
+In the PRO-seq experiment, we have compared the treatment vs. control as below, and have identified activated/repressed genes, comparable genes that are unchanged but matched for the expression levels.
+
+1) "control_E2"  vs. "control_NoE2": ER activity under control \
+2) "dTAGV1_E2"  vs.  "dTAGV1_NoE2" : ER activity when GATA3 is depleted \   
+3) "dTAGV1_E2" vs. "control_E2" : compare between with or without GATA3 (when ER is activated) \  
+4) "dTAGV1_NoE2" vs. "control_NoE2": compare between with or without GATA3 (when ER is not activated) \ 
+
+Here for GATA ChIP peaks, we want to use the activated/repressed genes identified from PRO in comparison 4) above, which compared degraded GATA3 with control in the ER-independent condition. This pair of data gives larger effective size as well as avoiding confounding influences from ER activity. \
+
+We wll first concatenate the activated, repressed, and matched files from PRO comparison between "dTAGV1_NoE2" and "control_NoE2" into a list of activated and repressed genes. \
+```{r, engine='R', eval=F, echo=TRUE}
+#MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed     (degrade GATA3 when ER is not activated)
+cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed > /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed
+```
+
+## Making CDF plots
+load key packages
+```{r, engine='R', eval=F, echo=TRUE}
+#module load R/4.1.2 
+#R
+
+library(latticeExtra)
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(bigWig)
+#install.packages("gplots")
+library(gplots)
+source('https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R')
+source('https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R')
+
+# cd your/package/directory
+#wget https://github.com/arq5x/bedtools2/releases/download/v2.29.1/bedtools-2.29.1.tar.gz
+#tar -zxvf bedtools-2.29.1.tar.gz
+#cd bedtools2
+#make
+
+#source('https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysis/cdf_functions.R')
+bedTools.closest <- function(functionstring="/home/FCAM/ssun/packages/bedtools2/bin/closestBed",bed1,bed2,opt.string="") {
+  
+  options(scipen =99) # not to use scientific notation when writing out
+  
+  #write bed formatted dataframes to tempfile
+  write.table(bed1,file= 'a.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
+  write.table(bed2,file= 'b.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
+  
+  # create the command string and call the command using system()
+  command1=paste('sort -k1,1 -k2,2n', 'a.file.bed', '> a.file.sorted.bed')
+  cat(command1,"\n") #sort -k1,1 -k2,2n a.file.bed > a.file.sorted.bed
+  try(system(command1))
+  command2=paste('sort -k1,1 -k2,2n', 'b.file.bed', '> b.file.sorted.bed')
+  cat(command2,"\n")
+  try(system(command2))
+  
+  command=paste(functionstring, opt.string,"-a",'a.file.sorted.bed',"-b",'b.file.sorted.bed',">",'out.file.bed',sep=" ")
+  cat(command,"\n")
+  try(system(command))
+  
+  res=read.table('out.file.bed',header=F, comment.char='')
+  
+  command3=paste('rm', 'a.file.bed', 'b.file.bed', 'a.file.sorted.bed', 'b.file.sorted.bed', 'out.file.bed')
+  cat(command3,"\n")
+  try(system(command3))
+  
+  colnames(res) = c(colnames(bed1), colnames(bed2), 'dis' )
+  return(res)
+}
+
+cdf.deseq.df <- function(genes = gene.file, chip.peaks = chip.peaks, cat = "Repressed") {
+  bed.tss.activated = get.tss(genes[genes$V5 == cat,])
+  bed.tss.unchanged = get.tss(genes[genes$V5 == paste0("Matched to ", cat),])
+  act.distance = bedTools.closest(bed1 = bed.tss.activated, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
+  unreg.distance = bedTools.closest(bed1 = bed.tss.unchanged, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
+
+  df.up.can = cbind(act.distance[,c(4, 10)], cat)
+  #df.un.can = cbind(unreg.distance[,c(4, 10)], paste0("Matched to ", cat))
+  df.un.can = cbind(unreg.distance[,c(4, 12)], paste0("Matched to ", cat)) 
+
+  colnames(df.up.can) = c(colnames(df.up.can)[1:2], 'status')
+  colnames(df.un.can) = c(colnames(df.up.can)[1:2], 'status')
+
+  df.all = rbind(df.up.can, df.un.can)
+  df.all$status = factor(df.all$status, levels = c(cat, paste0("Matched to ", cat)))
+  return(df.all)
+}
+
+
+# plot_cdf function has been modified on some plot parameters
+plot_cdf <- function(df.all, tf="quantile", cat = "Repressed", col.lines = c("#ce228e", "grey60", "#2290cf","grey90"), line.type = c(1), cex = 1) {
+pdf(paste0(tf, "_FIG_cdf_compare_Reg_classes_", cat, ".pdf"), width=10, height=5) 
+    print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
+         auto.key = list(space = "right", lines=TRUE, points=FALSE, cex = cex),
+         col = col.lines,
+         aspect = 1,
+                                        #xlim = c(0, 50000),
+         scales=list(relation="free",alternating=c(1,1,1,1)),
+         ylab = 'Cumulative Distribution Function',
+         xlab = expression('log'[10]~'GATA3 Distance from TSS'),
+                                        #index.cond = list(c(2,1)),
+         between=list(y=1.0),
+         type = 'a',
+         xlim = c(0,8),
+         lwd=2,
+         lty=line.type,
+         par.settings = list(superpose.line = list(col = col.lines, lwd=3), strip.background=list(col="grey85")),
+         panel = function(...) {
+             panel.abline(v= 200, lty =2)
+             panel.ecdfplot(...)
+         }))
+    dev.off()
+}
+
+# function
+
+plot_cdf_all <- function(df.all, tf="tf", main="cdf", col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), line.type = c(1), cex = 1) {
+pdf(paste0(tf, "_FIG_cdf_compare_Reg_classes", ".pdf"), width=10, height=5) 
+print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
+         auto.key = list(space = "right", lines=TRUE, points=FALSE, cex = cex),
+         col = col.lines,
+         aspect = 1,
+         scales=list(relation="free",alternating=c(1,1,1,1)),
+         ylab = 'Cumulative Distribution Function',
+         xlab = expression('log'[10]~'GATA3 Distance from TSS'),
+         main = main,
+         between=list(y=1.0),
+         type = 'a',
+         xlim = c(0,8),
+         lwd=2,
+         lty=line.type,
+         par.settings = list(superpose.line = list(col = col.lines, lwd=3), strip.background=list(col="grey85")),
+         panel = function(...) {
+             panel.abline(v= 200, lty =2)
+             panel.ecdfplot(...)
+         }))
+dev.off()
+}
+```
+
+<!--
+#### troubleshoot
+```{r, engine='bash', eval=F, echo=F}
+cat quantile1.bed | head -5
+chr1	845796	845797	GATA_ChIP_peak_20	469.152
+chr1	3127377	3127378	GATA_ChIP_peak_51	441.861
+chr1	6795912	6795913	GATA_ChIP_peak_82	533.416
+chr1	8015165	8015166	GATA_ChIP_peak_101	355.803
+chr1	8017664	8017665	GATA_ChIP_peak_102	451.483
+
+> gene.file=read.table(file = "MCF7_GATA3_dTAGV1_E2_vs_control_E2_annotations.bed", sep="\t", header=FALSE)
+> head(gene.file)
+     V1        V2        V3     V4        V5 V6
+1 chr21  42219146  42312524  ABCG1 Activated  +
+2 chr20  25270858  25390817 ABHD12 Activated  -
+3 chr15  89088485  89218481  ABHD2 Activated  +
+4 chr10 114419772 114526910 ABLIM1 Activated  -
+5  chr3  38101383  38137077  ACAA1 Activated  -
+6 chr11  76860936  77030175  ACER3 Activated  +
+  
+ get.tss <- function(bedfile) {
+    if (ncol(bedfile) > 6) {
+        bedfile = bedfile[,c(1:6)]
+    }
+    for (i in 1:nrow(bedfile)) {
+        if (bedfile[i,6] == '+') {
+            bedfile[i,3] = bedfile[i,2] + 1
+        } else {
+            bedfile[i,2] = bedfile[i,3] - 1
+        }
+    }
+    return(bedfile)
+ }
+
+> chip.peaks=read.table("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile1.bed", header=FALSE)
+> head(chip.peaks)
+    V1      V2      V3                 V4      V5
+1 chr1  845796  845797  GATA_ChIP_peak_20 469.152
+2 chr1 3127377 3127378  GATA_ChIP_peak_51 441.861
+3 chr1 6795912 6795913  GATA_ChIP_peak_82 533.416
+4 chr1 8015165 8015166 GATA_ChIP_peak_101 355.803
+5 chr1 8017664 8017665 GATA_ChIP_peak_102 451.483
+6 chr1 8182594 8182595 GATA_ChIP_peak_120 364.171
+
+head(bed.tss.activated)
+        V1        V2        V3       V4        V5 V6
+1037 chr11 106077647 106077648 AASDHPPT Repressed  +
+1038  chr9 104928154 104928155    ABCA1 Repressed  -
+1039  chr1  94121147  94121148    ABCA4 Repressed  -
+1040  chr3 184017883 184017884    ABCC5 Repressed  -
+1041  chr1  94418412  94418413    ABCD3 Repressed  +
+1042  chr3 132659797 132659798   ACAD11 Repressed  -
+> head(bed.tss.unchanged)
+        V1        V2        V3     V4                   V5 V6
+1528  chr4   8158808   8158809 ABLIM2 Matched to Repressed  -
+1529  chr3 195442988 195442989  ACAP2 Matched to Repressed  -
+1530 chr11  44066178  44066179   ACCS Matched to Repressed  +
+1531  chr4   8428447   8428448  ACOX3 Matched to Repressed  -
+1532  chr2    264899    264900   ACP1 Matched to Repressed  +
+1533  chr3 179562925 179562926 ACTL6A Matched to Repressed  +
+  
+   head(act.distance)
+    V1       V2       V3       V4        V5 V6   V1       V2       V3     dis
+1 chr1 24322507 24322508    GRHL3 Repressed  + chr1 24266771 24266772  -55736
+2 chr1 26280085 26280086 SH3BGRL3 Repressed  + chr1 26078702 26078703 -201383
+3 chr1 27155124 27155125   SLC9A1 Repressed  - chr1 27145996 27145997    9128
+4 chr1 32964812 32964813   RNF19B Repressed  - chr1 33539344 33539345 -574532
+5 chr1 33036847 33036848      AK2 Repressed  - chr1 33539344 33539345 -502497
+6 chr1 40097251 40097252     PPT1 Repressed  - chr1 40131126 40131127  -33875
+  
+  > head(unreg.distance)
+    V1       V2       V3        V4      V5 V6        V1 V2   V3      dis
+1 chr1  1891086  1891087      GNB1 Matched to Repressed  - chr1   845796
+2 chr1  9539488  9539489  SLC25A33 Matched to Repressed  + chr1  8182594
+3 chr1  9910254  9910255  CTNNBIP1 Matched to Repressed  - chr1  8182594
+4 chr1 16921931 16921932     CROCC Matched to Repressed  + chr1 16716791
+5 chr1 17539755 17539756 ARHGEF10L Matched to Repressed  + chr1 17475949
+6 chr1 20508150 20508151      MUL1 Matched to Repressed  - chr1 20232758
+        NA       NA
+1   845797  1045290
+2  8182595 -1356894
+3  8182595  1727660
+4 16716792  -205140
+5 17475950   -63806
+6 20232759   275392
+```
+-->
+
+### GATA3 peaks with GATA3 motif
+
+"dTAGV1_NoE2" vs. "control_NoE2": compare between with or without GATA3 (when ER is not activated) \ 
+when we degrade GATA3, we expect to see GATA3 regulated genes to be repressed.
+ 
+```{r, engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
+
+chip.peak=read.table("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/GATA_ChIP_summit_100window_func_motif1_motif2.bed", header=FALSE)
+df.repressed = cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = "Repressed")
+df.activated= cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = "Activated")
+df.all=rbind(df.repressed, df.activated)
+df.all$status <- factor(df.all$status, levels=c("Repressed","Matched to Repressed", "Activated", "Matched to Activated"))
+
+
+#plot the combined cdf
+plot_cdf_all(df.all, 
+             tf = "GATA3_dTAGV1_NoE2_vs_control_NoE2",
+             main="cdf for peaks with GATA3 motif (n=17074)",
+             col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), 
+             line.type = c(1), 
+             cex = 0.5)
+
+```
+
+### GATA3 peaks without GATA3 motif
+```{r, engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
+
+chip.peak=read.table("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/GATA_ChIP_summit_100window_no_func_motif1_motif2.bed", header=FALSE)
+df.repressed = cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = "Repressed")
+df.activated= cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = "Activated")
+df.all=rbind(df.repressed, df.activated)
+df.all$status <- factor(df.all$status, levels=c("Repressed","Matched to Repressed", "Activated", "Matched to Activated"))
+
+# plot the combined cdf
+plot_cdf_all(df.all, 
+             tf = "GATA3_no_func_dTAGV1_NoE2_vs_control_NoE2",
+             main="cdf for peaks without GATA3 motif (n=65904)",
+             col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), 
+             line.type = c(1), 
+             cex = 0.5)
+```
+
+### draw CDF plots by peak intensity quantiles
+Here we wre parse peaks (only for FIMO output peaks that has GATA3 motif) into different quantile file.\
+```{r, engine='R', eval=F, echo=TRUE}
+module load R/4.1.2 
+R 
+peak.intensities = read.table('/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/GATA_ChIP_summit_100window_func_motif1_motif2.bed', header =FALSE) 
+chr = peak.intensities$V1
+start = peak.intensities$V2
+end = peak.intensities$V3
+quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+
+#parse peaks into different quantile file       
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
+  count = count +1
+  write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities[peak.intensities$V5 > j & peak.intensities$V5 <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+  j = i
+}
+```
+
+cdf plot for peaks distance to repressed gene: 
+```{r, engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "../MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
+
+# Repressed genes
+cat = "Repressed"
+col.lines = c("#00FFFF", "grey60")
+
+# export repressed vs. unchanged(match to repressed) in each quantile
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed")))  {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
+    plot_cdf(df.all, tf = quantile.name, cat = cat)
+    }
+
+# combine all single quantile plot into one plot    
+df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
+colnames(df.cdf) = c("V4", "dis", "status")
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file,
+                          chip.peaks=read.table(chip.peak, header=FALSE),
+                          cat = cat)
+    x = paste(as.character(df.all[,3]), quantile.name)
+    df.all[,3] = x
+    df.cdf = rbind(df.cdf, df.all)
+    #plot_cdf(df.all, tf = quantile)
+    }
+
+plot_cdf(df.cdf, 
+         tf = "GATA3_dTAGV1_NoE2_vs_control_NoE2", 
+         cat = cat, 
+         col.lines = c(rep("grey60",20),colorRampPalette(c("blue","light blue"))(18), colorRampPalette(c("red","pink"))(2)), 
+         line.type = c(rep(2, 20), rep(1,20)), 
+         cex = 0.5)
+#col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(16),colorRampPalette(c("blue", "light blue"))(4))
+```
+
+cdf plot for peaks distance to activated gene:
+
+```{r, engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
+#Activated genes
+cat = "Activated"
+
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
+    plot_cdf(df.all, tf = quantile.name, cat = cat)
+    }
+    
+df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
+colnames(df.cdf) = c("V4", "dis", "status")
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file,
+        chip.peaks=read.table(chip.peak, header=FALSE),
+    cat = cat)
+    x = paste(as.character(df.all[,3]), quantile.name)
+    df.all[,3] = x
+    df.cdf = rbind(df.cdf, df.all)
+    #plot_cdf(df.all, tf = quantile)
+    }
+
+levels = levels(factor(df.cdf$status))
+levels = c(levels[grepl("Matched", levels)], levels[!grepl("Matched", levels)])
+df.cdf$status = factor(df.cdf$status, levels = levels)
+plot_cdf(df.cdf, 
+         tf = "GATA3_dTAGV1_NoE2_vs_control_NoE2", 
+         cat = cat, 
+         col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(20)), 
+         line.type = c(rep(2, 20), rep(1,20)), 
+         cex = 0.5)
+```
+
+choose a cut-off based on the CDF plot \
+```{r, engine='R', eval=F, echo=TRUE}
+#Let's choose a cutoff of 0.85
+#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
+```
+
+
+# FRiP for GATA
+
+
 
 
 # Differential expression analysis with DEseq2 
@@ -1026,7 +1640,7 @@ save.image('230731_GATA3_ER_ChIP_deseq.Rdata')
 ```
 
 # Ranking and quantile parsing of ChIP peaks
-Generate BED files that are ranked by their intensity, parsed into separate files, and named according to their quantile.
+Recall that we have the below summits_final.bed files stores the peak summit info from the previous `macs3--peakcall` step. Again, these are universal peaks set generated from all reps/treatment of the same ChIP factor. \
 ```{r, engine='R', eval=F, echo=TRUE}
 #CTCF_ChIP_summits_final.bed  
 #GATA_ChIP_summits_final.bed
@@ -1036,7 +1650,9 @@ Generate BED files that are ranked by their intensity, parsed into separate file
 #GATAdegrade_ChIP_summits_final.bed
 ```
 
-1. GATA
+In this section, we will generate BED files that are ranked by peaks' intensity, parsed into separate files, and named according to their quantile. \
+
+1. GATA (contains ~65904 peaks, parsed into 20 quantile files)
 ```{r, engine='R', eval=F, echo=TRUE}
 #mkdir GATA
 #cd GATA #current directory: /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
@@ -1063,22 +1679,28 @@ start = peak.intensities$V2
 end = peak.intensities$V3
 
 quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#         5%          10%          15%          20%          25%          30% 
+#    3.495430     4.790170     6.085661     7.572382     8.990790    10.569600 
+#         35%          40%          45%          50%          55%          60% 
+#   12.387250    14.597300    17.076800    20.321200    24.355400    29.698700 
+#         65%          70%          75%          80%          85%          90% 
+#   37.005850    46.479400    60.353625    80.876700   113.882000   171.767000 
+#         95%         100% 
+#  296.716200 15366.700000 
 
+#parse peaks into different quantile file       
 j =0 
 q=seq(.05, 1.00, by = .05)
 count=0
-for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by =
-.05)))
-{
-count = count +1
-
-write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities[peak.intensities$V5 > j & peak.intensities$V5 <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
-j = i
+for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
+  count = count +1
+  write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities[peak.intensities$V5 > j & peak.intensities$V5 <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+  j = i
 }
 
 ```
 
-2. ER
+2. ER(contains only 127 peaks)
 
 ```{r, engine='R', eval=F, echo=TRUE}
 #mkdir ER
@@ -1101,6 +1723,17 @@ start = peak.intensities$V2
 end = peak.intensities$V3
 
 quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#   5%        10%        15%        20%        25%        30%        35% 
+#  2.451407   2.961698   3.434082   4.185170   4.788180   5.973642   8.443284 
+#       40%        45%        50%        55%        60%        65%        70% 
+# 10.231480  15.732510  18.058700  19.292680  21.906380  24.223350  30.545580 
+#       75%        80%        85%        90%        95%       100% 
+# 37.942050  40.066400  52.934750  61.271320  82.724730 113.059000 
+
+#quantile(peak.intensities$V5)
+#       0%       25%       50%       75%      100% 
+#  2.11776   4.78818  18.05870  37.94205 113.05900 
+
 
 j =0 
 q=seq(.05, 1.00, by = .05)
@@ -1121,8 +1754,7 @@ j = i
 # Determine functional peaks
 
 ##  Integration with PRO-seq data
-In the PRO-seq experiment, we have 4 combinations of treatment, either with 30min E2 (to activated the ER activity), or 30min dTAG treatment (to degrade the degron-tagged GATA3): \
-In the PRO-seq analysis, we have compared the treatment vs. control as below, and have identified activated/repressed genes, comparable genes that are unchanged but matched for the expression levels.
+In the PRO-seq experiment, we have compared the treatment vs. control as below, and have identified activated/repressed genes, comparable genes that are unchanged but matched for the expression levels.
 
 1) "control_E2"  vs. "control_NoE2": ER activity under control \
 2) "dTAGV1_E2"  vs.  "dTAGV1_NoE2" : ER activity when GATA3 is depleted \   
@@ -1149,276 +1781,9 @@ cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_
 ```
 
 
-## Making CDF plots
-load key packages
-```{r, engine='R', eval=F, echo=TRUE}
-#module load R/4.1.2 
-#R
-
-library(latticeExtra)
-library(DESeq2)
-library(lattice)
-library(dplyr)
-library(ggplot2)
-library(limma)
-library(bigWig)
-#install.packages("gplots")
-library(gplots)
-source('https://raw.githubusercontent.com/guertinlab/seqOutBias/master/docs/R/seqOutBias_functions.R')
-source('https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R')
-
-# cd your/package/directory
-#wget https://github.com/arq5x/bedtools2/releases/download/v2.29.1/bedtools-2.29.1.tar.gz
-#tar -zxvf bedtools-2.29.1.tar.gz
-#cd bedtools2
-#make
-
-#source('https://raw.githubusercontent.com/guertinlab/genex/main/ChIP_analysis/cdf_functions.R')
-bedTools.closest <- function(functionstring="/home/FCAM/ssun/packages/bedtools2/bin/closestBed",bed1,bed2,opt.string="") {
-  
-  options(scipen =99) # not to use scientific notation when writing out
-  
-  #write bed formatted dataframes to tempfile
-  write.table(bed1,file= 'a.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
-  write.table(bed2,file= 'b.file.bed', quote=F,sep="\t",col.names=F,row.names=F)
-  
-  # create the command string and call the command using system()
-  command1=paste('sort -k1,1 -k2,2n', 'a.file.bed', '> a.file.sorted.bed')
-  cat(command1,"\n") #sort -k1,1 -k2,2n a.file.bed > a.file.sorted.bed
-  try(system(command1))
-  command2=paste('sort -k1,1 -k2,2n', 'b.file.bed', '> b.file.sorted.bed')
-  cat(command2,"\n")
-  try(system(command2))
-  
-  command=paste(functionstring, opt.string,"-a",'a.file.sorted.bed',"-b",'b.file.sorted.bed',">",'out.file.bed',sep=" ")
-  cat(command,"\n")
-  try(system(command))
-  
-  res=read.table('out.file.bed',header=F, comment.char='')
-  
-  command3=paste('rm', 'a.file.bed', 'b.file.bed', 'a.file.sorted.bed', 'b.file.sorted.bed', 'out.file.bed')
-  cat(command3,"\n")
-  try(system(command3))
-  
-  colnames(res) = c(colnames(bed1), colnames(bed2), 'dis' )
-  return(res)
-}
-
-cdf.deseq.df <- function(genes = gene.file, chip.peaks = chip.peaks, cat = "Repressed") {
-  bed.tss.activated = get.tss(genes[genes$V5 == cat,])
-  bed.tss.unchanged = get.tss(genes[genes$V5 == paste0("Matched to ", cat),])
-  act.distance = bedTools.closest(bed1 = bed.tss.activated, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
-  unreg.distance = bedTools.closest(bed1 = bed.tss.unchanged, bed2 = chip.peaks[,c(1:3)], opt.string = '-D a')
-
-  df.up.can = cbind(act.distance[,c(4, 10)], cat)
-  #df.un.can = cbind(unreg.distance[,c(4, 10)], paste0("Matched to ", cat))
-  df.un.can = cbind(unreg.distance[,c(4, 12)], paste0("Matched to ", cat)) 
-
-  colnames(df.up.can) = c(colnames(df.up.can)[1:2], 'status')
-  colnames(df.un.can) = c(colnames(df.up.can)[1:2], 'status')
-
-  df.all = rbind(df.up.can, df.un.can)
-  df.all$status = factor(df.all$status, levels = c(cat, paste0("Matched to ", cat)))
-  return(df.all)
-}
 
 
-# plot_cdf function has been modified on some plot parameters
-plot_cdf <- function(df.all, tf="quantile", cat = "Repressed", col.lines = c("#ce228e", "grey60", "#2290cf","grey90"), line.type = c(1), cex = 1) {
-pdf(paste0(tf, "_FIG_cdf_compare_Reg_classes_", cat, ".pdf"), width=10, height=5) 
-    print(ecdfplot(~log(abs(dis), base = 10), groups = status, data = df.all,
-         auto.key = list(space = "right", lines=TRUE, points=FALSE, cex = cex),
-         col = col.lines,
-         aspect = 1,
-                                        #xlim = c(0, 50000),
-         scales=list(relation="free",alternating=c(1,1,1,1)),
-         ylab = 'Cumulative Distribution Function',
-         xlab = expression('log'[10]~'GATA3 Distance from TSS'),
-                                        #index.cond = list(c(2,1)),
-         between=list(y=1.0),
-         type = 'a',
-         xlim = c(0,8),
-         lwd=2,
-         lty=line.type,
-         par.settings = list(superpose.line = list(col = col.lines, lwd=3), strip.background=list(col="grey85")),
-         panel = function(...) {
-             panel.abline(v= 200, lty =2)
-             panel.ecdfplot(...)
-         }))
-    dev.off()
-}
-```
 
-#### troubleshoot
-```{r, engine='bash', eval=F, echo=F}
-cat quantile1.bed | head -5
-chr1	845796	845797	GATA_ChIP_peak_20	469.152
-chr1	3127377	3127378	GATA_ChIP_peak_51	441.861
-chr1	6795912	6795913	GATA_ChIP_peak_82	533.416
-chr1	8015165	8015166	GATA_ChIP_peak_101	355.803
-chr1	8017664	8017665	GATA_ChIP_peak_102	451.483
-
-> gene.file=read.table(file = "MCF7_GATA3_dTAGV1_E2_vs_control_E2_annotations.bed", sep="\t", header=FALSE)
-> head(gene.file)
-     V1        V2        V3     V4        V5 V6
-1 chr21  42219146  42312524  ABCG1 Activated  +
-2 chr20  25270858  25390817 ABHD12 Activated  -
-3 chr15  89088485  89218481  ABHD2 Activated  +
-4 chr10 114419772 114526910 ABLIM1 Activated  -
-5  chr3  38101383  38137077  ACAA1 Activated  -
-6 chr11  76860936  77030175  ACER3 Activated  +
-  
- get.tss <- function(bedfile) {
-    if (ncol(bedfile) > 6) {
-        bedfile = bedfile[,c(1:6)]
-    }
-    for (i in 1:nrow(bedfile)) {
-        if (bedfile[i,6] == '+') {
-            bedfile[i,3] = bedfile[i,2] + 1
-        } else {
-            bedfile[i,2] = bedfile[i,3] - 1
-        }
-    }
-    return(bedfile)
- }
-
-> chip.peaks=read.table("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile1.bed", header=FALSE)
-> head(chip.peaks)
-    V1      V2      V3                 V4      V5
-1 chr1  845796  845797  GATA_ChIP_peak_20 469.152
-2 chr1 3127377 3127378  GATA_ChIP_peak_51 441.861
-3 chr1 6795912 6795913  GATA_ChIP_peak_82 533.416
-4 chr1 8015165 8015166 GATA_ChIP_peak_101 355.803
-5 chr1 8017664 8017665 GATA_ChIP_peak_102 451.483
-6 chr1 8182594 8182595 GATA_ChIP_peak_120 364.171
-
-head(bed.tss.activated)
-        V1        V2        V3       V4        V5 V6
-1037 chr11 106077647 106077648 AASDHPPT Repressed  +
-1038  chr9 104928154 104928155    ABCA1 Repressed  -
-1039  chr1  94121147  94121148    ABCA4 Repressed  -
-1040  chr3 184017883 184017884    ABCC5 Repressed  -
-1041  chr1  94418412  94418413    ABCD3 Repressed  +
-1042  chr3 132659797 132659798   ACAD11 Repressed  -
-> head(bed.tss.unchanged)
-        V1        V2        V3     V4                   V5 V6
-1528  chr4   8158808   8158809 ABLIM2 Matched to Repressed  -
-1529  chr3 195442988 195442989  ACAP2 Matched to Repressed  -
-1530 chr11  44066178  44066179   ACCS Matched to Repressed  +
-1531  chr4   8428447   8428448  ACOX3 Matched to Repressed  -
-1532  chr2    264899    264900   ACP1 Matched to Repressed  +
-1533  chr3 179562925 179562926 ACTL6A Matched to Repressed  +
-  
-   head(act.distance)
-    V1       V2       V3       V4        V5 V6   V1       V2       V3     dis
-1 chr1 24322507 24322508    GRHL3 Repressed  + chr1 24266771 24266772  -55736
-2 chr1 26280085 26280086 SH3BGRL3 Repressed  + chr1 26078702 26078703 -201383
-3 chr1 27155124 27155125   SLC9A1 Repressed  - chr1 27145996 27145997    9128
-4 chr1 32964812 32964813   RNF19B Repressed  - chr1 33539344 33539345 -574532
-5 chr1 33036847 33036848      AK2 Repressed  - chr1 33539344 33539345 -502497
-6 chr1 40097251 40097252     PPT1 Repressed  - chr1 40131126 40131127  -33875
-  
-  > head(unreg.distance)
-    V1       V2       V3        V4      V5 V6        V1 V2   V3      dis
-1 chr1  1891086  1891087      GNB1 Matched to Repressed  - chr1   845796
-2 chr1  9539488  9539489  SLC25A33 Matched to Repressed  + chr1  8182594
-3 chr1  9910254  9910255  CTNNBIP1 Matched to Repressed  - chr1  8182594
-4 chr1 16921931 16921932     CROCC Matched to Repressed  + chr1 16716791
-5 chr1 17539755 17539756 ARHGEF10L Matched to Repressed  + chr1 17475949
-6 chr1 20508150 20508151      MUL1 Matched to Repressed  - chr1 20232758
-        NA       NA
-1   845797  1045290
-2  8182595 -1356894
-3  8182595  1727660
-4 16716792  -205140
-5 17475950   -63806
-6 20232759   275392
-```
-
-
-### GATA3
-
-1.dTAGV1_E2_vs_control_E2
-```{r, engine='R', eval=F, echo=TRUE}
-# cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
-col.lines = c("#FF0000", "grey60")
-gene.file=read.table(file = "MCF7_GATA3_dTAGV1_E2_vs_control_E2_annotations.bed", sep="\t", header=FALSE)
-
-# Repressed genes
-cat = "Repressed"
-
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile*bed"))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
-    plot_cdf(df.all, tf = quantile.name, cat = cat)
-    }
-    
-df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
-colnames(df.cdf) = c("V4", "dis", "status")
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile*bed"))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(genes = gene.file,
-                          chip.peaks=read.table(chip.peak, header=FALSE),
-                          cat = cat)
-    x = paste(as.character(df.all[,3]), quantile.name)
-    df.all[,3] = x
-    df.cdf = rbind(df.cdf, df.all)
-    #plot_cdf(df.all, tf = quantile)
-    }
-
-plot_cdf(df.cdf, tf = "GATA3_dTAGV1_E2_vs_control_E2", cat = cat, col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(16),colorRampPalette(c("blue", "light blue"))(4)), line.type = c(rep(2, 20), rep(1,20)), cex = 0.5)
-#plot_cdf(df.cdf, tf = "ZNF143", cat = cat, col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(20)), line.type = c(rep(2, 20), rep(1,20)), cex = 0.25)
-
-#Activated genes
-cat = "Activated"
-
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile*bed"))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
-    plot_cdf(df.all, tf = quantile.name, cat = cat)
-    }
-    
-df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
-colnames(df.cdf) = c("V4", "dis", "status")
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA/quantile*bed"))) {
-    print(chip.peak)
-    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
-    print(quantile.name)
-    df.all = cdf.deseq.df(genes = gene.file,
-        chip.peaks=read.table(chip.peak, header=FALSE),
-    cat = cat)
-    x = paste(as.character(df.all[,3]), quantile.name)
-    df.all[,3] = x
-    df.cdf = rbind(df.cdf, df.all)
-    #plot_cdf(df.all, tf = quantile)
-    }
-
-levels = levels(factor(df.cdf$status))
-levels = c(levels[grepl("Matched", levels)], levels[!grepl("Matched", levels)])
-df.cdf$status = factor(df.cdf$status, levels = levels)
-plot_cdf(df.cdf, tf = "GATA3_dTAGV1_E2_vs_control_E2", cat = cat, col.lines = c(rep("grey60",20),colorRampPalette(c("red","pink"))(20)), line.type = c(rep(2, 20), rep(1,20)), cex = 0.5)
-```
-
-choose a cut-off based on the CDF plot \
-```{r, engine='R', eval=F, echo=TRUE}
-#Let's choose a cutoff of 0.85
-#quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
-#write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
-```
-
-2.dTAGV1_NoE2_vs_control_NoE2
-```{r, engine='R', eval=F, echo=TRUE}
-# cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA
-col.lines = c("#FF0000", "grey60")
-gene.file=read.table(file = "MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
-
-```
 ### ER
 1.control_E2_vs_control_NoE2
 ```{r, engine='R', eval=F, echo=TRUE}
