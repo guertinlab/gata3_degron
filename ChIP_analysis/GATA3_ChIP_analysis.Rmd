@@ -595,7 +595,7 @@ meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 2000
 by searching ER peaks, we find the top motif match to the ER motif.
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ESR1 motif"}
 library(knitr)
-knitr::include_graphics("./ER_ChIP_top2000_motif.meme_output/logo1.png") 
+knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
 ```
 
 # FRiP for ER
