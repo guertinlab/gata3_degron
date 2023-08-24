@@ -740,18 +740,31 @@ function toggle_visibility(id1) {
 <li><a href="#fimo-for-gata-peaks" id="toc-fimo-for-gata-peaks"><span class="toc-section-number">9</span> FIMO for GATA peaks</a>
 <ul>
 <li><a href="#de-novo-motif-identification" id="toc-de-novo-motif-identification"><span class="toc-section-number">9.1</span> de novo motif identification</a></li>
+<li><a href="#identify-peaks-with-gata3-motif-variants" id="toc-identify-peaks-with-gata3-motif-variants"><span class="toc-section-number">9.2</span> identify peaks with GATA3 motif variants</a></li>
+<li><a href="#meme-on-peaks-without-gata3-motif-variants" id="toc-meme-on-peaks-without-gata3-motif-variants"><span class="toc-section-number">9.3</span> MEME on peaks without GATA3 motif variants</a></li>
+<li><a href="#bar-graph-of-motif-occurence-for-all-gata3-peaks" id="toc-bar-graph-of-motif-occurence-for-all-gata3-peaks"><span class="toc-section-number">9.4</span> BAR graph of motif occurence for all GATA3 peaks</a></li>
 </ul></li>
-<li><a href="#determine-functional-peaks-for-gata" id="toc-determine-functional-peaks-for-gata"><span class="toc-section-number">10</span> Determine functional peaks for GATA</a>
+<li><a href="#calculate-the-fraction-of-reads-in-peaks-frip-score-for" id="toc-calculate-the-fraction-of-reads-in-peaks-frip-score-for"><span class="toc-section-number">10</span> Calculate the fraction of reads in peaks (FRiP) score for:</a>
 <ul>
-<li><a href="#integrated-with-pro-data" id="toc-integrated-with-pro-data"><span class="toc-section-number">10.1</span> integrated with PRO data</a></li>
-<li><a href="#making-cdf-plots" id="toc-making-cdf-plots"><span class="toc-section-number">10.2</span> Making CDF plots</a>
+<li><a href="#gata-peaks-with-motif" id="toc-gata-peaks-with-motif"><span class="toc-section-number">10.1</span> GATA peaks with motif</a></li>
+<li><a href="#gata-peaks-without-motif" id="toc-gata-peaks-without-motif"><span class="toc-section-number">10.2</span> GATA peaks without motif</a></li>
+</ul></li>
+<li><a href="#determine-functional-peaks-for-gata" id="toc-determine-functional-peaks-for-gata"><span class="toc-section-number">11</span> Determine functional peaks for GATA</a>
 <ul>
-<li><a href="#gata3-peaks-with-gata3-motif" id="toc-gata3-peaks-with-gata3-motif"><span class="toc-section-number">10.2.1</span> GATA3 peaks with GATA3 motif</a></li>
-<li><a href="#gata3-peaks-without-gata3-motif" id="toc-gata3-peaks-without-gata3-motif"><span class="toc-section-number">10.2.2</span> GATA3 peaks without GATA3 motif</a></li>
-<li><a href="#draw-cdf-plots-by-peak-intensity-quantiles" id="toc-draw-cdf-plots-by-peak-intensity-quantiles"><span class="toc-section-number">10.2.3</span> draw CDF plots by peak intensity quantiles</a></li>
+<li><a href="#integrated-with-pro-data" id="toc-integrated-with-pro-data"><span class="toc-section-number">11.1</span> integrated with PRO data</a></li>
+<li><a href="#making-cdf-plots" id="toc-making-cdf-plots"><span class="toc-section-number">11.2</span> Making CDF plots</a>
+<ul>
+<li><a href="#gata3-peaks-with-gata3-motif" id="toc-gata3-peaks-with-gata3-motif"><span class="toc-section-number">11.2.1</span> GATA3 peaks with GATA3 motif</a></li>
+<li><a href="#gata3-peaks-without-gata3-motif" id="toc-gata3-peaks-without-gata3-motif"><span class="toc-section-number">11.2.2</span> GATA3 peaks without GATA3 motif</a></li>
+<li><a href="#draw-cdf-plots-by-peak-intensity-quantiles" id="toc-draw-cdf-plots-by-peak-intensity-quantiles"><span class="toc-section-number">11.2.3</span> draw CDF plots by peak intensity quantiles</a></li>
 </ul></li>
+<li><a href="#making-cumulative-cdf-plot" id="toc-making-cumulative-cdf-plot"><span class="toc-section-number">11.3</span> Making cumulative CDF plot</a>
+<ul>
+<li><a href="#making-cumulative-quantile-bed-file" id="toc-making-cumulative-quantile-bed-file"><span class="toc-section-number">11.3.1</span> making cumulative quantile bed file</a></li>
+<li><a href="#cumulative-cdf-for-peaks-with-gata3-motif-variants" id="toc-cumulative-cdf-for-peaks-with-gata3-motif-variants"><span class="toc-section-number">11.3.2</span> cumulative CDF for peaks with GATA3 motif variants</a></li>
 </ul></li>
-<li><a href="#frip-for-gata" id="toc-frip-for-gata"><span class="toc-section-number">11</span> FRiP for GATA</a></li>
+<li><a href="#choose-a-cut-off-based-on-the-cdf-plot" id="toc-choose-a-cut-off-based-on-the-cdf-plot"><span class="toc-section-number">11.4</span> choose a cut-off based on the CDF plot</a></li>
+</ul></li>
 <li><a href="#differential-expression-analysis-with-deseq2" id="toc-differential-expression-analysis-with-deseq2"><span class="toc-section-number">12</span> Differential expression analysis with DEseq2</a>
 <ul>
 <li><a href="#counting-size-factors-from-libraries" id="toc-counting-size-factors-from-libraries"><span class="toc-section-number">12.1</span> Counting size factors from libraries</a></li>
@@ -1009,7 +1022,10 @@ do
   depth=$(bc &lt;&lt;&lt; &quot;scale=1 ; 10000000 / $scalee&quot;)
   echo $depth
 done 2&gt;&amp;1 | tee read_depth.txt</code></pre>
-<p>alternative methods:</p>
+<!--
+alternative methods:
+
+-->
 </div>
 <div id="extract-the-alignment-rate-from-the-analysis" class="section level3" number="4.5.2">
 <h3><span class="header-section-number">4.5.2</span> extract the alignment rate from the analysis</h3>
@@ -1339,6 +1355,9 @@ python2.7 MEME_individual_from_db.py -i ../GATA_ChIP_top10000_motif.meme_output/
 
 #NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt  --motif1
 #WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt  --motif2</code></pre>
+</div>
+<div id="identify-peaks-with-gata3-motif-variants" class="section level2" number="9.2">
+<h2><span class="header-section-number">9.2</span> identify peaks with GATA3 motif variants</h2>
 <p>Now, I am going to use <code>fimo</code> to calculate occurrence of motif1 on entire genome, then intersect with my ChIP peak set. Do the same with motif2, and save peaks.<br />
 </p>
 <pre class="r"><code>module load meme/5.4.1
@@ -1370,7 +1389,6 @@ tail -n +2 GATA_functional_motif_functional_second.fimo_output/fimo.tsv | awk &#
 
 intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq &gt;GATA_ChIP_summit_100window_func_motif1_motif2.bed
 
-intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq &gt;GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
 
 #wc -l GATA_ChIP_summit_100window_func_motif1_motif2.bed
 #17074 
@@ -1378,24 +1396,32 @@ intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100
 #65904 
 
 # 25.9% have either motif
-# 488 peaks has both motif1 and motif2
-
-
-# intersect with CTCF peaks as a control
+# 488 peaks has both motif1 and motif2</code></pre>
+<p>Identify peaks without GATA3 motif variants (use <code>-v</code> in <code>intersectBed</code>)</p>
+<pre class="r"><code>intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq &gt;GATA_ChIP_summit_100window_no_func_motif1_motif2.bed</code></pre>
+<p>Identify CTCF peaks with GATA3 motif variants (control)</p>
+<pre class="r"><code># intersect with CTCF peaks as a control
 intersectBed -wa -a ../../../CTCF_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq &gt;CTCF_ChIP_summit_100window_func_motif1_motif2.bed
 #wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed
 #1089 </code></pre>
+</div>
+<div id="meme-on-peaks-without-gata3-motif-variants" class="section level2" number="9.3">
+<h2><span class="header-section-number">9.3</span> MEME on peaks without GATA3 motif variants</h2>
 <p>We will also run a MEME de novo motif search to the peak set that we did not find matches with GATA motif varient 1 or 2, to ensure that we are not missing any peaks that has GATA3 motifs.</p>
 <pre class="r"><code>module load meme/5.4.1
 module load bedtools
 genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
+# save peaks without GATA3 motif variants 1 and 2
 fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1_motif2.bed -fo GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta
 
 # MEME
 meme -p 32 -oc noGATAmotif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta # normal GATA motif is GATAA, so minw can be set to 5</code></pre>
-<p>parse peaks (all peaks) into different quantile file and visualize motif occurence within each quantiles.</p>
+</div>
+<div id="bar-graph-of-motif-occurence-for-all-gata3-peaks" class="section level2" number="9.4">
+<h2><span class="header-section-number">9.4</span> BAR graph of motif occurence for all GATA3 peaks</h2>
+<p>parse peaks (all peaks) into different quantile file and visualize motif occurrence within each quantile.</p>
 <pre class="r"><code>module load R/4.1.2 
 R 
 peak.intensities = read.table(&#39;../GATA_ChIP_summit_100window.bed&#39;, header =FALSE) 
@@ -1413,7 +1439,7 @@ for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
   write.table(file = paste0(&#39;quantile&#39;, as.character(q[count]), &#39;.bed&#39;), peak.intensities[peak.intensities$V5 &gt; j &amp; peak.intensities$V5 &lt;= i,], sep = &#39;\t&#39;, quote=FALSE, col.names=FALSE, row.names=FALSE )
   j = i
 }</code></pre>
-<p>Draw bar graph to show peak with or without GATA3 motif variants in different intensity quantile.</p>
+<p>Draw bar graph to show peaks with or without GATA3 motif variants in different intensity quantile.</p>
 <pre class="r"><code>module load bedtools
 for i in *quantile*.bed
 do
@@ -1467,10 +1493,103 @@ print(barchart(fraction ~ quantile,         # Stacked barplot using lattice
 dev.off()</code></pre>
 </div>
 </div>
-<div id="determine-functional-peaks-for-gata" class="section level1" number="10">
-<h1><span class="header-section-number">10</span> Determine functional peaks for GATA</h1>
-<div id="integrated-with-pro-data" class="section level2" number="10.1">
-<h2><span class="header-section-number">10.1</span> integrated with PRO data</h2>
+<div id="calculate-the-fraction-of-reads-in-peaks-frip-score-for" class="section level1" number="10">
+<h1><span class="header-section-number">10</span> Calculate the fraction of reads in peaks (FRiP) score for:</h1>
+<div id="gata-peaks-with-motif" class="section level2" number="10.1">
+<h2><span class="header-section-number">10.1</span> GATA peaks with motif</h2>
+<p>Here I am using peaks with GATA3 motif variants as the universal peak set to calculate the FRiP score for my GATA3 reps as well as other libraries.<br />
+</p>
+<p>First intersect fimo peaks with GATA peaks(400 window) to get peaks contains either GATA3 motif variant 1 or 2 with 400 window flanked around the summit.<br />
+</p>
+<pre class="r"><code>#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/GATA_fimopeaks
+module load bedtools
+dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/&quot;
+
+intersectBed -wa -a ../GATA_ChIP_summit_400window.bed -b ${dir}fimo_GATA3_functional_round1.bed ${dir}fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq &gt;GATA_ChIP_summit_400window_func_motif1_motif2.bed
+
+#wc -l GATA_ChIP_summit_400window_func_motif1_motif2.bed 
+#21695
+# note: intersect with 100 window summit file gives 17074 peaks, intersect with 400window summit file gives 4621 more peaks</code></pre>
+<p>Use <code>mapBed</code> from bedtools to count reads of the BED file from the seqOutBias output in the ER responsive peak regions; use <code>samtools</code> commands to count the number of paired end 1 reads that aligned in a concordant pair (the mate aligned nearby). The final output file contains these two values that we use to calculate FRiP.<br />
+</p>
+<pre class="r"><code># module load bedtools
+# module load samtools/1.12
+peaks=GATA_ChIP_summit_400window_func_motif1_motif2.bed
+
+for i in ../not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_not_scaled.bed&quot; &#39;{print $1}&#39;)
+    sort -k1,1 -k2,2n $i &gt; ${nm}_sorted.bed
+    mapBed -null &#39;0&#39; -a $peaks -b ${nm}_sorted.bed &gt; ${nm}_peak_counts.txt
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_peak_counts.txt&quot; &#39;{print $1}&#39;)
+    echo $name &gt; ${name}_FRiP.txt
+    awk &#39;{print $NF}&#39; ${name}_peak_counts.txt &gt; ${name}_peak_counts_only.txt
+    RiP=$(awk &#39;{sum+=$1;} END{print sum;}&#39; ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt &gt; ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ../bam/${name}.bam) # count the total aligned reads
+    FRiP=$(echo &quot;scale=2 ; $RiP / $aligned_reads&quot; | bc)
+    echo $FRiP &gt;&gt; ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e &quot;chr\tstart\tend\tname\tqvalue&quot; | cat - $peaks | paste -d&#39;\t&#39; - *peak_counts.txt &gt; Combined_GATA_peak_counts.txt
+echo -e &quot;Name&quot; &gt; rowname.txt
+echo -e &quot;FrIP&quot; &gt;&gt; rowname.txt
+paste -d&#39;\t&#39; rowname.txt *.hg38_FRiP.txt &gt; Combined_GATA_FRiP.txt
+rm rowname.txt</code></pre>
+</div>
+<div id="gata-peaks-without-motif" class="section level2" number="10.2">
+<h2><span class="header-section-number">10.2</span> GATA peaks without motif</h2>
+<p>make GATA peaks without motif (400 window)<br />
+</p>
+<pre class="r"><code>#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/GATA_fimopeaks_nomotif
+module load bedtools
+
+intersectBed -wa -v -a ../GATA_ChIP_summit_400window.bed -b ../GATA_fimopeaks/GATA_ChIP_summit_400window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq &gt;GATA_ChIP_summit_400window_no_func_motif1_motif2.bed
+
+#wc -l GATA_ChIP_summit_400window_no_func_motif1_motif2.bed 
+#43077</code></pre>
+<p>calculate FRiP.<br />
+</p>
+<pre class="r"><code># module load bedtools
+# module load samtools/1.12
+peaks=GATA_ChIP_summit_400window_no_func_motif1_motif2.bed
+
+for i in ../not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_not_scaled.bed&quot; &#39;{print $1}&#39;)
+    sort -k1,1 -k2,2n $i &gt; ${nm}_sorted.bed
+    mapBed -null &#39;0&#39; -a $peaks -b ${nm}_sorted.bed &gt; ${nm}_peak_counts.txt
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_peak_counts.txt&quot; &#39;{print $1}&#39;)
+    echo $name &gt; ${name}_FRiP.txt
+    awk &#39;{print $NF}&#39; ${name}_peak_counts.txt &gt; ${name}_peak_counts_only.txt
+    RiP=$(awk &#39;{sum+=$1;} END{print sum;}&#39; ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt &gt; ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ../bam/${name}.bam) # count the total aligned reads
+    FRiP=$(echo &quot;scale=2 ; $RiP / $aligned_reads&quot; | bc)
+    echo $FRiP &gt;&gt; ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e &quot;chr\tstart\tend\tname\tqvalue&quot; | cat - $peaks | paste -d&#39;\t&#39; - *peak_counts.txt &gt; Combined_GATA_peak_nofunc_counts.txt
+echo -e &quot;Name&quot; &gt; rowname.txt
+echo -e &quot;FrIP&quot; &gt;&gt; rowname.txt
+paste -d&#39;\t&#39; rowname.txt *.hg38_FRiP.txt &gt; Combined_GATA_nofunc_FRiP.txt
+rm rowname.txt</code></pre>
+</div>
+</div>
+<div id="determine-functional-peaks-for-gata" class="section level1" number="11">
+<h1><span class="header-section-number">11</span> Determine functional peaks for GATA</h1>
+<div id="integrated-with-pro-data" class="section level2" number="11.1">
+<h2><span class="header-section-number">11.1</span> integrated with PRO data</h2>
 <p>In the PRO-seq experiment, we have compared the treatment vs. control as below, and have identified activated/repressed genes, comparable genes that are unchanged but matched for the expression levels.</p>
 <ol style="list-style-type: decimal">
 <li>“control_E2” vs. “control_NoE2”: ER activity under control<br />
@@ -1485,10 +1604,10 @@ dev.off()</code></pre>
 <p>We wll first concatenate the activated, repressed, and matched files from PRO comparison between “dTAGV1_NoE2” and “control_NoE2” into a list of activated and repressed genes.<br />
 </p>
 <pre class="r"><code>#MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed     (degrade GATA3 when ER is not activated)
-cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed &gt; /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed</code></pre>
+cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed &gt; /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed</code></pre>
 </div>
-<div id="making-cdf-plots" class="section level2" number="10.2">
-<h2><span class="header-section-number">10.2</span> Making CDF plots</h2>
+<div id="making-cdf-plots" class="section level2" number="11.2">
+<h2><span class="header-section-number">11.2</span> Making CDF plots</h2>
 <p>load key packages</p>
 <pre class="r"><code>#module load R/4.1.2 
 #R
@@ -1614,8 +1733,8 @@ dev.off()
 #### troubleshoot
 
 -->
-<div id="gata3-peaks-with-gata3-motif" class="section level3" number="10.2.1">
-<h3><span class="header-section-number">10.2.1</span> GATA3 peaks with GATA3 motif</h3>
+<div id="gata3-peaks-with-gata3-motif" class="section level3" number="11.2.1">
+<h3><span class="header-section-number">11.2.1</span> GATA3 peaks with GATA3 motif</h3>
 <p>“dTAGV1_NoE2” vs. “control_NoE2”: compare between with or without GATA3 (when ER is not activated)  
 when we degrade GATA3, we expect to see GATA3 regulated genes to be repressed.</p>
 <pre class="r"><code>gene.file=read.table(file = &quot;MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed&quot;, sep=&quot;\t&quot;, header=FALSE)
@@ -1635,8 +1754,8 @@ plot_cdf_all(df.all,
              line.type = c(1), 
              cex = 0.5)</code></pre>
 </div>
-<div id="gata3-peaks-without-gata3-motif" class="section level3" number="10.2.2">
-<h3><span class="header-section-number">10.2.2</span> GATA3 peaks without GATA3 motif</h3>
+<div id="gata3-peaks-without-gata3-motif" class="section level3" number="11.2.2">
+<h3><span class="header-section-number">11.2.2</span> GATA3 peaks without GATA3 motif</h3>
 <pre class="r"><code>gene.file=read.table(file = &quot;MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed&quot;, sep=&quot;\t&quot;, header=FALSE)
 
 chip.peak=read.table(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/GATA_ChIP_summit_100window_no_func_motif1_motif2.bed&quot;, header=FALSE)
@@ -1653,9 +1772,9 @@ plot_cdf_all(df.all,
              line.type = c(1), 
              cex = 0.5)</code></pre>
 </div>
-<div id="draw-cdf-plots-by-peak-intensity-quantiles" class="section level3" number="10.2.3">
-<h3><span class="header-section-number">10.2.3</span> draw CDF plots by peak intensity quantiles</h3>
-<p>Here we wre parse peaks (only for FIMO output peaks that has GATA3 motif) into different quantile file.<br />
+<div id="draw-cdf-plots-by-peak-intensity-quantiles" class="section level3" number="11.2.3">
+<h3><span class="header-section-number">11.2.3</span> draw CDF plots by peak intensity quantiles</h3>
+<p>Here we parse peaks (only for FIMO output peaks that has GATA3 motif) into different quantile file.<br />
 </p>
 <pre class="r"><code>module load R/4.1.2 
 R 
@@ -1682,7 +1801,7 @@ cat = &quot;Repressed&quot;
 col.lines = c(&quot;#00FFFF&quot;, &quot;grey60&quot;)
 
 # export repressed vs. unchanged(match to repressed) in each quantile
-for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed&quot;)))  {
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed&quot;)))  {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
     print(quantile.name)
@@ -1693,7 +1812,7 @@ for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July20
 # combine all single quantile plot into one plot    
 df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
 colnames(df.cdf) = c(&quot;V4&quot;, &quot;dis&quot;, &quot;status&quot;)
-for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed&quot;))) {
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed&quot;))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
     print(quantile.name)
@@ -1718,7 +1837,7 @@ plot_cdf(df.cdf,
 #Activated genes
 cat = &quot;Activated&quot;
 
-for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed&quot;))) {
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed&quot;))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
     print(quantile.name)
@@ -1728,7 +1847,7 @@ for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July20
     
 df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
 colnames(df.cdf) = c(&quot;V4&quot;, &quot;dis&quot;, &quot;status&quot;)
-for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed&quot;))) {
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed&quot;))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
     print(quantile.name)
@@ -1750,16 +1869,78 @@ plot_cdf(df.cdf,
          col.lines = c(rep(&quot;grey60&quot;,20),colorRampPalette(c(&quot;red&quot;,&quot;pink&quot;))(20)), 
          line.type = c(rep(2, 20), rep(1,20)), 
          cex = 0.5)</code></pre>
-<p>choose a cut-off based on the CDF plot<br />
-</p>
+</div>
+</div>
+<div id="making-cumulative-cdf-plot" class="section level2" number="11.3">
+<h2><span class="header-section-number">11.3</span> Making cumulative CDF plot</h2>
+<div id="making-cumulative-quantile-bed-file" class="section level3" number="11.3.1">
+<h3><span class="header-section-number">11.3.1</span> making cumulative quantile bed file</h3>
+<p>Make cumulative bed files of the ChIP quantile peaks (that contains GATA3 motif) starting from the most intense and including each level in the next merged file.</p>
+<pre class="r"><code>cat quantile1.bed quantile0.95.bed &gt; qmerge1.bed
+
+q=$(seq 0.9 -0.05 0.05)
+j=0
+
+for i in $q
+do
+  ii=$(echo &quot;$i&quot; | sed -E &#39;s/(^[0-9]+\.0*[1-9]+)0*$/\1/&#39;) # remove trailing zeroes to match existing file names
+  #echo $ii
+  j=$(bc &lt;&lt;&lt; &quot;scale=0 ; $j +1&quot;)
+  #echo $j
+  k=$(bc &lt;&lt;&lt; &quot;scale=0 ; $j +1&quot;)
+  cat quantile${ii}.bed qmerge${j}.bed &gt; qmerge${k}.bed
+done
+
+#wc -l *qmerge*.bed
+#wc -l *quantile*.bed</code></pre>
+</div>
+<div id="cumulative-cdf-for-peaks-with-gata3-motif-variants" class="section level3" number="11.3.2">
+<h3><span class="header-section-number">11.3.2</span> cumulative CDF for peaks with GATA3 motif variants</h3>
+<pre class="r"><code>gene.file=read.table(file = &quot;../MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed&quot;, sep=&quot;\t&quot;, header=FALSE)
+
+cat = &quot;Repressed&quot;
+
+# plot individually
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/qmerge*bed&quot;))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
+    plot_cdf(df.all, tf = quantile.name, cat = cat, col.lines=c(&quot;blue&quot;,&quot;grey60&quot;))
+    }
+
+#plot a merged cumulative cdf
+df.cdf = data.frame(matrix(nrow = 0, ncol = 3))   
+colnames(df.cdf) = c(&quot;V4&quot;, &quot;dis&quot;, &quot;status&quot;)
+for (chip.peak in Sys.glob(file.path(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/qmerge*bed&quot;))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, &quot;/&quot;)[[1]][length(strsplit(chip.peak, &quot;/&quot;)[[1]])], &#39;.bed&#39;)[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file,
+        chip.peaks=read.table(chip.peak, header=FALSE),
+        cat = cat)
+    x = paste(as.character(df.all[,3]), quantile.name)
+    df.all[,3] = x
+    df.cdf = rbind(df.cdf, df.all)
+    }
+
+levels =c(paste0(&quot;Matched to Repressed qmerge&quot;, seq(1:19)), paste0(&quot;Repressed qmerge&quot;, seq(1:19))) 
+df.cdf$status = factor(df.cdf$status, levels = levels)
+
+plot_cdf(df.cdf, 
+         tf = &quot;qmerge_GATA3_dTAGV1_NoE2_vs_control_NoE2&quot;, 
+         cat = cat, 
+         col.lines = c(rep(&quot;grey60&quot;,19),colorRampPalette(c(&quot;blue&quot;,&quot;lightblue&quot;))(19)), 
+         line.type = c(rep(2, 19), rep(1,19)), 
+         cex = 0.5)</code></pre>
+</div>
+</div>
+<div id="choose-a-cut-off-based-on-the-cdf-plot" class="section level2" number="11.4">
+<h2><span class="header-section-number">11.4</span> choose a cut-off based on the CDF plot</h2>
 <pre class="r"><code>#Let&#39;s choose a cutoff of 0.85
 #quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
 #write.table(quantiles[16][[1]], file = &quot;cutoff.txt&quot;, col.names = F, row.names = F, quote = F)</code></pre>
 </div>
-</div>
-</div>
-<div id="frip-for-gata" class="section level1" number="11">
-<h1><span class="header-section-number">11</span> FRiP for GATA</h1>
 </div>
 <div id="differential-expression-analysis-with-deseq2" class="section level1" number="12">
 <h1><span class="header-section-number">12</span> Differential expression analysis with DEseq2</h1>
