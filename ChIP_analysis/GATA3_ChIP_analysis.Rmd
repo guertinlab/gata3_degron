@@ -736,7 +736,8 @@ intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100
 ```
 
 Identify CTCF peaks with GATA3 motif variants (control) 
-```{r}
+
+```{r, engine='R', eval=F, echo=TRUE}
 # intersect with CTCF peaks as a control
 intersectBed -wa -a ../../../CTCF_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >CTCF_ChIP_summit_100window_func_motif1_motif2.bed
 #wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed
