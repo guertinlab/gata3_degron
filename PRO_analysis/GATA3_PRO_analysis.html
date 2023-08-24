@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-21" />
+<meta name="date" content="2023-08-24" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-21</h4>
+<h4 class="date">2023-08-24</h4>
 
 </div>
 
@@ -739,8 +739,13 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#load-key-packages-and-functions" id="toc-load-key-packages-and-functions"><span class="toc-section-number">4.1</span> load key packages and functions</a></li>
 <li><a href="#load-the-unnormalized-bigwig-pro-data" id="toc-load-the-unnormalized-bigwig-pro-data"><span class="toc-section-number">4.2</span> load the unnormalized bigWig PRO data</a></li>
-<li><a href="#pca" id="toc-pca"><span class="toc-section-number">4.3</span> PCA</a></li>
-<li><a href="#deseq2" id="toc-deseq2"><span class="toc-section-number">4.4</span> DEseq2</a>
+<li><a href="#principal-component-analysis-for-visualization-pca" id="toc-principal-component-analysis-for-visualization-pca"><span class="toc-section-number">4.3</span> Principal Component Analysis for Visualization (PCA)</a>
+<ul>
+<li><a href="#call-deseq" id="toc-call-deseq"><span class="toc-section-number">4.3.1</span> call DESeq</a></li>
+<li><a href="#pca-plot-for-12-reps" id="toc-pca-plot-for-12-reps"><span class="toc-section-number">4.3.2</span> PCA plot for 12 reps</a></li>
+<li><a href="#pca-plot-for-separated-groups" id="toc-pca-plot-for-separated-groups"><span class="toc-section-number">4.3.3</span> PCA plot for separated groups</a></li>
+</ul></li>
+<li><a href="#deseq2-design-1" id="toc-deseq2-design-1"><span class="toc-section-number">4.4</span> DESeq2 design 1</a>
 <ul>
 <li><a href="#control_e2_vs_control_noe2" id="toc-control_e2_vs_control_noe2"><span class="toc-section-number">4.4.1</span> 1) control_E2_vs_control_NoE2<br />
 </a></li>
@@ -748,6 +753,7 @@ function toggle_visibility(id1) {
 <li><a href="#dtagv1_e2_vs_control_e2" id="toc-dtagv1_e2_vs_control_e2"><span class="toc-section-number">4.4.3</span> 3) dTAGV1_E2_vs_control_E2  </a></li>
 <li><a href="#dtagv1_noe2_vs_control_noe2" id="toc-dtagv1_noe2_vs_control_noe2"><span class="toc-section-number">4.4.4</span> 4) dTAGV1_NoE2_vs_control_NoE2  </a></li>
 </ul></li>
+<li><a href="#deseq2-design2" id="toc-deseq2-design2"><span class="toc-section-number">4.5</span> DESeq2 design2</a></li>
 </ul></li>
 <li><a href="#integrate-with-chip" id="toc-integrate-with-chip"><span class="toc-section-number">5</span> integrate with ChIP…</a></li>
 </ul>
@@ -1834,7 +1840,13 @@ estimateSizeFactorsForMatrix(counts.df)
 #                                    1.0432574 
 # MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 
 #                                    0.9394534 </code></pre>
-<p>In this PRO exp, we have 4 levels, here we define the sample conditions based on our experiment treatment set the levels.</p>
+</div>
+<div id="principal-component-analysis-for-visualization-pca" class="section level2" number="4.3">
+<h2><span class="header-section-number">4.3</span> Principal Component Analysis for Visualization (PCA)</h2>
+<p>In this PRO exp, we have 4 levels, here we define the sample conditions based on our experiment treatment set the levels, and plot PCA plot to see similarity within conditions and differences across conditions.<br />
+</p>
+<div id="call-deseq" class="section level3" number="4.3.1">
+<h3><span class="header-section-number">4.3.1</span> call DESeq</h3>
 <pre class="r"><code>sample.conditions = factor(c(&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;, &quot;dTAGV1_NoE2&quot;,&quot;dTAGV1_NoE2&quot;), 
                            levels=c(&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;))
 deseq.counts.table = DESeqDataSetFromMatrix(counts.df, DataFrame(sample.conditions), ~ sample.conditions)
@@ -1849,8 +1861,8 @@ res = results(dds)
 #res = res[order(res$padj),]
 rld &lt;- rlog(dds)</code></pre>
 </div>
-<div id="pca" class="section level2" number="4.3">
-<h2><span class="header-section-number">4.3</span> PCA</h2>
+<div id="pca-plot-for-12-reps" class="section level3" number="4.3.2">
+<h3><span class="header-section-number">4.3.2</span> PCA plot for 12 reps</h3>
 <pre class="r"><code>#PCA for experiments
 plotPCA(rld)
 
@@ -1863,6 +1875,9 @@ plotPCAlattice(pca.plot, file = &#39;PCA_GATA3_PRO.pdf&#39;)</code></pre>
 Figure 3: <span class="caption-title">PCA</span><br>
 </p>
 </div>
+</div>
+<div id="pca-plot-for-separated-groups" class="section level3" number="4.3.3">
+<h3><span class="header-section-number">4.3.3</span> PCA plot for separated groups</h3>
 <p>In the above PCA, we can see a clear separation between libraries with or without dTAG treatment. We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups.<br />
 </p>
 <ol style="list-style-type: decimal">
@@ -1898,8 +1913,13 @@ Figure 5: <span class="caption-title">PCA dTAG sub</span><br>
 </p>
 </div>
 </div>
-<div id="deseq2" class="section level2" number="4.4">
-<h2><span class="header-section-number">4.4</span> DEseq2</h2>
+</div>
+<div id="deseq2-design-1" class="section level2" number="4.4">
+<h2><span class="header-section-number">4.4</span> DESeq2 design 1</h2>
+<p>if we consider only one varaible at a time, in other words, if we only care about how one factor affect our gene expression, we could do the following:<br />
+</p>
+<p>if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design metrecs (see the DESeq2 design2 part).<br />
+</p>
 <pre class="r"><code>rep = factor(sapply(strsplit(colnames(counts.df), &#39;rep&#39;), &#39;[&#39;, 2))
 # [1] &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot;
 sample.conditions = factor(c(&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;, &quot;dTAGV1_NoE2&quot;,&quot;dTAGV1_NoE2&quot;), 
@@ -2231,6 +2251,16 @@ Figure 9: <span class="caption-title">MA plot</span><br>
 </p>
 </div>
 </div>
+</div>
+<div id="deseq2-design2" class="section level2" number="4.5">
+<h2><span class="header-section-number">4.5</span> DESeq2 design2</h2>
+<p>As previous section described, if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design formula.<br />
+</p>
+<p>we want to compare:<br />
+1) if genes (up-regulated in E2 treatment) will change when degrading GATA3 compared to not degrading GATA3<br />
+2) if genes (up-regulated when degrading GATA3) will change when active ER<br />
+3) if genes (down-regulated when degrading GATA3) will change when active ER<br />
+</p>
 </div>
 </div>
 <div id="integrate-with-chip" class="section level1" number="5">
