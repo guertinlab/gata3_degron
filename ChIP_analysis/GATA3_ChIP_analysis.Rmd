@@ -572,7 +572,7 @@ meme -p 16 -oc ${name}_motif.meme_output -nmotifs 5 -objfun classic -csites 2000
 By searching the top 10,000 most significant GATA peaks, we find the top 2 motif match to the GATA motif. \
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA motif"}
 library(knitr)
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_2.png") 
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo2.png") 
 knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_rc1.png") 
 ```
 
