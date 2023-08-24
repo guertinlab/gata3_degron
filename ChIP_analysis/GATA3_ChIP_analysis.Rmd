@@ -284,6 +284,7 @@ chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1 29761904.7
 
 ```
 
+<!--
 alternative methods:
 ```{r engine='bash', eval=F, echo=F}
 #  average coverage for all covered regions
@@ -297,6 +298,7 @@ samtools view -H *bamfile* | grep -P '^@SQ' | cut -f 3 -d ':' | awk '{sum+=$1} E
 samtools depth  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
 samtools depth -a *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
 ```
+-->
 
 ### extract the alignment rate from the analysis
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -684,6 +686,8 @@ python2.7 MEME_individual_from_db.py -i ../GATA_ChIP_top10000_motif.meme_output/
 
 ```
 
+## identify peaks with GATA3 motif variants
+
 Now, I am going to use `fimo` to calculate occurrence of motif1 on entire genome, then intersect with my ChIP peak set. Do the same with motif2, and save peaks.\
 
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -716,7 +720,6 @@ tail -n +2 GATA_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{
 
 intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1_motif2.bed
 
-intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
 
 #wc -l GATA_ChIP_summit_100window_func_motif1_motif2.bed
 #17074 
@@ -725,14 +728,22 @@ intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100
 
 # 25.9% have either motif
 # 488 peaks has both motif1 and motif2
+```
 
+Identify peaks without GATA3 motif variants (use `-v` in `intersectBed`)
+```{r, engine='R', eval=F, echo=TRUE}
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
+```
 
+Identify CTCF peaks with GATA3 motif variants (control) 
+```{r}
 # intersect with CTCF peaks as a control
 intersectBed -wa -a ../../../CTCF_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >CTCF_ChIP_summit_100window_func_motif1_motif2.bed
 #wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed
 #1089 
 ```
 
+## MEME on peaks without GATA3 motif variants
 We will also run a MEME de novo motif search to the peak set that we did not find matches with GATA motif varient 1 or 2, to ensure that we are not missing any peaks that has GATA3 motifs.  
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
@@ -740,14 +751,16 @@ module load bedtools
 genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
+# save peaks without GATA3 motif variants 1 and 2
 fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1_motif2.bed -fo GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta
 
 # MEME
 meme -p 32 -oc noGATAmotif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta # normal GATA motif is GATAA, so minw can be set to 5
 ```
 
-  
-parse peaks (all peaks) into different quantile file and visualize motif occurence within each quantiles.      
+## BAR graph of motif occurence for all GATA3 peaks
+
+parse peaks (all peaks) into different quantile file and visualize motif occurrence within each quantile.      
 ```{r, engine='R', eval=F, echo=TRUE}
 module load R/4.1.2 
 R 
@@ -768,7 +781,7 @@ for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
 }
 ```
 
-Draw bar graph to show peak with or without GATA3 motif variants in different intensity quantile.
+Draw bar graph to show peaks with or without GATA3 motif variants in different intensity quantile.
 ```{r, engine='R', eval=F, echo=TRUE}
 module load bedtools
 for i in *quantile*.bed
@@ -826,6 +839,108 @@ print(barchart(fraction ~ quantile,         # Stacked barplot using lattice
 dev.off()
 ```
 
+# Calculate the fraction of reads in peaks (FRiP) score for:
+
+## GATA peaks with motif
+
+Here I am using peaks with GATA3 motif variants as the universal peak set to calculate the FRiP score for my GATA3 reps as well as other libraries. \
+
+First intersect fimo peaks with GATA peaks(400 window) to get peaks contains either GATA3 motif variant 1 or 2 with 400 window flanked around the summit. \
+```{r, engine='R', eval=F, echo=TRUE}
+#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/GATA_fimopeaks
+module load bedtools
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes/"
+
+intersectBed -wa -a ../GATA_ChIP_summit_400window.bed -b ${dir}fimo_GATA3_functional_round1.bed ${dir}fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_400window_func_motif1_motif2.bed
+
+#wc -l GATA_ChIP_summit_400window_func_motif1_motif2.bed 
+#21695
+# note: intersect with 100 window summit file gives 17074 peaks, intersect with 400window summit file gives 4621 more peaks
+```
+
+Use `mapBed` from bedtools to count reads of the BED file from the seqOutBias output in the ER responsive peak regions; use `samtools` commands to count the number of paired end 1 reads that aligned in a concordant pair (the mate aligned nearby). The final output file contains these two values that we use to calculate FRiP. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load bedtools
+# module load samtools/1.12
+peaks=GATA_ChIP_summit_400window_func_motif1_motif2.bed
+
+for i in ../not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b ${nm}_sorted.bed > ${nm}_peak_counts.txt
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ../bam/${name}.bam) # count the total aligned reads
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - $peaks | paste -d'\t' - *peak_counts.txt > Combined_GATA_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_GATA_FRiP.txt
+rm rowname.txt
+
+```
+
+## GATA peaks without motif
+
+make GATA peaks without motif (400 window) \
+```{r, engine='R', eval=F, echo=TRUE}
+#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/GATA_fimopeaks_nomotif
+module load bedtools
+
+intersectBed -wa -v -a ../GATA_ChIP_summit_400window.bed -b ../GATA_fimopeaks/GATA_ChIP_summit_400window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_400window_no_func_motif1_motif2.bed
+
+#wc -l GATA_ChIP_summit_400window_no_func_motif1_motif2.bed 
+#43077
+
+```
+
+calculate FRiP. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load bedtools
+# module load samtools/1.12
+peaks=GATA_ChIP_summit_400window_no_func_motif1_motif2.bed
+
+for i in ../not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b ${nm}_sorted.bed > ${nm}_peak_counts.txt
+done
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42 ../bam/${name}.bam) # count the total aligned reads
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - $peaks | paste -d'\t' - *peak_counts.txt > Combined_GATA_peak_nofunc_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_GATA_nofunc_FRiP.txt
+rm rowname.txt
+```
+
 # Determine functional peaks for GATA
 
 ## integrated with PRO data
@@ -842,7 +957,7 @@ Here for GATA ChIP peaks, we want to use the activated/repressed genes identifie
 We wll first concatenate the activated, repressed, and matched files from PRO comparison between "dTAGV1_NoE2" and "control_NoE2" into a list of activated and repressed genes. \
 ```{r, engine='R', eval=F, echo=TRUE}
 #MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed     (degrade GATA3 when ER is not activated)
-cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed > /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed
+cat dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed > /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed
 ```
 
 ## Making CDF plots
@@ -1103,7 +1218,7 @@ plot_cdf_all(df.all,
 ```
 
 ### draw CDF plots by peak intensity quantiles
-Here we wre parse peaks (only for FIMO output peaks that has GATA3 motif) into different quantile file.\
+Here we parse peaks (only for FIMO output peaks that has GATA3 motif) into different quantile file.\
 ```{r, engine='R', eval=F, echo=TRUE}
 module load R/4.1.2 
 R 
@@ -1133,7 +1248,7 @@ cat = "Repressed"
 col.lines = c("#00FFFF", "grey60")
 
 # export repressed vs. unchanged(match to repressed) in each quantile
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed")))  {
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed")))  {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
     print(quantile.name)
@@ -1144,7 +1259,7 @@ for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Ch
 # combine all single quantile plot into one plot    
 df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
 colnames(df.cdf) = c("V4", "dis", "status")
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed"))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
     print(quantile.name)
@@ -1173,7 +1288,7 @@ gene.file=read.table(file = "MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.
 #Activated genes
 cat = "Activated"
 
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed"))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
     print(quantile.name)
@@ -1183,7 +1298,7 @@ for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Ch
     
 df.cdf = data.frame(matrix(nrow = 0, ncol = 3))     
 colnames(df.cdf) = c("V4", "dis", "status")
-for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA/GATA_fimopeak_quantile/quantile*bed"))) {
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/quantile*bed"))) {
     print(chip.peak)
     quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
     print(quantile.name)
@@ -1207,15 +1322,83 @@ plot_cdf(df.cdf,
          cex = 0.5)
 ```
 
-choose a cut-off based on the CDF plot \
+
+
+## Making cumulative CDF plot
+
+### making cumulative quantile bed file
+
+Make cumulative bed files of the ChIP quantile peaks (that contains GATA3 motif) starting from the most intense and including each level in the next merged file.
+```{r, engine='R', eval=F, echo=TRUE}
+cat quantile1.bed quantile0.95.bed > qmerge1.bed
+
+q=$(seq 0.9 -0.05 0.05)
+j=0
+
+for i in $q
+do
+  ii=$(echo "$i" | sed -E 's/(^[0-9]+\.0*[1-9]+)0*$/\1/') # remove trailing zeroes to match existing file names
+  #echo $ii
+  j=$(bc <<< "scale=0 ; $j +1")
+  #echo $j
+  k=$(bc <<< "scale=0 ; $j +1")
+  cat quantile${ii}.bed qmerge${j}.bed > qmerge${k}.bed
+done
+
+#wc -l *qmerge*.bed
+#wc -l *quantile*.bed
+```
+
+### cumulative CDF for peaks with GATA3 motif variants
+
+```{r, engine='R', eval=F, echo=TRUE}
+gene.file=read.table(file = "../MCF7_GATA3_dTAGV1_NoE2_vs_control_NoE2_annotations.bed", sep="\t", header=FALSE)
+
+cat = "Repressed"
+
+# plot individually
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/qmerge*bed"))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file, chip.peaks=read.table(chip.peak, header=FALSE), cat = cat)
+    plot_cdf(df.all, tf = quantile.name, cat = cat, col.lines=c("blue","grey60"))
+    }
+
+#plot a merged cumulative cdf
+df.cdf = data.frame(matrix(nrow = 0, ncol = 3))   
+colnames(df.cdf) = c("V4", "dis", "status")
+for (chip.peak in Sys.glob(file.path("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/7_cdf/GATA_fimopeaks/GATA_fimopeak_quantile/qmerge*bed"))) {
+    print(chip.peak)
+    quantile.name = strsplit(strsplit(chip.peak, "/")[[1]][length(strsplit(chip.peak, "/")[[1]])], '.bed')[[1]][1]
+    print(quantile.name)
+    df.all = cdf.deseq.df(genes = gene.file,
+        chip.peaks=read.table(chip.peak, header=FALSE),
+        cat = cat)
+    x = paste(as.character(df.all[,3]), quantile.name)
+    df.all[,3] = x
+    df.cdf = rbind(df.cdf, df.all)
+    }
+
+levels =c(paste0("Matched to Repressed qmerge", seq(1:19)), paste0("Repressed qmerge", seq(1:19))) 
+df.cdf$status = factor(df.cdf$status, levels = levels)
+
+plot_cdf(df.cdf, 
+         tf = "qmerge_GATA3_dTAGV1_NoE2_vs_control_NoE2", 
+         cat = cat, 
+         col.lines = c(rep("grey60",19),colorRampPalette(c("blue","lightblue"))(19)), 
+         line.type = c(rep(2, 19), rep(1,19)), 
+         cex = 0.5)
+```
+
+## choose a cut-off based on the CDF plot 
+
 ```{r, engine='R', eval=F, echo=TRUE}
 #Let's choose a cutoff of 0.85
 #quantiles = quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
 #write.table(quantiles[16][[1]], file = "cutoff.txt", col.names = F, row.names = F, quote = F)
 ```
 
-
-# FRiP for GATA
 
 
 
