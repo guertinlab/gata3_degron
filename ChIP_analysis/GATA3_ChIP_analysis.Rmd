@@ -35,7 +35,7 @@ the alternative of trying to salvage poorly controlled experiments.
 MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER deprived) are treated under 3 conditions: 1) CC: null+null; 2) CE: null+ E2; 3) dE: dTAG+E2. \
 Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.
 
-# ChIP-seq analysis
+# ChIP-seq processing
 ## check fastq file quality
 
 unzip GATA3_ChIP.zip
@@ -343,7 +343,7 @@ chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1
 
 ```
 
-# Combining replicates for the genome browser
+# Combining replicates for Genome Browser
 
 Usually we combine replicates into a single track for visualization
 and we compare the tracks between conditions. It is important that we
@@ -428,7 +428,7 @@ do
 done
 ```
 
-trackhub link for data merged with reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
+trackhub link for data merged by reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 
 trackhub link for non-merged data: http://guertinlab.cam.uchc.edu/GATA3_nonmerge_hub/hub.txt \
 
@@ -539,46 +539,6 @@ De novo motif analysis uses tools like `MEME`, `TOMTOM`, `MAST` and `FIMO` to an
 
 ## quality check
 In this analysis, we will first convert the coordinate bed file to a sequence fasta file, then we perform de novo motif analysis with `meme`. But first, we want to do a quick quality check by manually looking at the top hit to ensure that it is a GATA motif variant for GATA peaks, and ER motif variant for ER peaks. \
-## GATA peaks
-```{r engine='bash', eval=F, echo=TRUE}
-module load deeptools/3.5.0
-module load meme/5.4.1
-module load bedtools
-genome=/home/FCAM/ssun/Genome/hg38.fa
-sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
-
-#GATA_ChIP_summit_100window.bed
-#ER_ChIP_summit_100window.bed    
-name=GATA_ChIP
-
-# Just did the top 2000 GATA peaks to make it faster
-sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 > ${name}_top2000_summit_100window.bed
-name=${name}_top2000
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-# MEME
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
-```
-
-```{r engine='bash', eval=F, echo=TRUE}
-name=GATA_ChIP
-
-# did the top 10000 GATA peaks and search for top 5 motif
-sort -nrk5,5 ${name}_summit_100window.bed | head -n 10000 > ${name}_top10000_summit_100window.bed
-name=${name}_top10000
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-# MEME
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
-```
-
-
-By searching the top 10,000 most significant GATA peaks, we find the top 2 motif match to the GATA motif. \
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA motif"}
-library(knitr)
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo2.png") 
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_rc1.png") 
-```
-
-
 ## ER peaks:
 
 Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` and after removing redundant peaks we only get 127 peaks. So we will `meme` de novo motif analysis search on the entire set.
@@ -600,7 +560,7 @@ library(knitr)
 knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
 ```
 
-# FRiP for ER
+### FRiP for ER
 
 FRiP (Fraction of Reads in Peaks), is another quality measurement for ChIP-seq experiment. It is the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
 However, for calculating FRiP score for ER, we cannot use peaks we generated from MACS3 since we only have 127 peaks. We will do the following instead: \
@@ -662,14 +622,56 @@ paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_ER_FRiP.txt
 rm rowname.txt
 ```
 
+## GATA peaks
+```{r engine='bash', eval=F, echo=TRUE}
+module load deeptools/3.5.0
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
+#GATA_ChIP_summit_100window.bed
+#ER_ChIP_summit_100window.bed    
+name=GATA_ChIP
+
+# Just did the top 2000 GATA peaks to make it faster
+sort -nrk5,5 ${name}_summit_100window.bed | head -n 2000 > ${name}_top2000_summit_100window.bed
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+name=GATA_ChIP
+
+# did the top 10000 GATA peaks and search for top 5 motif
+sort -nrk5,5 ${name}_summit_100window.bed | head -n 10000 > ${name}_top10000_summit_100window.bed
+name=${name}_top10000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal GATA motif is GATAA, so minw can be set to 5
+```
+
+
+By searching the top 10,000 most significant GATA peaks, we find the top 2 motif match to the GATA motif. \
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA motif"}
+library(knitr)
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo2.png") 
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_rc1.png") 
+```
+
+
+
+
+<!--
 # FIMO for GATA peaks
 
 For GATA peak set we generated from MACS3, there are ~65904 peaks. These peaks might not all be useful for our study, so we want to discard most of them. One way is to do a FIMO analysis. FIMO measures the occurrence of a given motif in the given sequences, or whole genome. We want to keep peaks that has the GATA motif variants in them and discard peaks that only contains background motif occurrence. \
 
 ## de novo motif identification
 
-In the previous de novo motif analysis part, we have identified top 2 motif are GATA3 varients. I will pull the two motif metrics out, and save each as its own file
+In the previous de novo motif analysis part, we have identified top 2 motif are GATA3 variants. I will pull the two motif metrics out, and save each as its own file
 
 ```{r, engine='R', eval=F, echo=TRUE}
 # cd to/where/you/save/meme/output
@@ -698,12 +700,12 @@ genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
 # search whole genome for motif1 occurrence 
-fimo --max-strand --max-stored-scores 10,000,000 --oc GATA_functional_motif_functional.fimo_output NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt $genome # used default threshold 1e-4 and set 10M maximum number of motif occurrences to output all of the matches.
+fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional.fimo_output NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt $genome # used default threshold 1e-4 and set 10M maximum number of motif occurrences to output all of the matches.
 
 tail -n +2 GATA_functional_motif_functional.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round1.bed # skip 1st line; grab columns of "sequence_name(chr), start, stop, score, p-value, strand" from fimo.tsv, sort by coordinates and save as output file
 
 # search whole genome for motif 2 occurrence
-fimo --max-strand --max-stored-scores 10,000,000 --oc GATA_functional_motif_functional_second.fimo_output WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt $genome
+fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional_second.fimo_output WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt $genome
 
 
 tail -n +2 GATA_functional_motif_functional_second.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round2.bed
@@ -730,22 +732,15 @@ intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_r
 # 488 peaks has both motif1 and motif2
 ```
 
-Identify peaks without GATA3 motif variants (use `-v` in `intersectBed`)
+Identify peaks without GATA3 motif variants 1 and 2 (use `-v` in `intersectBed`)
 ```{r, engine='R', eval=F, echo=TRUE}
 intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
 ```
 
-Identify CTCF peaks with GATA3 motif variants (control) 
-
-```{r, engine='R', eval=F, echo=TRUE}
-# intersect with CTCF peaks as a control
-intersectBed -wa -a ../../../CTCF_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >CTCF_ChIP_summit_100window_func_motif1_motif2.bed
-#wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed
-#1089 
-```
-
 ## MEME on peaks without GATA3 motif variants
-We will also run a MEME de novo motif search to the peak set that we did not find matches with GATA motif varient 1 or 2, to ensure that we are not missing any peaks that has GATA3 motifs.  
+
+(MEME-classic) \
+We will also run a MEME de novo motif search to the peak set that we did not find matches with GATA motif variant 1 or 2, to ensure that we are not missing any peaks that has GATA3 motifs.  
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
 module load bedtools
@@ -759,52 +754,1287 @@ fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1_motif2.b
 meme -p 32 -oc noGATAmotif.meme_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_ChIP_summit_100window_no_func_motif1_motif2.fasta # normal GATA motif is GATAA, so minw can be set to 5
 ```
 
-## BAR graph of motif occurence for all GATA3 peaks
-
-parse peaks (all peaks) into different quantile file and visualize motif occurrence within each quantile.      
+select the top 2000 peaks (ranked by intensity)
 ```{r, engine='R', eval=F, echo=TRUE}
-module load R/4.1.2 
-R 
-peak.intensities = read.table('../GATA_ChIP_summit_100window.bed', header =FALSE) 
-chr = peak.intensities$V1
-start = peak.intensities$V2
-end = peak.intensities$V3
-quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))
+#GATA_ChIP_summit_100window_no_func_motif1_motif2.bed
+name=GATA_ChIP
 
-#parse peaks into different quantile file       
+# the top 2000 GATA peaks 
+sort -nrk5,5 ${name}_summit_100window_no_func_motif1_motif2.bed | head -n 2000 > ${name}_top2000_summit_100window_no_func_motif1_motif2.bed
+
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window_no_func_motif1_motif2.bed -fo ${name}_summit_100window_no_func_motif1_motif2.fasta
+
+# MEME-classic
+meme -p 16 -oc noGATAmotif_top2000.memeClassic_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window_no_func_motif1_motif2.fasta 
+```
+
+By searching the top2000 peaks without GATA3 motif variant1 and 2, we found a new motif variant match to GATA3 motif family.
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA3 motif"}
+library(knitr)
+knitr::include_graphics("./noGATAmotif_top2000.memeClassic_output/logo.png") 
+```
+
+
+
+## identify peaks with the third GATA3 motif variants
+
+isolate new motif metrics match to GATA3
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+
+mkdir individual_memes_noGATAmotiftop2000
+cd individual_memes_noGATAmotiftop2000
+#wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 ../MEME_individual_from_db.py -i ../noGATAmotif_top2000.memeClassic_output/meme.txt
+#YYTTATCTB_meme.txt_meme.txt  --motif3
+```
+
+fimo
+
+```{r, engine='R', eval=F, echo=TRUE}
+# fimo
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+# cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/5_motif_analysis/GATA/top10000/individual_memes
+# search whole genome for motif3 occurrence 
+fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional_third.fimo_output individual_memes_noGATAmotiftop2000/YYTTATCTB_meme.txt_meme.txt $genome # used default threshold 1e-4 and set 10M maximum number of motif occurrences to output all of the matches.
+
+tail -n +2 GATA_functional_motif_functional_third.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round3.bed # skip 1st line; grab columns of "sequence_name(chr), start, stop, score, p-value, strand" from fimo.tsv, sort by coordinates and save as output file
+
+
+# intersect
+intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed fimo_GATA3_functional_round3.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1_motif2_motif3.bed
+
+#wc -l GATA_ChIP_summit_100window_func_motif1_motif2_motif3.bed
+#24142
+# after including the third GATA3 moitif variants we got ~36.6% peaks with GATA3 putative binding sites
+
+```
+
+another round of motif checking for the remaining peaks (without GATA3 fimo_motif 1,2,3)
+```{r, engine='R', eval=F, echo=TRUE}
+# save peaks without GATA3 motif variants 1, 2 and 3
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2_motif3.bed | sort -k1,1 -k2,2n | uniq > GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3.bed #41753
+
+#GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3.bed
+name=GATA_ChIP
+
+# the top 2000 GATA peaks 
+sort -nrk5,5 ${name}_summit_100window_no_func_motif1_motif2_motif3.bed | head -n 2000 > ${name}_top2000_summit_100window_no_func_motif1_motif2_motif3.bed
+
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window_no_func_motif1_motif2_motif3.bed -fo ${name}_summit_100window_no_func_motif1_motif2_motif3.fasta
+
+# MEME-classic
+meme -p 16 -oc noGATAmotif_top2000.memeClassic_output2 -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window_no_func_motif1_motif2_motif3.fasta 
+```
+
+The output from this last round of meme de novo motif search returns three motifs, and the last motif match to GATA3. \
+We will repeat the previous steps: isolate GATA3 motif variants meme metrics; FIMO to find peak with or without the new variants; run MEME-classic to verify the remaining peaks (see if there are no GATA3 motif output); ... \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# isolate the forth MEME motif metrics (that match to GATA3)
+module load meme/5.4.1
+module load bedtools
+
+mkdir individual_memes_noGATAmotiftop2000_2
+cd individual_memes_noGATAmotiftop2000_2
+python2.7 ../MEME_individual_from_db.py -i ../noGATAmotif_top2000.memeClassic_output2/meme.txt #ATCTBYHMATCT_meme.txt_meme.txt --motif4
+
+# fimo
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional_forth.fimo_output individual_memes_noGATAmotiftop2000_2/ATCTBYHMATCT_meme.txt_meme.txt $genome 
+
+tail -n +2 GATA_functional_motif_functional_forth.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round4.bed 
+
+
+# intersect
+intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed fimo_GATA3_functional_round3.bed fimo_GATA3_functional_round4.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4.bed
+
+#wc -l GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4.bed
+#28136
+
+
+# meme on peaks without GATA3 motif1,2,3,4
+
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4.bed | sort -k1,1 -k2,2n | uniq > GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3_motif4.bed #37758
+
+name=GATA_ChIP
+
+# the top 2000 GATA peaks 
+sort -nrk5,5 ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4.bed | head -n 2000 > ${name}_top2000_summit_100window_no_func_motif1_motif2_motif3_motif4.bed
+
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4.bed -fo ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4.fasta
+
+# MEME-classic
+meme -p 16 -oc noGATAmotif_top2000.memeClassic_output3 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4.fasta
+```
+
+round5 \
+```{r, engine='R', eval=F, echo=TRUE}
+# isolate the forth MEME motif metrics (that match to GATA3)
+module load meme/5.4.1
+module load bedtools
+
+mkdir individual_memes_noGATAmotiftop2000_3
+cd individual_memes_noGATAmotiftop2000_3
+python2.7 ../MEME_individual_from_db.py -i ../noGATAmotif_top2000.memeClassic_output3/meme.txt #WGATBNHDNWGATAA_meme.txt_meme.txt --motif5
+
+# fimo
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional_fifth.fimo_output individual_memes_noGATAmotiftop2000_3/WGATBNHDNWGATAA_meme.txt_meme.txt $genome 
+
+tail -n +2 GATA_functional_motif_functional_fifth.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round5.bed 
+
+
+# intersect
+intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed fimo_GATA3_functional_round3.bed fimo_GATA3_functional_round4.bed fimo_GATA3_functional_round5.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4_motif5.bed
+
+#wc -l GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4_motif5.bed
+#31420
+
+
+# meme on peaks without GATA3 motif1,2,3,4,5
+
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1_motif2_motif3_motif4_motif5.bed | sort -k1,1 -k2,2n | uniq > GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.bed #34473
+
+name=GATA_ChIP
+
+# the top 2000 GATA peaks 
+sort -nrk5,5 ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.bed | head -n 2000 > ${name}_top2000_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.bed
+
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.bed -fo ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.fasta
+
+# MEME-classic
+meme -p 16 -oc noGATAmotif_top2000.memeClassic_output4 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.fasta
+```
+Note: when doing FIMO search for motif occurrence across genome, the program default searching threshold is: 1e-4. In other words, it will only report motif occurrences with a p-value less than 1e-4. \
+
+This time, the five top motifs found by searching the remaining peaks (without GATA motif variants 1,2,3,4,5) are not matching to GATA3. I will do another check using MEME-Chip to the remaining peaks. \
+Meme-chip compared to classic meme are more sensitive in finding short and centered motif \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.bed -fo GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.fasta
+
+# MEME-chip for all (peaks without GATA variant 12345)
+meme-chip -oc noGATAmotif_nofunall.memeChip_output_2 -minw 4 -maxw 15 -dna GATA_ChIP_summit_100window_no_func_motif1_motif2_motif3_motif4_motif5.fasta
+```
+
+The meme-chip has identified several single site DBDs for GATA3. \
+round 6 \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+
+# isolate individual stream.txt
+mkdir individual_stream_noGATAmotif12345
+cd individual_stream_noGATAmotif12345
+
+python2.7 ../MEME_individual_from_db.py -i ../noGATAmotif_nofunall.memeChip_output_2/streme_out/streme.txt 
+cd ..
+mkdir individual_streme_GATA
+cp individual_stream_noGATAmotif12345/STREME-3_streme.txt_meme.txt individual_streme_GATA/
+...
+#STREME-3_streme.txt_meme.txt
+#STREME-5_streme.txt_meme.txt
+#STREME-12_streme.txt_meme.txt
+#STREME-18_streme.txt_meme.txt
+#STREME-28_streme.txt_meme.txt
+#STREME-31_streme.txt_meme.txt
+#STREME-54_streme.txt_meme.txt
+
+
+# fimo
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+no=6
+
+for i in individual_streme_GATA/*.txt
+do
+  fimo --max-strand --max-stored-scores 10000000 --oc GATA_functional_motif_functional_${no}.fimo_output $i $genome 
+  tail -n +2 GATA_functional_motif_functional_${no}.fimo_output/fimo.tsv | awk '{OFS="\t";} {print $2,$3,$4,$6,$7,$5}' | grep -v Individual| grep -v format | grep -v "max-stored-scores" | sort -k1,1 -k2,2n | tail -n +2 > fimo_GATA3_functional_round${no}.bed 
+  no=$(bc <<< "scale=0 ; $no +1 ")
+done
+
+
+# intersect
+intersectBed -wa -a ../GATA_ChIP_summit_100window.bed -b *round*.bed | sort -k1,1 -k2,2n | uniq >GATA_ChIP_summit_100window_func_motif1to12.bed
+
+#wc -l GATA_ChIP_summit_100window_func_motif1to12.bed
+#37790
+
+
+# meme on peaks without GATA3 motif1 to 12
+intersectBed -wa -v -a ../GATA_ChIP_summit_100window.bed -b GATA_ChIP_summit_100window_func_motif1to12.bed | sort -k1,1 -k2,2n | uniq > GATA_ChIP_summit_100window_no_func_motif1to12.bed #28097
+
+
+
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+name=GATA_ChIP
+# the top 2000 GATA peaks 
+sort -nrk5,5 ${name}_summit_100window_no_func_motif1to12.bed | head -n 2000 > ${name}_top2000_summit_100window_no_func_motif1to12.bed
+
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window_no_func_motif1to12.bed -fo ${name}_summit_100window_no_func_motif1to12.fasta
+
+# MEME-classic
+meme -p 16 -oc noGATAmotif_top2000.memeClassic_output5 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window_no_func_motif1to12.fasta
+
+
+fastaFromBed -fi $genome -bed GATA_ChIP_summit_100window_no_func_motif1to12.bed -fo GATA_ChIP_summit_100window_no_func_motif1to12.fasta
+
+# MEME-chip for all (peaks without GATA variant 1to12)
+meme-chip -oc noGATAmotif_nofunall.memeChip_output_3 -minw 4 -maxw 15 -dna GATA_ChIP_summit_100window_no_func_motif1to12.fasta
+```
+
+
+
+
+-->
+
+# Finding motif - Exhaustive MEME
+In the previous steps when running MEME-classic, we employ `-markov_order 3` in the command, which generate the markov model from input file. Taking into consideration that our GATA binding motifs are short (can be 4mer GATA or 3mer GAT), we might want to generate the markov model from genome to avoid a lot of 3mers 4 mers being canceled out as background. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+module load R/4.1.2
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt
+```
+
+## MEME -MAST for GATA3
+
+MEME -classic use the markov model from genome: 
+```{r, engine='R', eval=F, echo=TRUE}
+name=GATA_ChIP
+# sort out the top 5000 GATA peaks and search for top 1 motif
+sort -nrk5,5 ../../${name}_summit_100window.bed | head -n 5000 > ${name}_top5000_summit_100window.bed
+name=${name}_top5000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
+
+name=GATA_ChIP
+# sort out the top 10000 GATA peaks and search for top 1 motif
+sort -nrk5,5 ../../${name}_summit_100window.bed | head -n 10000 > ${name}_top10000_summit_100window.bed
+name=${name}_top10000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
+```
+
+Given a motif position weight matrix, one can search other for sequences for the occurance of that motif. Usage: http://meme-suite.org/tools/mast \
+
+MAST \
+
+```{r, engine='R', eval=F, echo=TRUE}
+############################### motif1
+```
+
+<!-- 
+# MAST for GATA peaks
+
+```{r, engine='R', eval=F, echo=TRUE}
+#NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt  --motif1
+#WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt  --motif2
+module load meme/5.4.1
+module load bedtools
+module load R/4.1.2
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+############################### motif1
+#slopBed -b 50 -i /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/2_PeakCall/GATA_ChIP_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_ChIP_summit_100window.bed
+fastaFromBed -fi $genome -bed ../../GATA_ChIP_summit_100window.bed -fo GATA_ChIP_summit_100window.fasta
+mast -hit_list -best individual_motif_GATA/NWGATBTTATCWN_GATA_ChIP_top10000_motif_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round1.bed #8764
+
+############################### motif2
+mast -hit_list -best individual_motif_GATA/WGATAANVATCW_GATA_ChIP_top10000_motif_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round2.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round2.txt
+wc -l mast_GATA3_PSWM_in_peaks_round2.bed #7322
+
+############################### motif3
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed > without_motifs_12.bed #50186
+fastaFromBed -fi $genome -bed without_motifs_12.bed -fo without_motifs_12.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_12.bed | head -n 5000 > without_motifs_12_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_12_top5000.bed -fo without_motifs_12_top5000.fasta
+
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif12_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_12_top5000.fasta #first two motifs match to GATA3
+
+wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif12_top5000_output/meme.txt
+#cp HTTATCTNTHMATCT_meme.txt_meme.txt individual_motif_GATA/ --motif3
+#cp BTTATCWGATB_meme.txt_meme.txt individual_motif_GATA/ --motif4
+mast -hit_list -best individual_motif_GATA/HTTATCTNTHMATCT_meme.txt_meme.txt without_motifs_12.fasta > mast_GATA3_PSWM_in_peaks_round3.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round3.txt
+wc -l mast_GATA3_PSWM_in_peaks_round3.bed # 5039
+
+############################### motif4
+mast -hit_list -best individual_motif_GATA/BTTATCWGATB_meme.txt_meme.txt without_motifs_12.fasta > mast_GATA3_PSWM_in_peaks_round4.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round4.txt
+wc -l mast_GATA3_PSWM_in_peaks_round4.bed #3522
+
+############################### motif5
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed mast_GATA3_PSWM_in_peaks_round3.bed mast_GATA3_PSWM_in_peaks_round4.bed > without_motifs_1234.bed #42043
+fastaFromBed -fi $genome -bed without_motifs_1234.bed -fo without_motifs_1234.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_1234.bed | head -n 5000 > without_motifs_1234_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234_top5000.bed -fo without_motifs_1234_top5000.fasta
+
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif1234_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_1234_top5000.fasta 
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif1234_top5000_output/meme.txt
+# cp CTTATCTB_meme.txt_meme.txt individual_motif_GATA/  --motif5
+
+mast -hit_list -best individual_motif_GATA/CTTATCTB_meme.txt_meme.txt without_motifs_1234.fasta > mast_GATA3_PSWM_in_peaks_round5.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5.txt
+wc -l mast_GATA3_PSWM_in_peaks_round5.bed #3595
+
+################################ motif6
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed mast_GATA3_PSWM_in_peaks_round3.bed mast_GATA3_PSWM_in_peaks_round4.bed mast_GATA3_PSWM_in_peaks_round5.bed > without_motifs_12345.bed #38448
+fastaFromBed -fi $genome -bed without_motifs_12345.bed -fo without_motifs_12345.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_12345.bed | head -n 5000 > without_motifs_12345_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_12345_top5000.bed -fo without_motifs_12345_top5000.fasta
+
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif12345_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_12345_top5000.fasta 
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif12345_top5000_output/meme.txt
+#cp AGATKDWRVWGATAA_meme.txt_meme.txt individual_motif_GATA/  --motif6
+
+mast -hit_list -best individual_motif_GATA/AGATKDWRVWGATAA_meme.txt_meme.txt without_motifs_12345.fasta > mast_GATA3_PSWM_in_peaks_round6.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round6.txt
+wc -l mast_GATA3_PSWM_in_peaks_round6.bed #3235
+
+################################ motif?
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed mast_GATA3_PSWM_in_peaks_round3.bed mast_GATA3_PSWM_in_peaks_round4.bed mast_GATA3_PSWM_in_peaks_round5.bed mast_GATA3_PSWM_in_peaks_round6.bed > without_motifs_123456.bed #35211
+fastaFromBed -fi $genome -bed without_motifs_123456.bed -fo without_motifs_123456.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_123456.bed | head -n 5000 > without_motifs_123456_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_top5000.bed -fo without_motifs_123456_top5000.fasta
+
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif123456_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_123456_top5000.fasta 
+
+
+################################ at this point, no GATA motif are found (top5000, three top motif don't match to GATA3)
+################################ #increase the width to 200window
+
+slopBed -i without_motifs_123456.bed -g $sizes -b 50 > without_motifs_123456_summit_200window.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_summit_200window.bed -fo without_motifs_123456_summit_200window.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_123456_summit_200window.bed | head -n 5000 > without_motifs_123456_summit_200window_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_summit_200window_top5000.bed -fo without_motifs_123456_summit_200window_top5000.fasta
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif123456_200window_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_123456_summit_200window_top5000.fasta
+
+############################### #increase the width to 300window
+slopBed -i without_motifs_123456.bed -g $sizes -b 100 > without_motifs_123456_summit_300window.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_summit_300window.bed -fo without_motifs_123456_summit_300window.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_123456_summit_300window.bed | head -n 5000 > without_motifs_123456_summit_300window_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_summit_300window_top5000.bed -fo without_motifs_123456_summit_300window_top5000.fasta
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif123456_300window_top5000_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_123456_summit_300window_top5000.fasta
+
+```
+
+MEME de novo motif analysis + MAST identified 6 different GATA3 motif variants: \
+```{r, engine='R', eval=F, echo=TRUE}
+cd individual_motif_GATA/
+for i in *meme.txt
+do
+  name=$(echo $i | awk -F"_meme.txt" '{print $1}')
+  ceqlogo -i $i -m $name -o ${name}.eps
+done
+```
+
+### markov model for MEME
+In the previous steps when running MEME-classic, we employ `-markov_order 3` in the command, which generate the markov model from input file. Taking into consideration that our GATA binding motifs are short (can be 4mer GATA or 3mer GAT), we might want to generate the markov model from genome to avoid a lot of 3mers 4 mers being canceled out as background. \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+module load R/4.1.2
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt
+
+################################### motif7
+meme -p 16 -oc new_MK_GATA3_without_motif123456_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_top5000.fasta 
+
+python2.7 MEME_individual_from_db.py -i new_MK_GATA3_without_motif123456_top5000_output/meme.txt
+#cp BKTTATCT_meme.txt_meme.txt individual_motif_GATA/  --motif7
+
+mast -hit_list -best individual_motif_GATA/BKTTATCT_meme.txt_meme.txt without_motifs_123456.fasta > mast_GATA3_PSWM_in_peaks_round7.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round7.txt
+wc -l mast_GATA3_PSWM_in_peaks_round7.bed #988
+# mast -hit_list -best individual_motif_GATA/BKTTATCT_meme.txt_meme.txt GATA_ChIP_summit_100window.fasta | wc -l #3006-3
+
+
+################################### motif?
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed mast_GATA3_PSWM_in_peaks_round3.bed mast_GATA3_PSWM_in_peaks_round4.bed mast_GATA3_PSWM_in_peaks_round5.bed mast_GATA3_PSWM_in_peaks_round6.bed mast_GATA3_PSWM_in_peaks_round7.bed > without_motifs_1234567.bed 
+fastaFromBed -fi $genome -bed without_motifs_1234567.bed -fo without_motifs_1234567.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_1234567.bed | head -n 5000 > without_motifs_1234567_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234567_top5000.bed -fo without_motifs_1234567_top5000.fasta
+
+# MEME-classic with new markov model
+meme -p 16 -oc new_MK_GATA3_without_motif1234567_top5000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234567_top5000.fasta 
+
+
+################################ at this point, no GATA motif are found (top5000, three top motif don't match to GATA3)
+################################ #increase the width to 200window
+
+slopBed -i without_motifs_1234567.bed -g $sizes -b 50 > without_motifs_1234567_summit_200window.bed
+fastaFromBed -fi $genome -bed without_motifs_1234567_summit_200window.bed -fo without_motifs_1234567_summit_200window.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_1234567_summit_200window.bed | head -n 5000 > without_motifs_1234567_summit_200window_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234567_summit_200window_top5000.bed -fo without_motifs_1234567_summit_200window_top5000.fasta
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif1234567_200window_top5000_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 15 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234567_summit_200window_top5000.fasta
+
+############################### #increase the width to 300window
+slopBed -i without_motifs_1234567.bed -g $sizes -b 100 > without_motifs_1234567_summit_300window.bed
+fastaFromBed -fi $genome -bed without_motifs_1234567_summit_300window.bed -fo without_motifs_1234567_summit_300window.fasta
+# select top 5000
+sort -nrk5,5 without_motifs_1234567_summit_300window.bed | head -n 5000 > without_motifs_1234567_summit_300window_top5000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234567_summit_300window_top5000.bed -fo without_motifs_1234567_summit_300window_top5000.fasta
+
+# MEME-classic
+meme -p 16 -oc GATA3_without_motif1234567_300window_top5000_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234567_summit_300window_top5000.fasta
+
+################################### MEME-Chip
+```
+
+This time, the five top motifs found by searching the remaining peaks (without GATA motif variants 1,2,3,4,5) are not matching to GATA3. I will do another check using MEME-Chip to the remaining peaks. \
+Meme-chip compared to classic meme are more sensitive in finding short and centered motif \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# confirm that without_motifs_1234567.fasta did not have any of the 7 motifs
+for i in individual_motif_GATA/*meme.txt
+do
+  mast -hit_list -best $i without_motifs_1234567.fasta | wc -l
+done
+
+#3
+```
+
+
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+# MEME-chip for all (peaks without GATA variant 1234567)
+meme-chip -oc noGATAmotif_nofunall.memeChip_output -minw 4 -maxw 15 -dna -bfile hg38_bkgrnd.txt without_motifs_1234567.fasta
+
+```
+
+coherence check\
+mast 6 motifs each to the entire peak set
+
+```{r, engine='R', eval=F, echo=TRUE}
+# peaks with motif1
+# peaks with motif2
+# peaks with motif3
+mast -hit_list -best individual_motif_GATA/HTTATCTNTHMATCT_meme.txt_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round3_1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round3_1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round3_1.bed # 3:5039 #3-1: 6095
+# peaks with motif4
+mast -hit_list -best individual_motif_GATA/BTTATCWGATB_meme.txt_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round4_1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round4_1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round4_1.bed # 4:3522 #4-1: 4620
+# peaks with motif5
+mast -hit_list -best individual_motif_GATA/CTTATCTB_meme.txt_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round5_1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5_1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round5_1.bed #3595 #5-1: 6573
+# peaks with motif6
+mast -hit_list -best individual_motif_GATA/AGATKDWRVWGATAA_meme.txt_meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round6_1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round6_1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round6_1.bed #3235  #6-1: 5877
+
+
+################# There are peak with multiple motifs
+```
+
+
+
+# BAR graph of motif occurence for all GATA3 peaks
+
+### Counting reads in peaks use mapBed
+We will first use the `mapBed` subcommand from `bedtools` to count the BED file from the seqOutBias output in the 400 base window peak summits file. \
+
+the `mapBed` map overlapping features in a B file onto features in an A file and apply statistics to the features.\
+By default, map computes the sum of the 5th column (the score field for BED format) for all intervals in B that overlap each interval in A.\
+`-null` The value to print if no overlaps are found for an A interval. \
+refer to: https://bedtools.readthedocs.io/en/latest/content/tools/map.html \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#mkdir GATA_mapbed
+#cd GATA_mapbed
+module load bedtools
+
+sort -k1,1 -k2,2n ../GATA_ChIP_summit_400window.bed > GATA_ChIP_summit_400window_sorted.bed
+summitWin=GATA_ChIP_summit_400window_sorted.bed
+for i in ../../6_FRiP/not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    #mapBed -null '0' -a $summitWin -b ${nm}_sorted.bed > GATA_ChIP_summit_counts.bed
+    mapBed -null '0' -a $summitWin -b ${nm}_sorted.bed > ${nm}_summit_counts.bed
+done
+#MCF7_dTAGGATA522_GATA_CC_rep1.hg38_summit_counts.bed
+#MCF7_dTAGGATA522_GATA_CC_rep2.hg38_summit_counts.bed
+#MCF7_dTAGGATA522_GATA_CC_rep3.hg38_summit_counts.bed
+```
+R and parse quantile
+```{r, engine='R', eval=F, echo=TRUE}
+module load R/4.1.2
+R
+#libraries
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(bigWig)
+
+peak.intensities1 = read.table('MCF7_dTAGGATA522_GATA_CC_rep1.hg38_summit_counts.bed', header =FALSE)
+peak.intensities2 = read.table('MCF7_dTAGGATA522_GATA_CC_rep2.hg38_summit_counts.bed', header =FALSE)
+peak.intensities3 = read.table('MCF7_dTAGGATA522_GATA_CC_rep3.hg38_summit_counts.bed', header =FALSE)
+
+peak.intensities=cbind(peak.intensities1, peak.intensities2, peak.intensities3)[,c(1:6,12,18)]
+peak.intensities$mean = rowMeans(peak.intensities[,6:8])
+
+#peak.intensities = read.table('GATA_ChIP_summit_counts.bed', header =FALSE)
+
+quantile(peak.intensities$mean, probs = seq(.05, 1.00, by = .05))
+ #5%        10%        15%        20%        25%        30%        35% 
+#  17.66667   21.00000   23.33333   25.33333   27.33333   29.66667   31.66667 
+#       40%        45%        50%        55%        60%        65%        70% 
+#  34.33333   37.33333   40.66667   44.66667   50.00000   56.66667   65.00000 
+#       75%        80%        85%        90%        95%       100% 
+#  76.33333   92.66667  116.33333  153.66667  233.00000 8498.66667 
+
+
+chr = peak.intensities$V1
+start = as.numeric(peak.intensities$V2)+200
+end = as.numeric(peak.intensities$V3)-200
+mean =peak.intensities$mean
+peak.intensities.final=data.frame(chr, start, end, mean)
+
 j =0 
 q=seq(.05, 1.00, by = .05)
 count=0
-for (i in quantile(peak.intensities$V5, probs = seq(.05, 1.00, by = .05))){
-  count = count +1
-  write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities[peak.intensities$V5 > j & peak.intensities$V5 <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
-  j = i
+for (i in quantile(peak.intensities.final$mean, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+write.table(file = paste0('quantile', as.character(q[count]), '.bed'), peak.intensities.final[peak.intensities.final$mean > j & peak.intensities.final$mean <= i,], sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+j = i
+}
+save.image('230827_GATA3_ChIP_mapbed.Rdata')
+```
+
+### Counting reads in peaks use DeSeq2
+```{r, engine='R', eval=F, echo=TRUE}
+# cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/3_Sizefactor
+
+#calculate the size factors of each library
+module load samtools/1.12
+for i in GATA
+do
+  echo $i
+  > ${i}_header.txt
+  > ${i}_reads.txt
+  for j in MCF7_dTAGGATA522*_${i}_*.bam
+  do
+    echo $j
+    name=$(echo $j | awk -F".sorted.bam" '{print $1}')
+    echo $name | paste ${i}_header.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_header.txt
+    reads=`samtools view -c -f 0x3 $j`
+    echo $reads | paste ${i}_reads.txt - > ${i}_tmp.txt 
+    mv ${i}_tmp.txt ${i}_reads.txt
+  done  
+  cat ${i}_header.txt ${i}_reads.txt > ${i}_tmp.txt
+  mv ${i}_tmp.txt ${i}_reads.txt
+  rm ${i}_header.txt
+done 
+```
+R; load packages
+```{r, engine='R', eval=F, echo=TRUE}
+mkdir GATA_deseq
+cd GATA_deseq
+module load R/4.1.2 # this version of `R` on Xanadu has many of our libraries pre-installed. 
+
+R 
+
+#libraries
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(bigWig)
+
+#functions on github
+source('https://raw.githubusercontent.com/mjg54/znf143_pro_seq_analysis/master/docs/ZNF143_functions.R')
+
+#new functions
+get.counts.interval <- function(df, path.to.bigWig, file.prefix = 'H') {
+    vec.names = c()
+    inten.df=data.frame(matrix(ncol = 0, nrow = nrow(df)))
+    
+    for (mod.bigWig in Sys.glob(file.path(path.to.bigWig, paste(file.prefix, "*.bigWig", sep ='')))) {
+        factor.name = strsplit(strsplit(mod.bigWig, "/")[[1]][length(strsplit(mod.bigWig, "/")[[1]])], '.bigWig')[[1]][1]
+        print(factor.name)
+        vec.names = c(vec.names, factor.name)
+        loaded.bw = load.bigWig(mod.bigWig)
+        print(mod.bigWig)
+        mod.inten = bed.region.bpQuery.bigWig(loaded.bw, df, abs.value = TRUE)
+        inten.df = cbind(inten.df, mod.inten)
+    }
+    colnames(inten.df) = vec.names
+    r.names = paste(df[,1], ':', df[,2], '-', df[,3], sep='')
+    row.names(inten.df) = r.names
+    return(inten.df)
+}
+
+ma.plot.lattice <- function(ma.df, filename = 'file.name', 
+         title.main = "Differential ChIP-seq Accessibility", ymin = -4,
+         ymax=4,
+         col = c("grey90",  "grey60", "#ce228e" , "#2290cf"))
+  {
+  pdf(paste("MA_plot_", filename, ".pdf", sep=''), 
+      useDingbats = FALSE, width=3.83, height=3.83);
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$response,
+               col= col, ylim=c(ymin,ymax),
+                main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylab=expression("log"[2]~"ChIP-seq change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+  }
+
+
+categorize.deseq.df.repressed <- function(df, fdr = 0.1, log2fold = 0.0, treat
+= 'Auxin') {
+
+     df.activated = data.frame(matrix(nrow = 0, ncol = 0))
+     df.repressed = data.frame(matrix(nrow = 0, ncol = 0))
+	 df.unchanged = data.frame(matrix(nrow = 0, ncol = 0))
+     df.dregs = data.frame(matrix(nrow = 0, ncol = 0))
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]) != 0) {
+     	df.activated = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]
+	df.activated$response = paste(treat, 'Activated')
+	}
+
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]) != 0) {
+     	df.repressed = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]
+	df.repressed$response = paste(treat, 'Repressed')
+	}
+    
+    if (nrow(df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]) != 0) {
+	df.unchanged = df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]
+    df.unchanged$response = paste(treat, 'Unchanged')
+	}
+
+    if (nrow(df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]) != 0) {
+	df.dregs = df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]
+	df.dregs$response = paste(treat, 'All Other Genes')
+	}
+	print(head(df.repressed))
+	print(head(df.activated))
+	print(head(df.dregs))
+	print(head(df.unchanged))
+    df.effects.lattice = df.repressed
+    #rbind(df.activated, 
+    #      df.unchanged, 
+    #      df.repressed, 
+    #      df.dregs)
+	print(head(df.effects.lattice))
+    #df.effects.lattice$response = factor(df.effects.lattice$response)
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'Unchanged'))
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'All Other Genes'))
+    return(df.effects.lattice)
+}
+
+categorize.deseq.df.activated <- function(df, fdr = 0.1, log2fold = 0.0, treat
+= 'Auxin') {
+
+     df.activated = data.frame(matrix(nrow = 0, ncol = 0))
+     df.repressed = data.frame(matrix(nrow = 0, ncol = 0))
+	 df.unchanged = data.frame(matrix(nrow = 0, ncol = 0))
+     df.dregs = data.frame(matrix(nrow = 0, ncol = 0))
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]) != 0) {
+     	df.activated = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold,]
+	df.activated$response = paste(treat, 'Activated')
+	}
+
+     if (nrow(df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]) != 0) {
+     	df.repressed = df[df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold,]
+	df.repressed$response = paste(treat, 'Repressed')
+	}
+    
+    if (nrow(df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]) != 0) {
+	df.unchanged = df[df$padj > 0.5 & !is.na(df$padj) & abs(df$log2FoldChange) < 0.25,]
+    df.unchanged$response = paste(treat, 'Unchanged')
+	}
+
+    if (nrow(df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]) != 0) {
+	df.dregs = df[!(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange > log2fold) &
+                  !(df$padj < fdr & !is.na(df$padj) & df$log2FoldChange < -log2fold) &
+                  !(df$padj > 0.5 & !is.na(df$padj) &
+    		  abs(df$log2FoldChange) < 0.25), ]
+	df.dregs$response = paste(treat, 'All Other Genes')
+	}
+	print(head(df.repressed))
+	print(head(df.activated))
+	print(head(df.dregs))
+	print(head(df.unchanged))
+    df.effects.lattice = df.activated
+    #rbind(df.activated, 
+    #      df.unchanged, 
+    #      df.repressed, 
+    #      df.dregs)
+	print(head(df.effects.lattice))
+    #df.effects.lattice$response = factor(df.effects.lattice$response)
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'Unchanged'))
+	#df.effects.lattice$response = relevel(df.effects.lattice$response, ref = paste(treat, 'All Other Genes'))
+    return(df.effects.lattice)
 }
 ```
 
-Draw bar graph to show peaks with or without GATA3 motif variants in different intensity quantile.
+DeSeq count read size and parse into different quantile
+```{r, engine='R', eval=F, echo=TRUE}
+# recall that these summit_XXXwindow.bed has the peak region info.
+a =  read.table('../GATA_ChIP_summit_400window.bed', sep = "\t", header=FALSE)
+
+#normalized signal
+#GATA.signal.df= get.counts.interval(a, "../../3_Sizefactor/normalized_bw","MCF")
+#non-normalized counts
+GATA.counts.df= get.counts.interval(a, "../../3_Sizefactor/non_normalized_bw/non_merge","MCF")
+
+GATA.analysis.regions=GATA.counts.df[,grepl("_GATA_",colnames(GATA.counts.df))] # non-normalized counts
+# identical(rownames(GATA.analysis.regions),rownames(GATA.counts.df))
+# [1] TRUE
+
+sample.conditions = factor(sapply(strsplit(colnames(GATA.analysis.regions), '_rep'), '[', 1))
+deseq.counts.table = DESeqDataSetFromMatrix(countData = GATA.analysis.regions, # DESeqDataSet needs countData to be non-negative integers; non-normalized counts are integer, normalized signals has decimals.
+                colData = as.data.frame(sample.conditions),
+                design = ~ sample.conditions)
+
+
+GATA.SF <- read.table("../../3_Sizefactor/GATA_reads.txt", sep = '\t', header = TRUE)[,-1] # GATA size factors from read depth
+GATA.size.factors = estimateSizeFactorsForMatrix(GATA.SF) # size factor transformed to smaller ratios
+
+sizeFactors(deseq.counts.table) <- GATA.size.factors # assign to each column of the count matrix (deseq.counts.table) the size factor to bring each column to a common scale
+
+dds <- DESeq(deseq.counts.table)
+#resultsNames(dds)
+#[1] "Intercept"                                                             
+#[2] "sample.conditions_MCF7_dTAGGATA522_GATA_CE_vs_MCF7_dTAGGATA522_GATA_CC"
+#[3] "sample.conditions_MCF7_dTAGGATA522_GATA_dE_vs_MCF7_dTAGGATA522_GATA_CC"
+
+#DE.results = results(dds) # use `contrast` to compare any two groups: contrast = c("Condition", "Treatment", "Control")
+#DE.results.dEvsCC= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_dE", "MCF7_dTAGGATA522_GATA_CC"))
+#DE.results.CEvsCC= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_CE", "MCF7_dTAGGATA522_GATA_CC"))
+#DE.results.dEvsCE= results(dds, contrast=c("sample.conditions", "MCF7_dTAGGATA522_GATA_dE", "MCF7_dTAGGATA522_GATA_CE"))
+
+normalized.counts.GATA3 = counts(dds, normalized=TRUE)
+peak.intensities = rowMeans(normalized.counts.GATA3[,1:3]) # we want to get the average read counts for CC groups
+
+names(peak.intensities) = rownames(normalized.counts.GATA3)
+chr = sapply(strsplit(names(peak.intensities), ":"), "[", 1)
+rnge = sapply(strsplit(names(peak.intensities), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 200
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 200
+
+quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))
+#        5%        10%        15%        20%        25%        30%        35% 
+#  19.34323   22.85521   25.41014   27.67490   29.88199   32.20554   34.64710 
+#       40%        45%        50%        55%        60%        65%        70% 
+#  37.41569   40.55411   44.23932   48.78775   54.42239   61.79010   70.94559 
+#       75%        80%        85%        90%        95%       100% 
+#  83.23443  101.02190  126.76258  167.58275  253.95065 9277.42699 
+
+#summit quantile file
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+for (i in quantile(peak.intensities, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+write.table(file = paste0('quantile', as.character(q[count]), '_summits.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start[peak.intensities > j & peak.intensities <= i], end[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+j = i
+}
+
+# making 100 window quantile file
+start1 = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) + 150
+end1 = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) - 150
+
+for (i in quantile(peak.intensities, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+write.table(file = paste0('quantile', as.character(q[count]), '_summits_100window.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start1[peak.intensities > j & peak.intensities <= i], end1[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+j = i
+}
+
+# making 400window quantile file
+start2 = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) 
+end2 = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) 
+
+for (i in quantile(peak.intensities, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+write.table(file = paste0('quantile', as.character(q[count]), '_summits_400window.bed'), data.frame(chr[peak.intensities > j & peak.intensities <= i], start2[peak.intensities > j & peak.intensities <= i], end2[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i]), sep = '\t', quote=FALSE, col.names=FALSE, row.names=FALSE )
+j = i
+}
+save.image('230827_GATA3_ChIP_deseq.Rdata') 
+```
+
+### visualize ChIP dynamic range
+mapbed peak quantile (log10)
+```{r, engine='R', eval=F, echo=TRUE}
+# load("230827_GATA3_ChIP_mapbed.Rdata")
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+df.dr = data.frame(matrix(nrow = 0, ncol = 5))   
+for (i in quantile(peak.intensities.final$mean, probs = seq(.05, 1.00, by =
+.05)))
+{
+count = count +1
+
+temp=peak.intensities.final[peak.intensities.final$mean > j & peak.intensities.final$mean <= i,]
+temp$quantile=paste0('quantile', as.character(q[count]))
+df.dr=rbind(df.dr, temp)
+j = i
+} 
+
+df.dr$log10mean=log10(df.dr$mean)
+
+pdf('ChIP dynamic range (log10 average intensity) bw plot (mapbed).pdf', width=8,height=5)
+print(bwplot(log10mean ~ quantile,#do.out = FALSE, 
+             data = df.dr,
+             ylim=c(0,4),
+             auto.key=list(space="top", columns=2),
+             scales = list(x = list(rot = 45)),
+             pch="|", 
+             col="black", 
+             cex=0.5
+             ))
+dev.off()
+
+# for the quantile1
+#  Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  233.3   271.0   328.7   417.5   446.2  8498.7 
+```
+deseq2 peak quantile
+```{r, engine='R', eval=F, echo=TRUE}
+j =0 
+q=seq(.05, 1.00, by = .05)
+count=0
+df.dr = data.frame(matrix(nrow = 0, ncol = 5))   
+
+for (i in quantile(peak.intensities, probs = seq(.05, 1.00, by =.05)))
+{
+count = count +1
+
+temp=data.frame(chr[peak.intensities > j & peak.intensities <= i], start[peak.intensities > j & peak.intensities <= i], end[peak.intensities > j & peak.intensities <= i], peak.intensities[peak.intensities > j & peak.intensities <= i])
+temp$quantile=paste0('quantile', as.character(q[count]))
+df.dr=rbind(df.dr, temp)
+j = i
+}
+colnames(df.dr)=c("chr","start","end", "intensity", "quantile")
+
+pdf('ChIP dynamic range bw plot (deseq2).pdf', width=8,height=5)
+print(bwplot(intensity ~ quantile,do.out = FALSE, 
+             data = df.dr,
+             ylim=c(0,800),
+             auto.key=list(space="top", columns=2),
+             scales = list(x = list(rot = 45)),
+             pch="|", 
+             col="black", 
+             cex=0.5
+             ))
+dev.off()
+
+# for the quantile1
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  254.0   295.6   358.4   455.0   486.2  9277.4 
+```
+
+### visualize motif occurrence
 ```{r, engine='R', eval=F, echo=TRUE}
 module load bedtools
-for i in *quantile*.bed
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/"
+
+
+# quantile file is 1bp summit file, expanded to 100window
+# flank summit 400window or 100window ? 100window is more reasonable for finding motif
+
+# quantile peaks with individual motif
+for i in ${dir}*quantile*100window.bed
 do
-  intersectBed -wa -a $i -b fimo_GATA3_functional_round1.bed fimo_GATA3_functional_round2.bed | sort -k1,1 -k2,2n | uniq >${i}_func_motif1_motif2.bed
+  nm=$(echo $i | awk -F $dir '{print $2}' | awk -F "_summits_100window.bed" '{print $1}')
+  intersectBed -wa -a $i -b without_motifs_1234567.bed | sort -k1,1 -k2,2n | uniq >${nm}_without_motifs_1234567.bed
 done
 
-touch quantile.sum.txt
-for i in *quantile*motif2.bed
+
+touch quantile.0913.sum.100window.txt
+for i in *quantile*_without_motifs*.bed
 do
- nm=$(echo $i | awk -F".bed_func_motif1_motif2.bed" '{print $1}')
- funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
- totalp=$(wc -l ${nm}.bed | awk '{OFS="\t";} {print $1}')
- withMotif=$(bc <<< "scale=2 ; $funcp / $totalp")
- noMotif=$(bc <<< "scale=2 ; 1- $withMotif")
- echo $nm "" $withMotif "" $noMotif >> quantile.sum.txt
+ nm=$(echo $i | awk -F"_without_motifs_1234567.bed" '{print $1}')
+ p=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+ withoutMotif=$(bc <<< "scale=4 ; $p / $totalp")
+ withMotif=$(bc <<< "scale=4 ; ($totalp- $p) / $totalp")
+ echo $nm "" $withoutMotif "" $withMotif>> quantile.0913.sum.100window.txt
 done
 
-CTCF_withMotif=$(bc <<< "scale=2 ; $(wc -l CTCF_ChIP_summit_100window_func_motif1_motif2.bed | awk '{OFS="\t";} {print $1}')/$(wc -l ../../../CTCF_ChIP_summit_100window.bed | awk '{OFS="\t";} {print $1}')")
-CTCF_noMotif=$(bc <<< "scale=2 ; 1- $CTCF_withMotif")
-echo "CTCF_all_contrl" "" $CTCF_withMotif "" $CTCF_noMotif >>quantile.sum.txt
+module load R/4.1.2 
+R 
+
+library("lattice") 
+library("reshape2")
+
+
+df_sum=read.table('quantile.0913.sum.100window.txt', sep = "", header=FALSE)
+colnames(df_sum)=c("quantile","without_Motif","with_Motif")
+df_sum_long <- df_sum
+# row: with motif stack --10 
+# column: quantiles --20
+df_sum_long <- melt(df_sum_long, id = "quantile")
+df_sum_long$variable<- factor(df_sum_long$variable, levels = c("with_Motif", "without_Motif"))
+
+pdf('0913 percent peaks with or without GATA3 motif variant.pdf', width=8,height=5)
+my.settings <- list(
+  superpose.polygon=list(col=c("black", "grey"), border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "peak set within intensity quantile",
+         xlab = "fraction of peaks with/without GATA3 motif variant",
+         par.settings = my.settings)
+)
+dev.off()
+
 ```
+
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed | sort -k1,1 -k2,2n | uniq > with_motif1.bed # 8764
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round2.bed | sort -k1,1 -k2,2n | uniq > with_motif2.bed #7322
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round3_1.bed | sort -k1,1 -k2,2n | uniq > with_motif3.bed #6095
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round4_1.bed | sort -k1,1 -k2,2n | uniq > with_motif4.bed #4620
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round5_1.bed | sort -k1,1 -k2,2n | uniq > with_motif5.bed
+# 6573
+intersectBed -wa -a ../../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round6_1.bed | sort -k1,1 -k2,2n | uniq > with_motif6.bed # 5879
+
+#single 
+# peaks with only motif1
+sort with_motif1.bed with_motif2.bed | sort -k1,1 -k2,2n | uniq | sort with_motif3.bed
+# peaks with only motif2
+# peaks with only motif3
+# peaks with only motif4
+# peaks with only motif5
+# peaks with only motif6
+
+#pairs
+# peaks with 1, 2
+sort with_motif1.bed with_motif2.bed | uniq -d > peaks_with_motif12.bed #368
+# peaks with 1, 3
+sort with_motif1.bed with_motif3.bed | uniq -d > peaks_with_motif13.bed #557
+# peaks with 1, 4
+sort with_motif1.bed with_motif4.bed | uniq -d > peaks_with_motif14.bed #612
+# peaks with 1, 5 
+sort with_motif1.bed with_motif5.bed | uniq -d > peaks_with_motif15.bed #948
+# peaks with 1, 6
+sort with_motif1.bed with_motif6.bed | uniq -d > peaks_with_motif16.bed  #584
+# peaks with 2, 3
+# peaks with 2, 4
+# peaks with 2, 5
+# peaks with 2, 6
+# peaks with 3, 4
+# peaks with 3, 5
+# peaks with 3, 6
+# peaks with 4, 5
+# peaks with 4, 6
+# peaks with 5, 6
+
+# peaks with motif 1, 2, 3
+sort peaks_with_motif12.bed with_motif3.bed | uniq -d > peaks_with_motif123.bed #28
+# peaks with motif 1, 2, 4
+# peaks with motif 1, 2, 5
+# peaks with motif 1, 2, 6
+# peaks with motif 1, 3, 4
+# peaks with motif 1, 3, 5
+# peaks with motif 1, 3, 6
+# peaks with motif 1, 4, 5
+# peaks with motif 1, 4, 6
+# peaks with motif 1, 5, 6
+# peaks with motif 2, 3, 4
+# peaks with motif 2, 3, 5
+# peaks with motif 2, 3, 6
+# peaks with motif 2, 4, 5
+# peaks with motif 2, 4, 6
+# peaks with motif 2, 5, 6
+# peaks with motif 3, 4, 5
+# peaks with motif 3, 4, 6
+# peaks with motif 3, 5, 6
+# peaks with motif 4, 5, 6
+
+# peaks with motif 1, 2, 3, 4
+sort peaks_with_motif123.bed with_motif4.bed | uniq -d > peaks_with_motif1234.bed #3
+# peaks with motif 1, 2, 3, 5
+# peaks with motif 1, 2, 3, 6
+# peaks with motif 1, 2, 4, 5
+# peaks with motif 1, 2, 4, 6
+# peaks with motif 1, 2, 5, 6
+# peaks with motif 1, 3, 4, 5
+# peaks with motif 1, 3, 4, 6
+# peaks with motif 1, 3, 5, 6
+# peaks with motif 1, 4, 5, 6
+# peaks with motif 2, 3, 4, 5
+# peaks with motif 2, 3, 4, 6
+# peaks with motif 2, 3, 5, 6
+# peaks with motif 2, 4, 5, 6
+# peaks with motif 3, 4, 5, 6
+
+# peaks with motif 1, 2, 3, 4, 5
+sort peaks_with_motif1234.bed with_motif5.bed | uniq -d | wc -l #0
+# peaks with motif 1, 2, 3, 4, 6
+sort peaks_with_motif1234.bed with_motif6.bed | uniq -d | wc -l #0
+# peaks with motif 1, 2, 3, 5, 6
+# peaks with motif 1, 2, 4, 5, 6
+# peaks with motif 1, 3, 4, 5, 6
+# peaks with motif 2, 3, 4, 5, 6
+
+# peaks with motif 1,2,3,4,5,6 #0
+
+
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# isolate peaks with overlapped motifs
+module load bedtools
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed | sort -k1,1 -k2,2n | uniq > with_motif1.bed # 8764
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round2.bed | sort -k1,1 -k2,2n | uniq > with_motif2.bed #7322
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round3.bed | sort -k1,1 -k2,2n | uniq > with_motif3.bed #5039
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round4.bed | sort -k1,1 -k2,2n | uniq > with_motif4.bed #3522
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round5.bed | sort -k1,1 -k2,2n | uniq > with_motif5.bed
+# 3595
+intersectBed -wa -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round6.bed | sort -k1,1 -k2,2n | uniq > with_motif6.bed # 3238
+
+# with (both) motif 1 and 2 # 368
+#awk 'FNR==NR{lines[$0]=1;next} $0 in lines' with_motif1.bed with_motif2.bed
+sort with_motif1.bed with_motif2.bed | uniq -d > with_motif1_motif2.bed
+
+  # with motif 1 and 2 and 3 (within same peak) # 0 # sort with_motif1_motif2.bed with_motif3.bed | uniq -d
+  # with motif 1 and 2 and 4 # 0
+  # with motif 1 and 2 and 5 # 0
+  # with motif 1 and 2 and 6 # 0
+# with (both) motif 1 and 3
+sort with_motif1.bed with_motif3.bed | uniq -d | wc -l #0
+# with (both) motif 1 and 4
+sort with_motif1.bed with_motif4.bed | uniq -d | wc -l#0
+# with (both) motif 1 and 5
+sort with_motif1.bed with_motif5.bed | uniq -d | wc -l#0
+# with (both) motif 1 and 6
+sort with_motif1.bed with_motif6.bed | uniq -d | wc -l#0
+# with (both) motif 2 and 3
+sort with_motif2.bed with_motif3.bed | uniq -d | wc -l #0
+# with (both) motif 2 and 4
+sort with_motif2.bed with_motif4.bed | uniq -d | wc -l#0
+# with (both) motif 2 and 5
+sort with_motif2.bed with_motif5.bed | uniq -d | wc -l#0
+# with (both) motif 2 and 6
+sort with_motif2.bed with_motif6.bed | uniq -d | wc -l#0
+# with (both) motif 3 and 4
+sort with_motif3.bed with_motif4.bed | uniq -d > with_motif3_motif4.bed #418
+  #with motif 1 and 3 and 4 # 0 #sort with_motif3_motif4.bed with_motif1.bed | uniq -d | wc -l
+  #with motif 2 and 3 and 4 # 0
+  #with motif 5 and 3 and 4 # 0
+  #with motif 6 and 3 and 4 # 0
+
+# with (both) motif 3 and 5
+sort with_motif3.bed with_motif5.bed | uniq -d | wc -l#0
+# with (both) motif 3 and 6
+sort with_motif3.bed with_motif6.bed | uniq -d | wc -l#0
+# with (both) motif 4 and 5
+sort with_motif4.bed with_motif5.bed | uniq -d | wc -l#0
+# with (both) motif 4 and 6
+sort with_motif4.bed with_motif6.bed | uniq -d | wc -l#0
+# with (both) motif 5 and 6
+sort with_motif5.bed with_motif6.bed | uniq -d > with_motif5_motif6.bed #1
+
+# only motif1
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif1_motif2.bed with_motif1.bed > with_only_motif1.bed #8396
+# only motif2
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif1_motif2.bed with_motif2.bed > with_only_motif2.bed #6954
+# only motif3
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif3_motif4.bed with_motif3.bed > with_only_motif3.bed #4621
+# only motif4
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif3_motif4.bed with_motif4.bed > with_only_motif4.bed #3104
+# only motif5
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif5_motif6.bed with_motif5.bed > with_only_motif5.bed #3594
+# only motif6
+awk 'FNR==NR {a[$0]++; next} !($0 in a)' with_motif5_motif6.bed with_motif6.bed > with_only_motif6.bed #3237
+```
+
+We have parsed peaks (all peaks) into different quantile file, now we will visualize motif occurrence within each quantile.      
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/"
+
+
+# quantile file is 1bp summit file, expanded to 100window
+# flank summit 400window or 100window ? 100window is more reasonable for finding motif
+
+# quantile peaks with individual motif
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir '{print $2}' | awk -F "_summits_100window.bed" '{print $1}')
+  intersectBed -wa -a $i -b with_only_motif1.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif1.bed
+  intersectBed -wa -a $i -b with_only_motif2.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif2.bed
+  intersectBed -wa -a $i -b with_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif1_motif2.bed
+  intersectBed -wa -a $i -b with_only_motif3.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif3.bed
+  intersectBed -wa -a $i -b with_only_motif4.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif4.bed
+  intersectBed -wa -a $i -b with_motif3_motif4.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif3_motif4.bed
+  intersectBed -wa -a $i -b with_only_motif5.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif5.bed
+  intersectBed -wa -a $i -b with_only_motif6.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif6.bed
+  intersectBed -wa -a $i -b with_motif5_motif6.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif5_motif6.bed
+done
+
+
+touch quantile.sum.100window.txt
+for i in *quantile*motif*.bed
+do
+ nm=$(echo $i | awk -F"_with_" '{print $1}')
+ name=$(echo $i | awk -F"_with_" '{print $2}'| awk -F".bed" '{print $1}')
+ funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+ withMotif=$(bc <<< "scale=4 ; $funcp / $totalp")
+ echo $nm "" $name "" $withMotif>> quantile.sum.100window.txt
+done
+
+
+#touch quantile.sum.100window.txt
+#for i in *quantile*motif3.bed
+#do
+# nm=$(echo $i | awk -F"_func_motif1_motif2_motif3.bed" '{print $1}')
+# funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+# totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+# withMotif=$(bc <<< "scale=2 ; $funcp / $totalp")
+# noMotif=$(bc <<< "scale=2 ; 1- $withMotif")
+# echo $nm "" $withMotif "" $noMotif >> quantile.sum.100window.txt
+#done
+
+
+#touch quantile.sum.400window.txt
+#for i in *quantile*motif3_400window.bed
+#do
+# nm=$(echo $i | awk -F"_func_motif1_motif2_motif3_400window.bed" '{print $1}')
+# funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+# totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+# withMotif=$(bc <<< "scale=2 ; $funcp / $totalp")
+# noMotif=$(bc <<< "scale=2 ; 1- $withMotif")
+# echo $nm "" $withMotif "" $noMotif >> quantile.sum.400window.txt
+#done
+```
+
+Identify CTCF peaks with GATA3 motif variants (control) 
+
+```{r, engine='R', eval=F, echo=TRUE}
+# intersect with CTCF peaks as a control
+i="../../CTCF_ChIP_summit_100window.bed"
+nm=CTCF_control
+  intersectBed -wa -a $i -b with_only_motif1.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif1.bed #310
+  intersectBed -wa -a $i -b with_only_motif2.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif2.bed #295
+  intersectBed -wa -a $i -b with_motif1_motif2.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif1_motif2.bed #4
+  intersectBed -wa -a $i -b with_only_motif3.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif3.bed #208
+  intersectBed -wa -a $i -b with_only_motif4.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif4.bed #141
+  intersectBed -wa -a $i -b with_motif3_motif4.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif3_motif4.bed #16
+  intersectBed -wa -a $i -b with_only_motif5.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif5.bed #171
+  intersectBed -wa -a $i -b with_only_motif6.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_only_motif6.bed #188
+  intersectBed -wa -a $i -b with_motif5_motif6.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_motif5_motif6.bed #0
+
+for i in *CTCF_control*motif*.bed
+do
+ name=$(echo $i | awk -F"_with_" '{print $2}'| awk -F".bed" '{print $1}')
+ funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ../../CTCF_ChIP_summit_100window.bed | awk '{OFS="\t";} {print $1}')
+ CTCF_withMotif=$(bc <<< "scale=4 ; $funcp / $totalp")
+ echo "CTCF_all_contrl" "" $name "" $CTCF_withMotif >>quantile.sum.100window.txt
+done
+
+#intersectBed -wa -a $i -b *mast_GATA3_PSWM_in_peaks_round*.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_all6_motifs.bed #698
+#intersectBed -wa -a $i -b mast_GATA3_PSWM_in_peaks_round1.bed mast_GATA3_PSWM_in_peaks_round2.bed mast_GATA3_PSWM_in_peaks_round3.bed mast_GATA3_PSWM_in_peaks_round4.bed mast_GATA3_PSWM_in_peaks_round5.bed mast_GATA3_PSWM_in_peaks_round6.bed | sort -k1,1 -k2,2n | uniq >${nm}_with_all6_motifs.bed
+
+#echo "CTCF_all_contrl" "" "with_all6_motifs" "" $CTCF_withMotif >>quantile.sum.100window.txt
+#funcp=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+#echo $nm "" $name "" $funcp>> quantile.sum.peaknumber.100window.txt
+
+```
+
+Draw bar graph to show peaks with or without GATA3 motif variants in different intensity quantile.
 
 ```{r, engine='R', eval=F, echo=TRUE}
 module load R/4.1.2 
@@ -813,26 +2043,41 @@ R
 library("lattice") 
 library("reshape2")
 
-df_sum=read.table('quantile.sum.txt', sep = "", header=FALSE)
-colnames(df_sum)=c("quantile","withMotif","noMotif")
+
+df_sum=read.table('quantile.sum.100window.txt', sep = "", header=FALSE)
+colnames(df_sum)=c("quantile","Motif_nm","with_Motif")
 df_sum_long <- df_sum
-df_sum_long <- melt(df_sum_long, 
-                    id.vars="quantile",
-                    variable.name="class",
-                    value.name="fraction")
+# row: with motif stack --10 
+# column: quantiles --20
+#df_sum_long <- melt(df_sum_long, id = c("quantile","Motif_nm"))
+
+for (i in 1:length(unique(df_sum_long$quantile))){
+
+  temp=data.frame(matrix(ncol = 3, nrow =1))
+  colnames(temp)=colnames(df_sum_long)
+  temp[1,1]=unique(df_sum_long$quantile)[i]
+  temp[1,2]="no motif"
+  temp[1,3]=1-sum(df_sum_long[df_sum_long$quantile==unique(df_sum_long$quantile)[i],]$with_Motif)
+  df_sum_long=rbind(temp, df_sum_long)
+}
+df_sum_long$Motif_nm=as.factor(df_sum_long$Motif_nm)
+df_sum_long$quantile=as.factor(df_sum_long$quantile)
+
+df_sum_long$Motif_nm<- factor(df_sum_long$Motif_nm, levels = c("only_motif1", "only_motif2", "motif1_motif2", "only_motif3", "only_motif4", "motif3_motif4","only_motif5", "only_motif6", "motif5_motif6", "no motif"))
+
 
 pdf('percent peaks with or without GATA3 motif variant.pdf', width=8,height=5)
 my.settings <- list(
-  superpose.polygon=list(col=c("black","grey60"), border="transparent"),
+  superpose.polygon=list(col=c(colorRampPalette(c("red","pink"))(3),colorRampPalette(c("blue","light blue"))(3) ,colorRampPalette(c("orange","yellow"))(3), "grey"), border="transparent"),
   strip.background=list(col="grey80", cex = 0.6),
   strip.border=list(col="black")
 )
-print(barchart(fraction ~ quantile,         # Stacked barplot using lattice
+print(barchart(with_Motif ~ quantile,         
          data = df_sum_long,
-         groups = class,
+         groups = Motif_nm,
          stack = TRUE,
-         auto.key=list(space="top", columns=2),
-        scales = list(x = list(rot = 45)),
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
          ylab = "peak set within intensity quantile",
          xlab = "fraction of peaks with/without GATA3 motif variant",
          par.settings = my.settings)
