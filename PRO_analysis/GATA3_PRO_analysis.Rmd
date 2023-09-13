@@ -17,10 +17,10 @@ geometry: margin=1in
 
 # PRO-seq analysis
 
-## Preprocessing
+## Pre-processing PRO-seq Data
 
-### renaming fastq files
-The fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).\
+### Renaming fastq files
+The raw fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).\
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 
@@ -48,6 +48,7 @@ do
 done
 ```
 
+<!--
 combining dep1 and dep2 pro-seq data? (haven't got the dep2 data yet)
 ```{r engine='bash', eval=F, echo=TRUE}
 cd /directory/of/GATA3_PRO
@@ -64,8 +65,9 @@ do
 	cat $i ${pre}_dep2_${suf} > ${pre}_${x}_final.fastq.gz
 done 
 ```
+-->
 
-## Install softwares and essential scripts
+## Install softwares and scripts
 ```{r engine='bash', eval=F, echo=TRUE}
 # mkdir scripts
 # pwd
@@ -270,8 +272,7 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 ```
 
 # PRO alignment and parallelization:
-
-Processing reads: \
+## Processing reads
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
@@ -1207,7 +1208,7 @@ knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png")
 
 if we consider only one varaible at a time, in other words, if we only care about how one factor affect our gene expression, we could do the following:\
 
-if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design metrecs (see the DESeq2 design2 part). \
+if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design matrix (see the DESeq2 design2 part). \
 
 ```{r engine='R', eval=F, echo=TRUE}
 rep = factor(sapply(strsplit(colnames(counts.df), 'rep'), '[', 2))
@@ -1555,12 +1556,205 @@ knitr::include_graphics("./png_image/MA_plot_dTAGV1_NoE2_vs_control_NoE2_respons
 
 
 ## DESeq2 design2
+not using rep in DeSeq2 design df.
+```{r engine='R', eval=F, echo=TRUE}
+inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
+
+sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
+                           levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
+
+
+deseq.df.norep = DESeqDataSetFromMatrix(counts.df, 
+                                  data.frame(sample.conditions), 
+                                  ~ sample.conditions)
+deseq.df.norep = DESeq(deseq.df.norep)
+#save.image('230828_GATA3_pro_DEA_norep.Rdata')
+```
+
+### control_E2_vs_control_NoE2
+Here we use `contrast` to extract comparisons between "control_E2" and "control_NoE2"; \
+we want to try a few p-value cutoff and see how many coordinates fall into the range.
+```{r engine='R', eval=F, echo=TRUE}
+res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "control_E2", "control_NoE2")) #compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj))
+#198 (with rep we have ~131)
+sum(res.deseq.norep$padj < 0.5 & !is.na(res.deseq.norep$padj))
+#476 （with rep we have 274)
+
+# activated
+activated = res.deseq.norep[res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj) & res.deseq.norep$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'norep_control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res.deseq.norep[!is.na(res.deseq.norep$padj) & res.deseq.norep$padj > 0.1 & abs(res.deseq.norep$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'norep_control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq.norep[res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj) & res.deseq.norep$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'norep_control_E2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq.norep[!is.na(res.deseq.norep$padj) & res.deseq.norep$padj > 0.1 & abs(res.deseq.norep$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq.norep[rownames(res.deseq.norep) %notin% rownames(repressed) & !is.na(res.deseq.norep$padj) & res.deseq.norep$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'norep_control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+
+# repressed: 11; activated: 187
+# save.image('230828_norep_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
+```
+
+Determine if we need to include "rep"in our design 
+```{r engine='R', eval=F, echo=TRUE}
+E2_activated_norep=read.table('norep_control_E2_vs_control_NoE2_activated_genes.bed', header =FALSE)
+E2_activated=read.table('../DEA_new/control_E2_vs_control_NoE2_activated_genes.bed', header =FALSE)
+noreponly_activated=E2_activated_norep[!(E2_activated_norep$V4 %in% E2_activated$V4),]
+write.table(noreponly_activated, file = 'only_norep_control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+#[1] "ACKR2"     "ACTN4"     "ADAMTSL5"  "ADD1"      "AKAP1"     "AMOTL2"   
+# [7] "ARHGEF10L" "B4GALT1"   "BCAS1"     "BCL10"     "BICDL2"    "C1QTNF6"  
+#[13] "CALCR"     "CARD10"    "CARD19"    "CAV2"      "CCDC170"   "CELSR1"   
+#[19] "CRY2"      "DYNLT3"    "E2F6"      "ECE1"      "ENTPD3"    "EPAS1"    
+#[25] "EPS15L1"   "FBXO39"    "GJA1"      "GLDC"      "GRPR"      "HOOK3"    
+#[31] "HSCB"      "HSH2D"     "JAK1"      "KDM4B"     "LSMEM2"    "MCM3AP"   
+#[37] "MID1"      "MX2"       "MYOF"      "NLRC5"     "NRIP1"     "OAS2"     
+#[43] "OSTF1"     "PARL"      "PIM1"      "PLCD3"     "PSAP"      "RIMS4"    
+#[49] "RIOK3"     "SH3BP5"    "SLC25A25"  "SNRPA"     "SP100"     "SPATS2L"  
+#[55] "ST3GAL4"   "TGFA"      "TINCR"     "TNFSF15"   "TSPAN15"   "USP31"    
+#[61] "VEZF1" 
+
+
+#cdf plot
+E2_activated_matchunchange=read.table('norep_control_E2_vs_control_NoE2_activated_matched_genes.bed', sep="\t", header =FALSE)
+gene.file=rbind(E2_activated_matchunchange,noreponly_activated)
+#here the chip.peak file I am using the summit (100bp window) file from published ER Chip data
+chip.peak=read.table("/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/ER/ER_published_summits_final.bed", header=FALSE)
+
+
+df.activated= cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = "Activated")
+#df.all=rbind(df.repressed, df.activated)
+#df.all$status <- factor(df.all$status, levels=c("Repressed","Matched to Repressed", "Activated", "Matched to Activated"))
+
+
+#plot the combined cdf
+plot_cdf_all(df.activated, 
+             tf = "GATA3_control_E2_vs_control_NoE2",
+             main="cdf for ER peaks",
+             col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), 
+             line.type = c(1), 
+             cex = 0.5)
+```
+
+conclusion: rep is not necessary. \
+
+
+
+###  dTAGV1_NoE2_vs_control_NoE2
+```{r engine='R', eval=F, echo=TRUE}
+res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "dTAGV1_NoE2" , "control_NoE2")) #compare any two groups: contrast = c("Condition", "Treatment", "Control")
+sum(res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj))
+#1814
+```
+
+## DESeq2 design3
 As previous section described, if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design formula. \
 
 we want to compare: \
 1) if genes (up-regulated in E2 treatment) will change when degrading GATA3 compared to not degrading GATA3 \
-2) if genes (up-regulated when degrading GATA3) will change when active ER \
-3) if genes (down-regulated when degrading GATA3) will change when active ER \
+2) if genes (up-regulated when degrading GATA3) will change when activated ER \
+3) if genes (down-regulated when degrading GATA3) will change when activated ER \
+```{r engine='R', eval=F, echo=TRUE}
+inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
+
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+#[1] "Intercept"                            
+#[2] "supp.condition1_E2_vs_noE2"            
+#[3] "supp.condition2_dTAG_vs_ctrl"     
+#[4] "supp.condition1E2.supp.condition2dTAG"
+
+# 1) the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
+res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
+sum(res1$padj < 0.1 & !is.na(res1$padj))
+# 1814
+
+# 2) the effect of dTAG treatment in ER activated condition (main effect + interaction term)
+res2 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
+sum(res2$padj < 0.1 & !is.na(res2$padj))
+#1269
+
+# 3) What is the difference between E2 treated and noE2 without dTAG treatment (didn't degrade GATA3)?
+res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+#198
+
+# 4) With dTAG treatment, what is the difference between E2 treated and noE2?
+res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
+sum(res4$padj < 0.1 & !is.na(res4$padj))
+#261
+
+# 5) The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
+res5 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
+sum(res5$padj < 0.1 & !is.na(res5$padj))
+#22
+
+#save.image('230901_GATA3_pro_DEA_interaction.Rdata')
+```
+
+### bw plot for different condition (priority)
+1) bw plot for +/- E2, activated vs. repressed
+2) bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed
+3) bw plot for genes that less activated, less repressed
+4) bw plot for genes (that are newly activated, or newly repressed)
+
+### MA plot
+MA plot for condition1, condition2, condition 4 and condition 5
+```{r engine='R', eval=F, echo=TRUE}
+
+```
+
+### heatmap for 4 factor DE genes
+try to draw heatmap for differentially expressed genes on condition 3. 
+```{r engine='R', eval=F, echo=TRUE}
+
+```
+
+### are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?
+cdf plot for condition 5
+```{r engine='R', eval=F, echo=TRUE}
+
+```
 
 
 # integrate with ChIP...
