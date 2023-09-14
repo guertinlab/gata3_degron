@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-08-24" />
+<meta name="date" content="2023-09-14" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-08-24</h4>
+<h4 class="date">2023-09-14</h4>
 
 </div>
 
@@ -713,17 +713,18 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#pro-seq-analysis" id="toc-pro-seq-analysis"><span class="toc-section-number">1</span> PRO-seq analysis</a>
 <ul>
-<li><a href="#preprocessing" id="toc-preprocessing"><span class="toc-section-number">1.1</span> Preprocessing</a>
+<li><a href="#pre-processing-pro-seq-data" id="toc-pre-processing-pro-seq-data"><span class="toc-section-number">1.1</span> Pre-processing PRO-seq Data</a>
 <ul>
-<li><a href="#renaming-fastq-files" id="toc-renaming-fastq-files"><span class="toc-section-number">1.1.1</span> renaming fastq files</a></li>
+<li><a href="#renaming-fastq-files" id="toc-renaming-fastq-files"><span class="toc-section-number">1.1.1</span> Renaming fastq files</a></li>
 </ul></li>
-<li><a href="#install-softwares-and-essential-scripts" id="toc-install-softwares-and-essential-scripts"><span class="toc-section-number">1.2</span> Install softwares and essential scripts</a></li>
+<li><a href="#install-softwares-and-scripts" id="toc-install-softwares-and-scripts"><span class="toc-section-number">1.2</span> Install softwares and scripts</a></li>
 <li><a href="#confirming-read-size-and-umi-length" id="toc-confirming-read-size-and-umi-length"><span class="toc-section-number">1.3</span> Confirming read size and UMI length</a></li>
 <li><a href="#genome-and-annotation-processing" id="toc-genome-and-annotation-processing"><span class="toc-section-number">1.4</span> Genome and annotation processing</a></li>
 </ul></li>
 <li><a href="#pro-alignment-and-parallelization" id="toc-pro-alignment-and-parallelization"><span class="toc-section-number">2</span> PRO alignment and parallelization:</a>
 <ul>
-<li><a href="#plot-all-qc-metrics" id="toc-plot-all-qc-metrics"><span class="toc-section-number">2.1</span> Plot all QC metrics</a></li>
+<li><a href="#processing-reads" id="toc-processing-reads"><span class="toc-section-number">2.1</span> Processing reads</a></li>
+<li><a href="#plot-all-qc-metrics" id="toc-plot-all-qc-metrics"><span class="toc-section-number">2.2</span> Plot all QC metrics</a></li>
 </ul></li>
 <li><a href="#primarytranscriptannotation-pta" id="toc-primarytranscriptannotation-pta"><span class="toc-section-number">3</span> primaryTranscriptAnnotation (PTA)</a>
 <ul>
@@ -753,7 +754,18 @@ function toggle_visibility(id1) {
 <li><a href="#dtagv1_e2_vs_control_e2" id="toc-dtagv1_e2_vs_control_e2"><span class="toc-section-number">4.4.3</span> 3) dTAGV1_E2_vs_control_E2  </a></li>
 <li><a href="#dtagv1_noe2_vs_control_noe2" id="toc-dtagv1_noe2_vs_control_noe2"><span class="toc-section-number">4.4.4</span> 4) dTAGV1_NoE2_vs_control_NoE2  </a></li>
 </ul></li>
-<li><a href="#deseq2-design2" id="toc-deseq2-design2"><span class="toc-section-number">4.5</span> DESeq2 design2</a></li>
+<li><a href="#deseq2-design2" id="toc-deseq2-design2"><span class="toc-section-number">4.5</span> DESeq2 design2</a>
+<ul>
+<li><a href="#control_e2_vs_control_noe2-1" id="toc-control_e2_vs_control_noe2-1"><span class="toc-section-number">4.5.1</span> control_E2_vs_control_NoE2</a></li>
+<li><a href="#dtagv1_noe2_vs_control_noe2-1" id="toc-dtagv1_noe2_vs_control_noe2-1"><span class="toc-section-number">4.5.2</span> dTAGV1_NoE2_vs_control_NoE2</a></li>
+</ul></li>
+<li><a href="#deseq2-design3" id="toc-deseq2-design3"><span class="toc-section-number">4.6</span> DESeq2 design3</a>
+<ul>
+<li><a href="#bw-plot-for-different-condition-priority" id="toc-bw-plot-for-different-condition-priority"><span class="toc-section-number">4.6.1</span> bw plot for different condition (priority)</a></li>
+<li><a href="#ma-plot" id="toc-ma-plot"><span class="toc-section-number">4.6.2</span> MA plot</a></li>
+<li><a href="#heatmap-for-4-factor-de-genes" id="toc-heatmap-for-4-factor-de-genes"><span class="toc-section-number">4.6.3</span> heatmap for 4 factor DE genes</a></li>
+<li><a href="#are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites" id="toc-are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites"><span class="toc-section-number">4.6.4</span> are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?</a></li>
+</ul></li>
 </ul></li>
 <li><a href="#integrate-with-chip" id="toc-integrate-with-chip"><span class="toc-section-number">5</span> integrate with ChIP…</a></li>
 </ul>
@@ -761,11 +773,11 @@ function toggle_visibility(id1) {
 
 <div id="pro-seq-analysis" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> PRO-seq analysis</h1>
-<div id="preprocessing" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> Preprocessing</h2>
+<div id="pre-processing-pro-seq-data" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Pre-processing PRO-seq Data</h2>
 <div id="renaming-fastq-files" class="section level3" number="1.1.1">
-<h3><span class="header-section-number">1.1.1</span> renaming fastq files</h3>
-<p>The fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).<br />
+<h3><span class="header-section-number">1.1.1</span> Renaming fastq files</h3>
+<p>The raw fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).<br />
 </p>
 <pre class="bash"><code>#!/bin/bash
 
@@ -791,24 +803,29 @@ do
         mv $i ${nm}_dep1_PE1.fastq 
         mv ${two}R2_001.fastq ${nm}_dep1_PE2.fastq
 done</code></pre>
-<p>combining dep1 and dep2 pro-seq data? (haven’t got the dep2 data yet)</p>
-<pre class="bash"><code>cd /directory/of/GATA3_PRO
+<!--
+combining dep1 and dep2 pro-seq data? (haven't got the dep2 data yet)
+
+```bash
+cd /directory/of/GATA3_PRO
 
 for i in *_dep1_*.fastq.gz
 do
     echo $i
-    pre=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_dep1_&quot; &#39;{print $1}&#39;)
-    suf=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_dep1_&quot; &#39;{print $2}&#39;)
-    x=$(echo $suf |  awk -F&quot;.fastq&quot; &#39;{print $1}&#39;)
+    pre=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_" '{print $1}')
+    suf=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_" '{print $2}')
+    x=$(echo $suf |  awk -F".fastq" '{print $1}')
     echo $pre
     echo $suf
     echo $x
-    cat $i ${pre}_dep2_${suf} &gt; ${pre}_${x}_final.fastq.gz
-done </code></pre>
+    cat $i ${pre}_dep2_${suf} > ${pre}_${x}_final.fastq.gz
+done 
+```
+-->
 </div>
 </div>
-<div id="install-softwares-and-essential-scripts" class="section level2" number="1.2">
-<h2><span class="header-section-number">1.2</span> Install softwares and essential scripts</h2>
+<div id="install-softwares-and-scripts" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Install softwares and scripts</h2>
 <pre class="bash"><code># mkdir scripts
 # pwd
 # home/FCAM/ssun/scripts
@@ -1008,8 +1025,8 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 </div>
 <div id="pro-alignment-and-parallelization" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> PRO alignment and parallelization:</h1>
-<p>Processing reads:<br />
-</p>
+<div id="processing-reads" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Processing reads</h2>
 <pre class="bash"><code>#! /bin/sh
 
 #SBATCH --job-name=pro_processing_230802.sh     # name for job
@@ -1244,8 +1261,9 @@ cat aligned_reads_from_bam_log.txt
 #MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3.bam
 #7076786
 </code></pre>
-<div id="plot-all-qc-metrics" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Plot all QC metrics</h2>
+</div>
+<div id="plot-all-qc-metrics" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Plot all QC metrics</h2>
 <pre class="bash"><code>module load R/4.1.2
 
 cat *_QC_metrics.txt | awk &#39;!x[$0]++&#39; &gt; project_QC_metrics.txt 
@@ -1662,6 +1680,7 @@ R
 
 library(bigWig)
 library(lattice)
+library(latticeExtra)
 library(DESeq2)
 library(MatchIt) # Selects matched samples of the original treated and control groups with similar covariate distributions – can be used to match exactly on covariates, to match on propensity scores, or perform a variety of other matching procedures. 
 library(data.table)
@@ -1804,7 +1823,33 @@ ma.plot.png.lattice &lt;- function(ma.df, filename = &#39;file.name&#39;,
                par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
                                  par.ylab.text=list(cex=1.1,font=2))));
   dev.off()
-}</code></pre>
+}
+
+bw.plot.png.lattice &lt;- function(df.bw, filename = &#39;file.name&#39;, 
+         title.main = &quot;Differential PRO-seq Expression&quot;,
+         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))
+  {
+png(paste(&quot;BW_plot_&quot;, filename, &quot;_response.png&quot;, sep=&#39;&#39;))
+print(bwplot(log2FoldChange~treatment,
+             data=df.bw,
+             par.settings = list(box.rectangle = list(
+                                                        # use these box fill colors
+                                                        fill = fill.col,
+                                                        # make box outlines black
+                                                        col = &quot;black&quot;),
+                                                        # make whiskers black
+                                                        box.umbrella = list(col = &quot;black&quot;),
+                                                        # make outlier symbols red stars
+                                                        plot.symbol = list(col = &quot;red&quot;,pch = 8),
+                                                        # make title text 18pt
+                                                        par.main.text = list(fontsize = 14)),
+             pch = &quot;|&quot;,
+             ylab=&quot;log2FoldChange&quot;,
+             #auto.key=list(space=&quot;right&quot;, columns=4),
+             scales = list(x = list(rot = 45)),)
+      )
+dev.off()
+ }</code></pre>
 </div>
 <div id="load-the-unnormalized-bigwig-pro-data" class="section level2" number="4.2">
 <h2><span class="header-section-number">4.2</span> load the unnormalized bigWig PRO data</h2>
@@ -1918,7 +1963,7 @@ Figure 5: <span class="caption-title">PCA dTAG sub</span><br>
 <h2><span class="header-section-number">4.4</span> DESeq2 design 1</h2>
 <p>if we consider only one varaible at a time, in other words, if we only care about how one factor affect our gene expression, we could do the following:<br />
 </p>
-<p>if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design metrecs (see the DESeq2 design2 part).<br />
+<p>if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design matrix (see the DESeq2 design2 part).<br />
 </p>
 <pre class="r"><code>rep = factor(sapply(strsplit(colnames(counts.df), &#39;rep&#39;), &#39;[&#39;, 2))
 # [1] &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;1&quot; &quot;2&quot; &quot;3&quot;
@@ -2254,13 +2299,363 @@ Figure 9: <span class="caption-title">MA plot</span><br>
 </div>
 <div id="deseq2-design2" class="section level2" number="4.5">
 <h2><span class="header-section-number">4.5</span> DESeq2 design2</h2>
+<p>not using rep in DeSeq2 design df.</p>
+<pre class="r"><code>inferred.coords=read.table(&#39;MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/&quot;, file.prefix = &quot;MCF&quot;))
+
+sample.conditions = factor(c(&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;, &quot;dTAGV1_NoE2&quot;,&quot;dTAGV1_NoE2&quot;), 
+                           levels=c(&quot;control_E2&quot;,&quot;control_NoE2&quot;,&quot;dTAGV1_E2&quot;, &quot;dTAGV1_NoE2&quot;))
+
+
+deseq.df.norep = DESeqDataSetFromMatrix(counts.df, 
+                                  data.frame(sample.conditions), 
+                                  ~ sample.conditions)
+deseq.df.norep = DESeq(deseq.df.norep)
+#save.image(&#39;230828_GATA3_pro_DEA_norep.Rdata&#39;)</code></pre>
+<div id="control_e2_vs_control_noe2-1" class="section level3" number="4.5.1">
+<h3><span class="header-section-number">4.5.1</span> control_E2_vs_control_NoE2</h3>
+<p>Here we use <code>contrast</code> to extract comparisons between “control_E2” and “control_NoE2”;<br />
+we want to try a few p-value cutoff and see how many coordinates fall into the range.</p>
+<pre class="r"><code>res.deseq.norep = results(deseq.df.norep, contrast = c(&quot;sample.conditions&quot;, &quot;control_E2&quot;, &quot;control_NoE2&quot;)) #compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj))
+#198 (with rep we have ~131)
+sum(res.deseq.norep$padj &lt; 0.5 &amp; !is.na(res.deseq.norep$padj))
+#476 （with rep we have 274)
+
+# activated
+activated = res.deseq.norep[res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj) &amp; res.deseq.norep$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;norep_control_E2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  
+# unchanged Matched to Activated
+unchanged = res.deseq.norep[!is.na(res.deseq.norep$padj) &amp; res.deseq.norep$padj &gt; 0.1 &amp; abs(res.deseq.norep$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;norep_control_E2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Activated&quot;
+activated$treatment = &quot;Activated&quot;
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res.deseq.norep[res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj) &amp; res.deseq.norep$log2FoldChange &lt; 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;norep_control_E2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
+
+# unchanged Matched to repressed 
+unchanged = res.deseq.norep[!is.na(res.deseq.norep$padj) &amp; res.deseq.norep$padj &gt; 0.1 &amp; abs(res.deseq.norep$log2FoldChange) &lt; 0.01,]
+ # unchanged = res.deseq.norep[rownames(res.deseq.norep) %notin% rownames(repressed) &amp; !is.na(res.deseq.norep$padj) &amp; res.deseq.norep$log2FoldChange &gt; 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;norep_control_E2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Repressed&quot;
+repressed$treatment = &quot;Repressed&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+
+# repressed: 11; activated: 187
+# save.image(&#39;230828_norep_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata&#39;)</code></pre>
+<p>Determine if we need to include “rep”in our design</p>
+<pre class="r"><code>E2_activated_norep=read.table(&#39;norep_control_E2_vs_control_NoE2_activated_genes.bed&#39;, header =FALSE)
+E2_activated=read.table(&#39;../DEA_new/control_E2_vs_control_NoE2_activated_genes.bed&#39;, header =FALSE)
+noreponly_activated=E2_activated_norep[!(E2_activated_norep$V4 %in% E2_activated$V4),]
+write.table(noreponly_activated, file = &#39;only_norep_control_E2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+#[1] &quot;ACKR2&quot;     &quot;ACTN4&quot;     &quot;ADAMTSL5&quot;  &quot;ADD1&quot;      &quot;AKAP1&quot;     &quot;AMOTL2&quot;   
+# [7] &quot;ARHGEF10L&quot; &quot;B4GALT1&quot;   &quot;BCAS1&quot;     &quot;BCL10&quot;     &quot;BICDL2&quot;    &quot;C1QTNF6&quot;  
+#[13] &quot;CALCR&quot;     &quot;CARD10&quot;    &quot;CARD19&quot;    &quot;CAV2&quot;      &quot;CCDC170&quot;   &quot;CELSR1&quot;   
+#[19] &quot;CRY2&quot;      &quot;DYNLT3&quot;    &quot;E2F6&quot;      &quot;ECE1&quot;      &quot;ENTPD3&quot;    &quot;EPAS1&quot;    
+#[25] &quot;EPS15L1&quot;   &quot;FBXO39&quot;    &quot;GJA1&quot;      &quot;GLDC&quot;      &quot;GRPR&quot;      &quot;HOOK3&quot;    
+#[31] &quot;HSCB&quot;      &quot;HSH2D&quot;     &quot;JAK1&quot;      &quot;KDM4B&quot;     &quot;LSMEM2&quot;    &quot;MCM3AP&quot;   
+#[37] &quot;MID1&quot;      &quot;MX2&quot;       &quot;MYOF&quot;      &quot;NLRC5&quot;     &quot;NRIP1&quot;     &quot;OAS2&quot;     
+#[43] &quot;OSTF1&quot;     &quot;PARL&quot;      &quot;PIM1&quot;      &quot;PLCD3&quot;     &quot;PSAP&quot;      &quot;RIMS4&quot;    
+#[49] &quot;RIOK3&quot;     &quot;SH3BP5&quot;    &quot;SLC25A25&quot;  &quot;SNRPA&quot;     &quot;SP100&quot;     &quot;SPATS2L&quot;  
+#[55] &quot;ST3GAL4&quot;   &quot;TGFA&quot;      &quot;TINCR&quot;     &quot;TNFSF15&quot;   &quot;TSPAN15&quot;   &quot;USP31&quot;    
+#[61] &quot;VEZF1&quot; 
+
+
+#cdf plot
+E2_activated_matchunchange=read.table(&#39;norep_control_E2_vs_control_NoE2_activated_matched_genes.bed&#39;, sep=&quot;\t&quot;, header =FALSE)
+gene.file=rbind(E2_activated_matchunchange,noreponly_activated)
+#here the chip.peak file I am using the summit (100bp window) file from published ER Chip data
+chip.peak=read.table(&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/6_FRiP/ER/ER_published_summits_final.bed&quot;, header=FALSE)
+
+
+df.activated= cdf.deseq.df(genes = gene.file, chip.peaks=chip.peak, cat = &quot;Activated&quot;)
+#df.all=rbind(df.repressed, df.activated)
+#df.all$status &lt;- factor(df.all$status, levels=c(&quot;Repressed&quot;,&quot;Matched to Repressed&quot;, &quot;Activated&quot;, &quot;Matched to Activated&quot;))
+
+
+#plot the combined cdf
+plot_cdf_all(df.activated, 
+             tf = &quot;GATA3_control_E2_vs_control_NoE2&quot;,
+             main=&quot;cdf for ER peaks&quot;,
+             col.lines = c(&quot;#00ffff&quot;, &quot;grey60&quot;, &quot;#ff0000&quot;, &quot;grey90&quot;), 
+             line.type = c(1), 
+             cex = 0.5)</code></pre>
+<p>conclusion: rep is not necessary.<br />
+</p>
+<p>scatter plot to see if including interactions in DESeq2 calling can still get similar results for DESeq2 not using interaction (in both DESeq2 formula, <code>rep</code> are not included); if the log2FC fall onto/close to the diagonal, the two set of data are similar.<br />
+</p>
+<pre class="r"><code>load(&#39;230828_GATA3_pro_DEA_norep.Rdata&#39;)
+res.deseq.norep = results(deseq.df.norep, contrast = c(&quot;sample.conditions&quot;, &quot;control_E2&quot;, &quot;control_NoE2&quot;))
+de.gene= as.data.frame(res.deseq.norep[res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj),])
+de.gene$gene=rownames(de.gene)
+
+####################
+supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;noE2&quot;,&quot;E2&quot;))
+supp.condition2=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;ctrl&quot;,&quot;dTAG&quot;))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+res3 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
+sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
+de.gene2= as.data.frame(res3[res3$padj &lt; 0.1 &amp; !is.na(res3$padj),])
+de.gene2$gene=rownames(de.gene2)
+#####################
+plot.df=merge(de.gene, de.gene2, by=&quot;gene&quot;)
+plot.df1=plot.df[,c(1,3,9)]
+head(plot.df1)
+
+#####################
+library(lattice)
+png(&quot;ER_control_comparison between rep and interaction.png&quot;)
+print(xyplot(log2FoldChange.x ~ log2FoldChange.y, plot.df1))
+dev.off()
+###################################################################################################################################################
+res.deseq.norep = results(deseq.df.norep, contrast = c(&quot;sample.conditions&quot;, &quot;dTAGV1_NoE2&quot; , &quot;control_NoE2&quot;))
+de.gene= as.data.frame(res.deseq.norep[res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj),])
+de.gene$gene=rownames(de.gene)
+
+res1 = results(dds, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;))
+de.gene2= as.data.frame(res1[res1$padj &lt; 0.1 &amp; !is.na(res1$padj),])
+de.gene2$gene=rownames(de.gene2)
+
+plot.df=merge(de.gene, de.gene2, by=&quot;gene&quot;)
+plot.df1=plot.df[,c(1,3,9)]
+head(plot.df1)
+
+png(&quot;dTag_control_comparison between rep and interaction.png&quot;)
+print(xyplot(log2FoldChange.x ~ log2FoldChange.y, plot.df1))
+dev.off()</code></pre>
+</div>
+<div id="dtagv1_noe2_vs_control_noe2-1" class="section level3" number="4.5.2">
+<h3><span class="header-section-number">4.5.2</span> dTAGV1_NoE2_vs_control_NoE2</h3>
+<pre class="r"><code>res.deseq.norep = results(deseq.df.norep, contrast = c(&quot;sample.conditions&quot;, &quot;dTAGV1_NoE2&quot; , &quot;control_NoE2&quot;)) #compare any two groups: contrast = c(&quot;Condition&quot;, &quot;Treatment&quot;, &quot;Control&quot;)
+sum(res.deseq.norep$padj &lt; 0.1 &amp; !is.na(res.deseq.norep$padj))
+#1814</code></pre>
+</div>
+</div>
+<div id="deseq2-design3" class="section level2" number="4.6">
+<h2><span class="header-section-number">4.6</span> DESeq2 design3</h2>
 <p>As previous section described, if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design formula.<br />
 </p>
 <p>we want to compare:<br />
 1) if genes (up-regulated in E2 treatment) will change when degrading GATA3 compared to not degrading GATA3<br />
-2) if genes (up-regulated when degrading GATA3) will change when active ER<br />
-3) if genes (down-regulated when degrading GATA3) will change when active ER<br />
+2) if genes (up-regulated when degrading GATA3) will change when activated ER<br />
+3) if genes (down-regulated when degrading GATA3) will change when activated ER<br />
 </p>
+<pre class="r"><code>inferred.coords=read.table(&#39;MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/&quot;, file.prefix = &quot;MCF&quot;))
+
+supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;noE2&quot;,&quot;E2&quot;))
+supp.condition2=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;ctrl&quot;,&quot;dTAG&quot;))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+#[1] &quot;Intercept&quot;                            
+#[2] &quot;supp.condition1_E2_vs_noE2&quot;            
+#[3] &quot;supp.condition2_dTAG_vs_ctrl&quot;     
+#[4] &quot;supp.condition1E2.supp.condition2dTAG&quot;
+
+# 1) the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
+res1 = results(dds, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;))
+sum(res1$padj &lt; 0.1 &amp; !is.na(res1$padj))
+# 1814
+
+# 2) the effect of dTAG treatment in ER activated condition (main effect + interaction term)
+res2 = results(dds, list(c(&quot;supp.condition2_dTAG_vs_ctrl&quot;, &quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+sum(res2$padj &lt; 0.1 &amp; !is.na(res2$padj))
+#1269
+
+# 3) What is the difference between E2 treated and noE2 without dTAG treatment (didn&#39;t degrade GATA3)?
+res3 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
+sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
+#198
+
+# 4) With dTAG treatment, what is the difference between E2 treated and noE2?
+res4 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+sum(res4$padj &lt; 0.1 &amp; !is.na(res4$padj))
+#261
+
+# 5) The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
+res5 = results(dds, name=&quot;supp.condition1E2.supp.condition2dTAG&quot;)
+sum(res5$padj &lt; 0.1 &amp; !is.na(res5$padj))
+#22
+
+#save.image(&#39;230901_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
+<div id="bw-plot-for-different-condition-priority" class="section level3" number="4.6.1">
+<h3><span class="header-section-number">4.6.1</span> bw plot for different condition (priority)</h3>
+<ol style="list-style-type: decimal">
+<li>bw plot for +/- E2, activated vs. repressed</li>
+</ol>
+<pre class="r"><code># load(&#39;230901_GATA3_pro_DEA_interaction.Rdata&#39;)
+# res3 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
+sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
+#198
+
+############################### activated
+activated = res3[res3$padj &lt; 0.1 &amp; !is.na(res3$padj) &amp; res3$log2FoldChange &gt; 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+#write.table(activated.strand, file = &#39;control_E2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+# unchanged Matched to Activated
+#unchanged = res3[!is.na(res3$padj) &amp; res3$padj &gt; 0.1 &amp; abs(res3$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+#unchanged$treatment = 0
+#activated$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, activated)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+activated$treatment = &quot;Activated&quot;
+
+
+############################### repressed
+repressed = res3[res3$padj &lt; 0.1 &amp; !is.na(res3$padj) &amp; res3$log2FoldChange &lt; 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
+#write.table(repressed.strand, file = &#39;control_E2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+# unchanged Matched to repressed 
+#unchanged = res3[!is.na(res3$padj) &amp; res3$padj &gt; 0.1 &amp; abs(res3$log2FoldChange) &lt; 0.01,]
+#unchanged$treatment = 0
+#repressed$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, repressed)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+repressed$treatment = &quot;Repressed&quot;</code></pre>
+<pre class="r"><code># bw plot
+df.bw1=as.data.frame(rbind(activated, repressed))
+df.bw1$treatment=as.factor(df.bw1$treatment)
+
+
+bw.plot.png.lattice(df.bw1, filename = &#39;control_E2_vs_control_NoE2&#39;, 
+         title.main = &quot;differentially expressed gene +/- E2 (FDR=0.1)&quot;,
+         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed</li>
+</ol>
+<pre class="r"><code>#res4 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+sum(res4$padj &lt; 0.1 &amp; !is.na(res4$padj))
+#261
+
+############################### activated
+activated = res4[res4$padj &lt; 0.1 &amp; !is.na(res4$padj) &amp; res4$log2FoldChange &gt; 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+#write.table(activated.strand, file = &#39;withorwithoutE2_dTAG_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+# unchanged Matched to Activated
+#unchanged = res4[!is.na(res4$padj) &amp; res4$padj &gt; 0.1 &amp; abs(res4$log2FoldChange) &lt; 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+#unchanged$treatment = 0
+#activated$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, activated)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = &#39;withorwithoutE2_dTAG_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+activated$treatment = &quot;Activated&quot;
+
+############################### repressed
+repressed = res4[res4$padj &lt; 0.1 &amp; !is.na(res4$padj) &amp; res4$log2FoldChange &lt; 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
+#write.table(repressed.strand, file = &#39;withorwithoutE2_dTAG_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+
+# unchanged Matched to repressed 
+#unchanged = res4[!is.na(res4$padj) &amp; res4$padj &gt; 0.1 &amp; abs(res4$log2FoldChange) &lt; 0.01,]
+#unchanged$treatment = 0
+#repressed$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, repressed)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = &#39;withorwithoutE2_dTAG_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+repressed$treatment = &quot;Repressed&quot;</code></pre>
+<pre class="r"><code># bw plot
+df.bw2=as.data.frame(rbind(activated, repressed))
+df.bw2$treatment=as.factor(df.bw2$treatment)
+
+bw.plot.png.lattice(df.bw2, filename = &#39;withorwithoutE2_dTAG&#39;, 
+         title.main = &quot;differentially expressed gene +/- E2 with dTAG (FDR=0.1)&quot;,
+         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>bw plot for genes that less activated, less repressed</li>
+</ol>
+<pre class="r"><code>nrow(df.bw1) # +/-E2
+#198
+nrow(df.bw2) # +/-E2 +dTAG
+#261
+
+df.bw1$chr = sapply(strsplit(rownames(df.bw1), &#39;:&#39;), &#39;[&#39;, 1)
+df.bw1$start = sapply(strsplit(rownames(df.bw1), &#39;-&#39;), &#39;[&#39;, 1)
+df.bw1$start = sapply(strsplit(df.bw1$start, &#39;:&#39;), &#39;[&#39;, 2)
+df.bw1$end = sapply(strsplit(rownames(df.bw1), &#39;-&#39;), &#39;[&#39;, 2)
+df.bw1$gene=sapply(strsplit(df.bw1$end, &#39;_&#39;), &#39;[&#39;, 2)
+df.bw1$end = sapply(strsplit(df.bw1$end, &#39;_&#39;), &#39;[&#39;, 1)
+
+df.bw2$chr = sapply(strsplit(rownames(df.bw2), &#39;:&#39;), &#39;[&#39;, 1)
+df.bw2$start = sapply(strsplit(rownames(df.bw2), &#39;-&#39;), &#39;[&#39;, 1)
+df.bw2$start = sapply(strsplit(df.bw2$start, &#39;:&#39;), &#39;[&#39;, 2)
+df.bw2$end = sapply(strsplit(rownames(df.bw2), &#39;-&#39;), &#39;[&#39;, 2)
+df.bw2$gene=sapply(strsplit(df.bw2$end, &#39;_&#39;), &#39;[&#39;, 2)
+df.bw2$end = sapply(strsplit(df.bw2$end, &#39;_&#39;), &#39;[&#39;, 1)
+
+same.gene.bw1= df.bw1[rownames(df.bw1) %in% rownames(df.bw2),]#106
+same.gene.bw1= same.gene.bw1[,c(2,7,11)] # log2FoldChange, treatment, gene
+same.gene.bw2 = df.bw2[rownames(df.bw2) %in% rownames(df.bw1),] #106
+same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
+
+colnames(same.gene.bw1)=c(&quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;, &quot;gene&quot;)
+colnames(same.gene.bw2)=c(&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot;, &quot;gene&quot;)
+df.bw3=merge(same.gene.bw1,same.gene.bw2,by=&#39;gene&#39;,all=TRUE)</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li>bw plot for genes (that are newly activated, or newly repressed)</li>
+</ol>
+</div>
+<div id="ma-plot" class="section level3" number="4.6.2">
+<h3><span class="header-section-number">4.6.2</span> MA plot</h3>
+<p>MA plot for condition1, condition2, condition 4 and condition 5</p>
+</div>
+<div id="heatmap-for-4-factor-de-genes" class="section level3" number="4.6.3">
+<h3><span class="header-section-number">4.6.3</span> heatmap for 4 factor DE genes</h3>
+<p>try to draw heatmap for differentially expressed genes on condition 3.</p>
+</div>
+<div id="are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites" class="section level3" number="4.6.4">
+<h3><span class="header-section-number">4.6.4</span> are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?</h3>
+<p>cdf plot for condition 5</p>
+</div>
 </div>
 </div>
 <div id="integrate-with-chip" class="section level1" number="5">
