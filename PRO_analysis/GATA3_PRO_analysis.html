@@ -2610,7 +2610,6 @@ df.bw2$treatment=as.factor(df.bw2$treatment)
 bw.plot.png.lattice(df.bw2, filename = &#39;withorwithoutE2_dTAG&#39;, 
          title.main = &quot;differentially expressed gene +/- E2 with dTAG (FDR=0.1)&quot;,
          fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
-<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)</code></pre>
 <ol start="3" style="list-style-type: decimal">
 <li>bw plot for genes that less activated, less repressed</li>
 </ol>
@@ -2659,12 +2658,22 @@ df$treatment &lt;- factor(df$treatment, levels = c(&quot;noDTAG_more_activated&q
 
 bw.plot.png.lattice(df, filename = &#39;same gene&#39;, 
          title.main = &quot;differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)&quot;,
-         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))
-
-#save.image(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
+         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))</code></pre>
 <ol start="4" style="list-style-type: decimal">
 <li>bw plot for genes (that are newly activated, or newly repressed)</li>
 </ol>
+<pre class="r"><code>new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
+new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
+
+bw.plot.png.lattice(new.gene.bw2, filename = &#39;new_gene&#39;, 
+         title.main = &quot;differentially expressed gene newly found in +/-E2 with dTAG (FDR=0.1)&quot;,
+         fill.col = c(&quot;red&quot;, &quot;blue&quot;))
+
+#save.image(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
+<ol start="5" style="list-style-type: decimal">
+<li>if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be “significant” in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:</li>
+</ol>
+<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)</code></pre>
 </div>
 <div id="ma-plot" class="section level3" number="4.6.2">
 <h3><span class="header-section-number">4.6.2</span> MA plot</h3>
