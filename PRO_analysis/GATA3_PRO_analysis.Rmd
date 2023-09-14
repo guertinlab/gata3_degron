@@ -954,6 +954,7 @@ R
 
 library(bigWig)
 library(lattice)
+library(latticeExtra)
 library(DESeq2)
 library(MatchIt) # Selects matched samples of the original treated and control groups with similar covariate distributions – can be used to match exactly on covariates, to match on propensity scores, or perform a variety of other matching procedures. 
 library(data.table)
@@ -1097,6 +1098,32 @@ ma.plot.png.lattice <- function(ma.df, filename = 'file.name',
                                  par.ylab.text=list(cex=1.1,font=2))));
   dev.off()
 }
+
+bw.plot.png.lattice <- function(df.bw, filename = 'file.name', 
+         title.main = "Differential PRO-seq Expression",
+         fill.col = c("red",  "blue"))
+  {
+png(paste("BW_plot_", filename, "_response.png", sep=''))
+print(bwplot(log2FoldChange~treatment,
+             data=df.bw,
+             par.settings = list(box.rectangle = list(
+                                                        # use these box fill colors
+                                                        fill = fill.col,
+                                                        # make box outlines black
+                                                        col = "black"),
+                                                        # make whiskers black
+                                                        box.umbrella = list(col = "black"),
+                                                        # make outlier symbols red stars
+                                                        plot.symbol = list(col = "red",pch = 8),
+                                                        # make title text 18pt
+                                                        par.main.text = list(fontsize = 14)),
+             pch = "|",
+             ylab="log2FoldChange",
+             #auto.key=list(space="right", columns=4),
+             scales = list(x = list(rot = 45)),)
+      )
+dev.off()
+ }
 ```
 
 ## load the unnormalized bigWig PRO data 
@@ -1670,6 +1697,55 @@ plot_cdf_all(df.activated,
 
 conclusion: rep is not necessary. \
 
+scatter plot to see if including interactions in DESeq2 calling can still get similar results for DESeq2 not using interaction (in both DESeq2 formula, `rep` are not included); if the log2FC fall onto/close to the diagonal, the two set of data are similar. \
+
+```{r engine='R', eval=F, echo=TRUE}
+load('230828_GATA3_pro_DEA_norep.Rdata')
+res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "control_E2", "control_NoE2"))
+de.gene= as.data.frame(res.deseq.norep[res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj),])
+de.gene$gene=rownames(de.gene)
+
+####################
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+de.gene2= as.data.frame(res3[res3$padj < 0.1 & !is.na(res3$padj),])
+de.gene2$gene=rownames(de.gene2)
+#####################
+plot.df=merge(de.gene, de.gene2, by="gene")
+plot.df1=plot.df[,c(1,3,9)]
+head(plot.df1)
+
+#####################
+library(lattice)
+png("ER_control_comparison between rep and interaction.png")
+print(xyplot(log2FoldChange.x ~ log2FoldChange.y, plot.df1))
+dev.off()
+###################################################################################################################################################
+res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "dTAGV1_NoE2" , "control_NoE2"))
+de.gene= as.data.frame(res.deseq.norep[res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj),])
+de.gene$gene=rownames(de.gene)
+
+res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
+de.gene2= as.data.frame(res1[res1$padj < 0.1 & !is.na(res1$padj),])
+de.gene2$gene=rownames(de.gene2)
+
+plot.df=merge(de.gene, de.gene2, by="gene")
+plot.df1=plot.df[,c(1,3,9)]
+head(plot.df1)
+
+png("dTag_control_comparison between rep and interaction.png")
+print(xyplot(log2FoldChange.x ~ log2FoldChange.y, plot.df1))
+dev.off()
+```
 
 
 ###  dTAGV1_NoE2_vs_control_NoE2
@@ -1734,9 +1810,165 @@ sum(res5$padj < 0.1 & !is.na(res5$padj))
 
 ### bw plot for different condition (priority)
 1) bw plot for +/- E2, activated vs. repressed
+```{r engine='R', eval=F, echo=TRUE}
+# load('230901_GATA3_pro_DEA_interaction.Rdata')
+# res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+#198
+
+############################### activated
+activated = res3[res3$padj < 0.1 & !is.na(res3$padj) & res3$log2FoldChange > 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+#write.table(activated.strand, file = 'control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+# unchanged Matched to Activated
+#unchanged = res3[!is.na(res3$padj) & res3$padj > 0.1 & abs(res3$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+#unchanged$treatment = 0
+#activated$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, activated)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+activated$treatment = "Activated"
+
+
+############################### repressed
+repressed = res3[res3$padj < 0.1 & !is.na(res3$padj) & res3$log2FoldChange < 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(repressed.strand, file = 'control_E2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+# unchanged Matched to repressed 
+#unchanged = res3[!is.na(res3$padj) & res3$padj > 0.1 & abs(res3$log2FoldChange) < 0.01,]
+#unchanged$treatment = 0
+#repressed$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, repressed)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+repressed$treatment = "Repressed"
+
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+# bw plot
+df.bw1=as.data.frame(rbind(activated, repressed))
+df.bw1$treatment=as.factor(df.bw1$treatment)
+
+
+bw.plot.png.lattice(df.bw1, filename = 'control_E2_vs_control_NoE2', 
+         title.main = "differentially expressed gene +/- E2 (FDR=0.1)",
+         fill.col = c("red",  "blue"))
+```
+
 2) bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed
+```{r engine='R', eval=F, echo=TRUE}
+#res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
+sum(res4$padj < 0.1 & !is.na(res4$padj))
+#261
+
+############################### activated
+activated = res4[res4$padj < 0.1 & !is.na(res4$padj) & res4$log2FoldChange > 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+#write.table(activated.strand, file = 'withorwithoutE2_dTAG_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+# unchanged Matched to Activated
+#unchanged = res4[!is.na(res4$padj) & res4$padj > 0.1 & abs(res4$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+#unchanged$treatment = 0
+#activated$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, activated)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(unchanged.strand, file = 'withorwithoutE2_dTAG_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+activated$treatment = "Activated"
+
+############################### repressed
+repressed = res4[res4$padj < 0.1 & !is.na(res4$padj) & res4$log2FoldChange < 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(repressed.strand, file = 'withorwithoutE2_dTAG_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+
+# unchanged Matched to repressed 
+#unchanged = res4[!is.na(res4$padj) & res4$padj > 0.1 & abs(res4$log2FoldChange) < 0.01,]
+#unchanged$treatment = 0
+#repressed$treatment = 1
+#df.deseq.effects.lattice = rbind(unchanged, repressed)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+#unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+#write.table(unchanged.strand, file = 'withorwithoutE2_dTAG_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+repressed$treatment = "Repressed"
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+# bw plot
+df.bw2=as.data.frame(rbind(activated, repressed))
+df.bw2$treatment=as.factor(df.bw2$treatment)
+
+bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG', 
+         title.main = "differentially expressed gene +/- E2 with dTAG (FDR=0.1)",
+         fill.col = c("red",  "blue"))
+```
+
+```{r engine='R', eval=F, echo=F}
++
+  
+  # add individual points to existing plot
+  as.layer(xyplot(log2FoldChange ~ treatment,
+                  data=as.data.frame(df.bw),
+                 # function that adds labels
+                  #panel = function(x, y, ...) {
+                  #panel.xyplot(x, y, ...)
+                  #panel.text(x, y,...)
+                  #},
+                 # tweak individual point display
+                  par.settings = list(plot.symbol = list(
+                                                          # make individual points black
+                                                          col = "black",
+                                                          # make individual points open circles
+                                                          pch = 1))))
+```
+
+
 3) bw plot for genes that less activated, less repressed
+```{r engine='R', eval=F, echo=TRUE}
+nrow(df.bw1) # +/-E2
+#198
+nrow(df.bw2) # +/-E2 +dTAG
+#261
+
+df.bw1$chr = sapply(strsplit(rownames(df.bw1), ':'), '[', 1)
+df.bw1$start = sapply(strsplit(rownames(df.bw1), '-'), '[', 1)
+df.bw1$start = sapply(strsplit(df.bw1$start, ':'), '[', 2)
+df.bw1$end = sapply(strsplit(rownames(df.bw1), '-'), '[', 2)
+df.bw1$gene=sapply(strsplit(df.bw1$end, '_'), '[', 2)
+df.bw1$end = sapply(strsplit(df.bw1$end, '_'), '[', 1)
+
+df.bw2$chr = sapply(strsplit(rownames(df.bw2), ':'), '[', 1)
+df.bw2$start = sapply(strsplit(rownames(df.bw2), '-'), '[', 1)
+df.bw2$start = sapply(strsplit(df.bw2$start, ':'), '[', 2)
+df.bw2$end = sapply(strsplit(rownames(df.bw2), '-'), '[', 2)
+df.bw2$gene=sapply(strsplit(df.bw2$end, '_'), '[', 2)
+df.bw2$end = sapply(strsplit(df.bw2$end, '_'), '[', 1)
+
+same.gene.bw1= df.bw1[rownames(df.bw1) %in% rownames(df.bw2),]#106
+same.gene.bw1= same.gene.bw1[,c(2,7,11)] # log2FoldChange, treatment, gene
+same.gene.bw2 = df.bw2[rownames(df.bw2) %in% rownames(df.bw1),] #106
+same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
+
+colnames(same.gene.bw1)=c("E2_ctrl_log2FoldChange","E2_ctrl_treatment", "gene")
+colnames(same.gene.bw2)=c("E2_dTAG_log2FoldChange","E2_dTAG_treatment", "gene")
+df.bw3=merge(same.gene.bw1,same.gene.bw2,by='gene',all=TRUE)
+```
+
 4) bw plot for genes (that are newly activated, or newly repressed)
+```{r engine='R', eval=F, echo=TRUE}
+
+```
 
 ### MA plot
 MA plot for condition1, condition2, condition 4 and condition 5
