@@ -1933,11 +1933,6 @@ bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG',
                                                           pch = 1))))
 ```
 
-```{r engine='R', eval=F, echo=TRUE}
-# not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
-```
-
-
 3) bw plot for genes that less activated, less repressed
 ```{r engine='R', eval=F, echo=TRUE}
 nrow(df.bw1) # +/-E2
@@ -1987,13 +1982,27 @@ bw.plot.png.lattice(df, filename = 'same gene',
          title.main = "differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)",
          fill.col = c("pink","red", "pink","red","pink", "blue"))
 
-#save.image('230914_GATA3_pro_DEA_interaction.Rdata')
+
 ```
 
 4) bw plot for genes (that are newly activated, or newly repressed)
 ```{r engine='R', eval=F, echo=TRUE}
+new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
+new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
 
+bw.plot.png.lattice(new.gene.bw2, filename = 'new_gene', 
+         title.main = "differentially expressed gene newly found in +/-E2 with dTAG (FDR=0.1)",
+         fill.col = c("red", "blue"))
+
+#save.image('230914_GATA3_pro_DEA_interaction.Rdata')
 ```
+
+5) if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be "significant" in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:
+
+```{r engine='R', eval=F, echo=TRUE}
+# not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+```
+
 
 ### MA plot
 MA plot for condition1, condition2, condition 4 and condition 5
