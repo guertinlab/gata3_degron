@@ -770,7 +770,7 @@ meme -p 16 -oc noGATAmotif_top2000.memeClassic_output -nmotifs 3 -objfun classic
 ```
 
 By searching the top2000 peaks without GATA3 motif variant1 and 2, we found a new motif variant match to GATA3 motif family.
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA3 motif"}
+```{r, engine='R', eval=F, echo=TRUE}
 library(knitr)
 knitr::include_graphics("./noGATAmotif_top2000.memeClassic_output/logo.png") 
 ```
