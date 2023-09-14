@@ -1933,6 +1933,10 @@ bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG',
                                                           pch = 1))))
 ```
 
+```{r engine='R', eval=F, echo=TRUE}
+# not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+```
+
 
 3) bw plot for genes that less activated, less repressed
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1963,6 +1967,27 @@ same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
 colnames(same.gene.bw1)=c("E2_ctrl_log2FoldChange","E2_ctrl_treatment", "gene")
 colnames(same.gene.bw2)=c("E2_dTAG_log2FoldChange","E2_dTAG_treatment", "gene")
 df.bw3=merge(same.gene.bw1,same.gene.bw2,by='gene',all=TRUE)
+ifelse(<condition>, <yes>, ifelse(<condition>, <yes>, <no>))
+df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,"previously_activated" , ifelse(df.bw3$E2_ctrl_log2FoldChange > df.bw3$E2_dTAG_log2FoldChange, "decrease_activation", "increase_activation"))
+
+temp=df.bw3[,c(1,4,6)]
+colnames(temp)[2]="log2FoldChange"
+temp2=df.bw3[,c(1,2,6)]
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="increase_activation",]$treatment="noDTAG_less_activated"
+temp2[temp2$treatment=="decrease_activation",]$treatment="noDTAG_more_activated"
+temp2[temp2$treatment=="previously_activated",]$treatment= "noDTAG_activated"
+
+df=rbind(temp,temp2)
+df$treatment=as.factor(df$treatment)
+df$treatment <- factor(df$treatment, levels = c("noDTAG_more_activated", "decrease_activation", "noDTAG_less_activated", "increase_activation", "noDTAG_activated","previously_activated"))
+
+
+bw.plot.png.lattice(df, filename = 'same gene', 
+         title.main = "differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)",
+         fill.col = c("pink","red", "pink","red","pink", "blue"))
+
+#save.image('230914_GATA3_pro_DEA_interaction.Rdata')
 ```
 
 4) bw plot for genes (that are newly activated, or newly repressed)
