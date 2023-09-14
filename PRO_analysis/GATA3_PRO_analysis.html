@@ -2610,6 +2610,7 @@ df.bw2$treatment=as.factor(df.bw2$treatment)
 bw.plot.png.lattice(df.bw2, filename = &#39;withorwithoutE2_dTAG&#39;, 
          title.main = &quot;differentially expressed gene +/- E2 with dTAG (FDR=0.1)&quot;,
          fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
+<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)</code></pre>
 <ol start="3" style="list-style-type: decimal">
 <li>bw plot for genes that less activated, less repressed</li>
 </ol>
@@ -2639,7 +2640,28 @@ same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
 
 colnames(same.gene.bw1)=c(&quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;, &quot;gene&quot;)
 colnames(same.gene.bw2)=c(&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot;, &quot;gene&quot;)
-df.bw3=merge(same.gene.bw1,same.gene.bw2,by=&#39;gene&#39;,all=TRUE)</code></pre>
+df.bw3=merge(same.gene.bw1,same.gene.bw2,by=&#39;gene&#39;,all=TRUE)
+ifelse(&lt;condition&gt;, &lt;yes&gt;, ifelse(&lt;condition&gt;, &lt;yes&gt;, &lt;no&gt;))
+df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,&quot;previously_activated&quot; , ifelse(df.bw3$E2_ctrl_log2FoldChange &gt; df.bw3$E2_dTAG_log2FoldChange, &quot;decrease_activation&quot;, &quot;increase_activation&quot;))
+
+temp=df.bw3[,c(1,4,6)]
+colnames(temp)[2]=&quot;log2FoldChange&quot;
+temp2=df.bw3[,c(1,2,6)]
+colnames(temp2)[2]=&quot;log2FoldChange&quot;
+temp2[temp2$treatment==&quot;increase_activation&quot;,]$treatment=&quot;noDTAG_less_activated&quot;
+temp2[temp2$treatment==&quot;decrease_activation&quot;,]$treatment=&quot;noDTAG_more_activated&quot;
+temp2[temp2$treatment==&quot;previously_activated&quot;,]$treatment= &quot;noDTAG_activated&quot;
+
+df=rbind(temp,temp2)
+df$treatment=as.factor(df$treatment)
+df$treatment &lt;- factor(df$treatment, levels = c(&quot;noDTAG_more_activated&quot;, &quot;decrease_activation&quot;, &quot;noDTAG_less_activated&quot;, &quot;increase_activation&quot;, &quot;noDTAG_activated&quot;,&quot;previously_activated&quot;))
+
+
+bw.plot.png.lattice(df, filename = &#39;same gene&#39;, 
+         title.main = &quot;differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)&quot;,
+         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))
+
+#save.image(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
 <ol start="4" style="list-style-type: decimal">
 <li>bw plot for genes (that are newly activated, or newly repressed)</li>
 </ol>
