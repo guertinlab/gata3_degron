@@ -1025,13 +1025,13 @@ fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt
 
 MEME -classic use the markov model from genome: 
 ```{r, engine='R', eval=F, echo=TRUE}
-name=GATA_ChIP
+#name=GATA_ChIP
 # sort out the top 5000 GATA peaks and search for top 1 motif
-sort -nrk5,5 ../../${name}_summit_100window.bed | head -n 5000 > ${name}_top5000_summit_100window.bed
-name=${name}_top5000
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+#sort -nrk5,5 ../../${name}_summit_100window.bed | head -n 5000 > ${name}_top5000_summit_100window.bed
+#name=${name}_top5000
+#fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 # MEME
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
+#meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
 
 name=GATA_ChIP
 # sort out the top 10000 GATA peaks and search for top 1 motif
@@ -1039,15 +1039,36 @@ sort -nrk5,5 ../../${name}_summit_100window.bed | head -n 10000 > ${name}_top100
 name=${name}_top10000
 fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
 # MEME
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
+meme -p 48 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 ${name}_summit_100window.fasta
 ```
 
-Given a motif position weight matrix, one can search other for sequences for the occurance of that motif. Usage: http://meme-suite.org/tools/mast \
+The top 10000 (ranked by intensity) peaks discovered the top de-novo motif match to GATA3. \
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo motif matched to the GATA3 motif in top 10000 peaks"}
+#library(knitr)
+knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output_new/logo_rc1.png") 
+```
+
+Given a motif position weight matrix, one can search other for sequences for the occurrence of that motif. Usage: http://meme-suite.org/tools/mast \
 
 MAST \
 
 ```{r, engine='R', eval=F, echo=TRUE}
 ############################### motif1
+fastaFromBed -fi $genome -bed ../../GATA_ChIP_summit_100window.bed -fo GATA_ChIP_summit_100window.fasta
+mast -hit_list -best GATA_ChIP_top10000_motif.meme_output/meme.txt GATA_ChIP_summit_100window.fasta > mast_GATA3_PSWM_in_peaks_round1.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round1.bed #8777
+
+#peaks without motif1
+intersectBed -v -a ../../GATA_ChIP_summit_100window.bed -b mast_GATA3_PSWM_in_peaks_round1.bed > without_motifs_1.bed #57127
+fastaFromBed -fi $genome -bed without_motifs_1.bed -fo without_motifs_1.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_1.bed | head -n 10000 > without_motifs_1_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_1_top10000.bed -fo without_motifs_1_top10000.fasta
+# MEME-classic
+meme -p 48 -oc GATA3_without_motif1_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1_top10000.fasta 
+
+############################### motif2
 ```
 
 <!-- 
@@ -1288,7 +1309,7 @@ wc -l mast_GATA3_PSWM_in_peaks_round6_1.bed #3235  #6-1: 5877
 
 
 
-# BAR graph of motif occurence for all GATA3 peaks
+# BAR graph of motif occurrence for all GATA3 peaks
 
 ### Counting reads in peaks use mapBed
 We will first use the `mapBed` subcommand from `bedtools` to count the BED file from the seqOutBias output in the 400 base window peak summits file. \
