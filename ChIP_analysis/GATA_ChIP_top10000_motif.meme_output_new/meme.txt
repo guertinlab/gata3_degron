@@ -1,0 +1,145 @@
+********************************************************************************
+MEME - Motif discovery tool
+********************************************************************************
+MEME version 5.4.1 (Release date: Sat Aug 21 19:23:23 2021 -0700)
+
+For further information on how to interpret these results please access https://meme-suite.org/meme.
+To get a copy of the MEME Suite software please access https://meme-suite.org.
+
+********************************************************************************
+
+
+********************************************************************************
+REFERENCE
+********************************************************************************
+If you use this program in your research, please cite:
+
+Timothy L. Bailey and Charles Elkan,
+"Fitting a mixture model by expectation maximization to
+discover motifs in biopolymers",
+Proceedings of the Second International Conference on Intelligent Systems
+for Molecular Biology, pp. 28-36, AAAI Press, Menlo Park, California, 1994.
+********************************************************************************
+
+
+********************************************************************************
+TRAINING SET
+********************************************************************************
+PRIMARY SEQUENCES= GATA_ChIP_top10000_summit_100window.fasta
+CONTROL SEQUENCES= --none--
+ALPHABET= ACGT
+
+********************************************************************************
+
+********************************************************************************
+COMMAND LINE SUMMARY
+********************************************************************************
+This information can also be useful in the event you wish to report a
+problem with the MEME software.
+
+command: meme -oc GATA_ChIP_top10000_motif.meme_output_new -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 GATA_ChIP_top10000_summit_100window.fasta -mpi 
+
+model:  mod=         zoops    nmotifs=         1    evt=           inf
+objective function:           em=       E-value of product of p-values
+                              starts=   E-value of product of p-values
+strands: + -
+width:  minw=            4    maxw=           20
+nsites: minsites=        2    maxsites=    10000    wnsites=       0.8
+theta:  spmap=         uni    spfuzz=        0.5
+em:     prior=   dirichlet    b=            0.01    maxiter=        50
+        distance=    1e-05
+trim:   wg=             11    ws=              1    endgaps=       yes
+data:   n=         1010000    N=           10000
+sample: seed=            0    hsfrac=          0
+        searchsize=1010000    norand=         no    csites=      20000
+Letter frequencies in dataset:
+A 0.303 C 0.197 G 0.197 T 0.303 
+Background letter frequencies (from file hg38_bkgrnd.txt):
+A 0.295 C 0.205 G 0.205 T 0.295 
+Background model order: 3
+********************************************************************************
+
+
+********************************************************************************
+MOTIF WGATBTTATCW MEME-1	width =  11  sites = 1829  llr = 17999  E-value = 5.4e-1476
+********************************************************************************
+--------------------------------------------------------------------------------
+	Motif WGATBTTATCW MEME-1 Description
+--------------------------------------------------------------------------------
+Simplified        A  6:a:112a::3
+pos.-specific     C  ::::32:::a:
+probability       G  :a::41:::::
+matrix            T  4::a368:a:6
+
+         bits    2.3  *       * 
+                 2.1  *       * 
+                 1.8  **    *** 
+                 1.6  ***   *** 
+Relative         1.4  ***   *** 
+Entropy          1.1  ***  **** 
+(14.2 bits)      0.9  ***  **** 
+                 0.7 ****  **** 
+                 0.5 ****  *****
+                 0.2 ***********
+                 0.0 -----------
+
+Multilevel           AGATGTTATCT
+consensus            T   C     A
+sequence                 T      
+                                
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif WGATBTTATCW MEME-1 position-specific scoring matrix
+--------------------------------------------------------------------------------
+log-odds matrix: alength= 4 w= 11 n= 910000 bayes= 11.0909 E= 5.4e-1476 
+    94   -306   -755     48 
+ -1748  -1748    229  -1748 
+   176  -1748  -1748  -1748 
+ -1748   -464  -1748    175 
+  -133     34     83    -19 
+  -112    -25    -65     93 
+   -85  -1748  -1748    150 
+   176  -1748  -1748  -1748 
+ -1748  -1748  -1748    176 
+ -1748    229  -1748  -1748 
+    18   -230   -251    100 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif WGATBTTATCW MEME-1 position-specific probability matrix
+--------------------------------------------------------------------------------
+letter-probability matrix: alength= 4 w= 11 nsites= 1829 E= 5.4e-1476 
+ 0.564243  0.024604  0.001093  0.410060 
+ 0.000000  0.000000  1.000000  0.000000 
+ 1.000000  0.000000  0.000000  0.000000 
+ 0.000000  0.008201  0.000000  0.991799 
+ 0.117004  0.259705  0.364680  0.258611 
+ 0.136140  0.172225  0.130672  0.560962 
+ 0.163477  0.000000  0.000000  0.836523 
+ 1.000000  0.000000  0.000000  0.000000 
+ 0.000000  0.000000  0.000000  1.000000 
+ 0.000000  1.000000  0.000000  0.000000 
+ 0.333516  0.041553  0.036085  0.588846 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif WGATBTTATCW MEME-1 regular expression
+--------------------------------------------------------------------------------
+[AT]GAT[GCT]TTATC[TA]
+--------------------------------------------------------------------------------
+
+
+
+
+Time 18079.42 secs.
+
+********************************************************************************
+
+********************************************************************************
+Stopped because requested number of motifs (1) found.
+********************************************************************************
+
+CPU: xanadu-23
+
+********************************************************************************
