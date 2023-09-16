@@ -1087,17 +1087,100 @@ mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_moti
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round3.txt
 wc -l mast_GATA3_PSWM_in_peaks_round3.bed #5433
 
-#peaks without motif1 and motif2
+#peaks without motif1 and motif2 and motif3
 intersectBed -v -a without_motifs_12.bed -b mast_GATA3_PSWM_in_peaks_round3.bed > without_motifs_123.bed #43810
 fastaFromBed -fi $genome -bed without_motifs_123.bed -fo without_motifs_123.fasta
 # select top 10000
 sort -nrk5,5 without_motifs_123.bed | head -n 10000 > without_motifs_123_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_123_top10000.bed -fo without_motifs_123_top10000.fasta
+
+############################### motif4--found FOX-like motif
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif123_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta 
 
 # getting FOX motif
 ```
+
+coherence check
+```{r, engine='R', eval=F, echo=TRUE}
+# without_motifs_12.bed don't have motif1 and motif2 and motif3
+mast -hit_list -best GATA_ChIP_top10000_motif.meme_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif1
+mast -hit_list -best GATA3_without_motif1_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif2
+mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif3
+
+# without_motifs_123.fasta do not contain motif1, 2, 3
+
+
+
+# Is there peaks with both motif1 and 2 
+# Is there peaks with both motif1 and 2 and 3
+```
+
+the fraction of motif1, motif2 in each quantile:
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/"
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with individual motif
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir '{print $2}' | awk -F "_summits_100window.bed" '{print $1}')
+  intersectBed -wa -a $i -b without_motifs_123.bed | sort -k1,1 -k2,2n | uniq >${nm}_without_motifs_123.bed
+done
+
+
+touch quantile.0916.sum.100window.txt
+for i in *quantile*_without_motifs*.bed
+do
+ nm=$(echo $i | awk -F"_without_motifs_123.bed" '{print $1}')
+ p=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+ withoutMotif=$(bc <<< "scale=4 ; $p / $totalp")
+ withMotif=$(bc <<< "scale=4 ; ($totalp- $p) / $totalp")
+ echo $nm "" $withoutMotif "" $withMotif>> quantile.0916.sum.100window.txt
+done
+
+module load R/4.1.2 
+R 
+
+library("lattice") 
+library("reshape2")
+
+
+df_sum=read.table('quantile.0916.sum.100window.txt', sep = "", header=FALSE)
+colnames(df_sum)=c("quantile","without_Motif","with_Motif")
+df_sum_long <- df_sum
+# row: with motif stack --10 
+# column: quantiles --20
+df_sum_long <- melt(df_sum_long, id = "quantile")
+df_sum_long$variable<- factor(df_sum_long$variable, levels = c("with_Motif", "without_Motif"))
+
+png('0916 percent peaks with or without GATA3 motif variant.png')
+my.settings <- list(
+  superpose.polygon=list(col=c("black", "grey"), border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "peak set within intensity quantile",
+         xlab = "fraction of peaks with/without GATA3 motif variant",
+         par.settings = my.settings)
+)
+dev.off()
+```
+percent peaks with or without GATA3 motif variant 1,2,3:
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="percent peaks with or without GATA3 motif variant 1,2,3"}
+#library(knitr)
+knitr::include_graphics("./0916 percent peaks with or without GATA3 motif variant.png") 
+```
+
 
 <!-- 
 # MAST for GATA peaks
