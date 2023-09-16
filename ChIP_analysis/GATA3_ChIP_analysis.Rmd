@@ -1103,7 +1103,6 @@ meme -p 64 -oc GATA3_without_motif123_top10000_output -nmotifs 1 -objfun classic
 
 coherence check
 ```{r, engine='R', eval=F, echo=TRUE}
-# without_motifs_12.bed don't have motif1 and motif2 and motif3
 mast -hit_list -best GATA_ChIP_top10000_motif.meme_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif1
 mast -hit_list -best GATA3_without_motif1_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif2
 mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif3
@@ -1116,7 +1115,7 @@ mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_moti
 # Is there peaks with both motif1 and 2 and 3
 ```
 
-the fraction of motif1, motif2 in each quantile:
+the fraction of peaks with motif1, motif2, motif3 in each quantile:
 ```{r, engine='R', eval=F, echo=TRUE}
 module load bedtools
 dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/"
