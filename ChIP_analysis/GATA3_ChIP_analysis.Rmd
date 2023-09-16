@@ -1069,6 +1069,34 @@ fastaFromBed -fi $genome -bed without_motifs_1_top10000.bed -fo without_motifs_1
 meme -p 48 -oc GATA3_without_motif1_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1_top10000.fasta 
 
 ############################### motif2
+mast -hit_list -best GATA3_without_motif1_top10000_output/meme.txt without_motifs_1.fasta > mast_GATA3_PSWM_in_peaks_round2.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round2.txt
+wc -l mast_GATA3_PSWM_in_peaks_round2.bed #7884
+
+#peaks without motif1 and motif2
+intersectBed -v -a without_motifs_1.bed -b mast_GATA3_PSWM_in_peaks_round2.bed > without_motifs_12.bed #49243
+fastaFromBed -fi $genome -bed without_motifs_12.bed -fo without_motifs_12.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_12.bed | head -n 10000 > without_motifs_12_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_12_top10000.bed -fo without_motifs_12_top10000.fasta
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif12_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12_top10000.fasta 
+
+############################### motif3
+mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_motifs_12.fasta > mast_GATA3_PSWM_in_peaks_round3.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round3.txt
+wc -l mast_GATA3_PSWM_in_peaks_round3.bed #5433
+
+#peaks without motif1 and motif2
+intersectBed -v -a without_motifs_12.bed -b mast_GATA3_PSWM_in_peaks_round3.bed > without_motifs_123.bed #43810
+fastaFromBed -fi $genome -bed without_motifs_123.bed -fo without_motifs_123.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_123.bed | head -n 10000 > without_motifs_123_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_123_top10000.bed -fo without_motifs_123_top10000.fasta
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif123_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta 
+
+# getting FOX motif
 ```
 
 <!-- 
