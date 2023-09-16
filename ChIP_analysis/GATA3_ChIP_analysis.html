@@ -1768,8 +1768,7 @@ meme -p 64 -oc GATA3_without_motif123_top10000_output -nmotifs 1 -objfun classic
 
 # getting FOX motif</code></pre>
 <p>coherence check</p>
-<pre class="r"><code># without_motifs_12.bed don&#39;t have motif1 and motif2 and motif3
-mast -hit_list -best GATA_ChIP_top10000_motif.meme_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif1
+<pre class="r"><code>mast -hit_list -best GATA_ChIP_top10000_motif.meme_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif1
 mast -hit_list -best GATA3_without_motif1_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif2
 mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_motifs_123.fasta | wc -l #---check if without_motifs_123.fasta contains motif3
 
@@ -1779,7 +1778,7 @@ mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_moti
 
 # Is there peaks with both motif1 and 2 
 # Is there peaks with both motif1 and 2 and 3</code></pre>
-<p>the fraction of motif1, motif2 in each quantile:</p>
+<p>the fraction of peaks with motif1, motif2, motif3 in each quantile:</p>
 <pre class="r"><code>module load bedtools
 dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/&quot;
 
