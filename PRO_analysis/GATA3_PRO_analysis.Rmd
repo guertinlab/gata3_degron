@@ -1101,8 +1101,7 @@ ma.plot.png.lattice <- function(ma.df, filename = 'file.name',
 
 bw.plot.png.lattice <- function(df.bw, filename = 'file.name', 
          title.main = "Differential PRO-seq Expression",
-         fill.col = c("red",  "blue"))
-  {
+         fill.col = c("red",  "blue")){
 png(paste("BW_plot_", filename, "_response.png", sep=''))
 print(bwplot(log2FoldChange~treatment,
              data=df.bw,
@@ -1123,7 +1122,7 @@ print(bwplot(log2FoldChange~treatment,
              scales = list(x = list(rot = 45)),)
       )
 dev.off()
- }
+}
 ```
 
 ## load the unnormalized bigWig PRO data 
@@ -1933,7 +1932,7 @@ bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG',
                                                           pch = 1))))
 ```
 
-3) bw plot for genes that less activated, less repressed
+3) bw plot for genes that reappear to be significantly changed after adding dTAG
 ```{r engine='R', eval=F, echo=TRUE}
 nrow(df.bw1) # +/-E2
 #198
@@ -1962,7 +1961,7 @@ same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
 colnames(same.gene.bw1)=c("E2_ctrl_log2FoldChange","E2_ctrl_treatment", "gene")
 colnames(same.gene.bw2)=c("E2_dTAG_log2FoldChange","E2_dTAG_treatment", "gene")
 df.bw3=merge(same.gene.bw1,same.gene.bw2,by='gene',all=TRUE)
-ifelse(<condition>, <yes>, ifelse(<condition>, <yes>, <no>))
+#ifelse(<condition>, <yes>, ifelse(<condition>, <yes>, <no>))
 df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,"previously_activated" , ifelse(df.bw3$E2_ctrl_log2FoldChange > df.bw3$E2_dTAG_log2FoldChange, "decrease_activation", "increase_activation"))
 
 temp=df.bw3[,c(1,4,6)]
@@ -1985,7 +1984,7 @@ bw.plot.png.lattice(df, filename = 'same gene',
 
 ```
 
-4) bw plot for genes (that are newly activated, or newly repressed)
+4) bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)
 ```{r engine='R', eval=F, echo=TRUE}
 new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
 new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
@@ -2001,8 +2000,96 @@ bw.plot.png.lattice(new.gene.bw2, filename = 'new_gene',
 
 ```{r engine='R', eval=F, echo=TRUE}
 # not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+
+#load('230914_GATA3_pro_DEA_interaction.Rdata')
+#head(df.bw1)
+
+# +/- E2 genes + dTAG
+res4.df=as.data.frame(res4)
+same.gene.bw5= res4.df[rownames(res4.df) %in% rownames(df.bw1),] #198
+
+activated = same.gene.bw5[!is.na(same.gene.bw5$padj) & same.gene.bw5$log2FoldChange > 0,]
+activated$treatment = "Activated"
+repressed = same.gene.bw5[!is.na(same.gene.bw5$padj) & same.gene.bw5$log2FoldChange < 0,]
+repressed$treatment = "Repressed"
+
+
+df.bw5=as.data.frame(rbind(activated, repressed))
+df.bw5$treatment=as.factor(df.bw5$treatment)
+
+bw.plot.png.lattice(df.bw5, filename = 'changes_of_significant_genes_(+-E2)_after_adding_dTAG', 
+         title.main = " +/- E2 with dTAG (n=198)",
+         fill.col = c("red",  "blue"))
 ```
 
+6) For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)
+
+```{r engine='R', eval=F, echo=TRUE}
+#df.bw1
+#df.bw5
+df.bw5$chr = sapply(strsplit(rownames(df.bw5), ':'), '[', 1)
+df.bw5$start = sapply(strsplit(rownames(df.bw5), '-'), '[', 1)
+df.bw5$start = sapply(strsplit(df.bw5$start, ':'), '[', 2)
+df.bw5$end = sapply(strsplit(rownames(df.bw5), '-'), '[', 2)
+df.bw5$gene=sapply(strsplit(df.bw5$end, '_'), '[', 2)
+df.bw5$end = sapply(strsplit(df.bw5$end, '_'), '[', 1)
+
+df.bw6=cbind(df.bw1[,c(11,2,7)], df.bw5[,c(2,7)])
+colnames(df.bw6)=c("gene", "E2_ctrl_log2FoldChange","E2_ctrl_treatment","E2_dTAG_log2FoldChange","E2_dTAG_treatment" )
+df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,"shift_expression", ifelse(df.bw6$E2_ctrl_log2FoldChange > df.bw6$E2_dTAG_log2FoldChange, "decrease_activation", "increase_activation"))
+
+
+```
+
+7) what is the change for genes that are activated in E2 treatment
+```{r engine='R', eval=F, echo=TRUE}
+#E2_activate=df.bw1[df.bw1$treatment=="Activated",] #187
+E2_activate=df.bw6[df.bw6$E2_ctrl_treatment=="Activated",] #187
+
+temp=E2_activate[,c(1,4,6)]
+colnames(temp)[2]="log2FoldChange"
+temp[temp$treatment=="shift_expression",]$treatment= "previously_activated"
+temp2=E2_activate[,c(1,2,6)]
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="increase_activation",]$treatment="noDTAG_less_activated"
+temp2[temp2$treatment=="decrease_activation",]$treatment="noDTAG_more_activated"
+temp2[temp2$treatment=="shift_expression",]$treatment= "noDTAG_activated"
+
+df2=rbind(temp,temp2)
+df2$treatment=as.factor(df2$treatment)
+df2$treatment <- factor(df2$treatment, levels = c("noDTAG_more_activated", "decrease_activation", "noDTAG_less_activated", "increase_activation", "noDTAG_activated","previously_activated"))
+
+
+bw.plot.png.lattice(df2, filename = 'E2_activated_gene', 
+         title.main = "changes for genes that are activated in +/-E2 upon dTAG treatment (n=187)",
+         fill.col = c("pink","red", "pink","red","pink", "blue"))
+
+```
+
+8) what is the change for genes that are repressed in E2 treatment
+
+```{r engine='R', eval=F, echo=TRUE}
+E2_repress=df.bw6[df.bw6$E2_ctrl_treatment=="Repressed",] #11
+#unique(E2_repress$treatment)
+#[1] "increase_activation"
+E2_repress$treatment="less_repress"
+
+temp=E2_repress[,c(1,4,6)]
+colnames(temp)[2]="log2FoldChange"
+temp2=E2_repress[,c(1,2,6)]
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="less_repress",]$treatment="noDTAG_repress"
+
+df3=rbind(temp,temp2)
+df3$treatment=as.factor(df3$treatment)
+df3$treatment <- factor(df3$treatment, levels = c("noDTAG_repress", "less_repress"))
+
+
+bw.plot.png.lattice(df3, filename = 'E2_repressed_gene', 
+         title.main = "changes for genes that are repressed in +/-E2 upon dTAG treatment (n=11)",
+         fill.col = c("light blue","blue"))
+
+```
 
 ### MA plot
 MA plot for condition1, condition2, condition 4 and condition 5
