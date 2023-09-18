@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-09-14" />
+<meta name="date" content="2023-09-18" />
 
 <title>PRO-seq analysis</title>
 
@@ -54,7 +54,7 @@ h4 {font-size: 18px;}
 h5 {font-size: 16px;}
 h6 {font-size: 12px;}
 code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
-pre:not([class]) { background-color: white }</style>
+</style>
 <script>
 
 /**
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-09-14</h4>
+<h4 class="date">2023-09-18</h4>
 
 </div>
 
@@ -1827,8 +1827,7 @@ ma.plot.png.lattice &lt;- function(ma.df, filename = &#39;file.name&#39;,
 
 bw.plot.png.lattice &lt;- function(df.bw, filename = &#39;file.name&#39;, 
          title.main = &quot;Differential PRO-seq Expression&quot;,
-         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))
-  {
+         fill.col = c(&quot;red&quot;,  &quot;blue&quot;)){
 png(paste(&quot;BW_plot_&quot;, filename, &quot;_response.png&quot;, sep=&#39;&#39;))
 print(bwplot(log2FoldChange~treatment,
              data=df.bw,
@@ -1849,7 +1848,7 @@ print(bwplot(log2FoldChange~treatment,
              scales = list(x = list(rot = 45)),)
       )
 dev.off()
- }</code></pre>
+}</code></pre>
 </div>
 <div id="load-the-unnormalized-bigwig-pro-data" class="section level2" number="4.2">
 <h2><span class="header-section-number">4.2</span> load the unnormalized bigWig PRO data</h2>
@@ -2611,7 +2610,7 @@ bw.plot.png.lattice(df.bw2, filename = &#39;withorwithoutE2_dTAG&#39;,
          title.main = &quot;differentially expressed gene +/- E2 with dTAG (FDR=0.1)&quot;,
          fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
 <ol start="3" style="list-style-type: decimal">
-<li>bw plot for genes that less activated, less repressed</li>
+<li>bw plot for genes that reappear to be significantly changed after adding dTAG</li>
 </ol>
 <pre class="r"><code>nrow(df.bw1) # +/-E2
 #198
@@ -2640,7 +2639,7 @@ same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
 colnames(same.gene.bw1)=c(&quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;, &quot;gene&quot;)
 colnames(same.gene.bw2)=c(&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot;, &quot;gene&quot;)
 df.bw3=merge(same.gene.bw1,same.gene.bw2,by=&#39;gene&#39;,all=TRUE)
-ifelse(&lt;condition&gt;, &lt;yes&gt;, ifelse(&lt;condition&gt;, &lt;yes&gt;, &lt;no&gt;))
+#ifelse(&lt;condition&gt;, &lt;yes&gt;, ifelse(&lt;condition&gt;, &lt;yes&gt;, &lt;no&gt;))
 df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,&quot;previously_activated&quot; , ifelse(df.bw3$E2_ctrl_log2FoldChange &gt; df.bw3$E2_dTAG_log2FoldChange, &quot;decrease_activation&quot;, &quot;increase_activation&quot;))
 
 temp=df.bw3[,c(1,4,6)]
@@ -2660,7 +2659,7 @@ bw.plot.png.lattice(df, filename = &#39;same gene&#39;,
          title.main = &quot;differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)&quot;,
          fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))</code></pre>
 <ol start="4" style="list-style-type: decimal">
-<li>bw plot for genes (that are newly activated, or newly repressed)</li>
+<li>bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)</li>
 </ol>
 <pre class="r"><code>new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
 new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
@@ -2673,7 +2672,87 @@ bw.plot.png.lattice(new.gene.bw2, filename = &#39;new_gene&#39;,
 <ol start="5" style="list-style-type: decimal">
 <li>if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be “significant” in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:</li>
 </ol>
-<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)</code></pre>
+<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+
+#load(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)
+#head(df.bw1)
+
+# +/- E2 genes + dTAG
+res4.df=as.data.frame(res4)
+same.gene.bw5= res4.df[rownames(res4.df) %in% rownames(df.bw1),] #198
+
+activated = same.gene.bw5[!is.na(same.gene.bw5$padj) &amp; same.gene.bw5$log2FoldChange &gt; 0,]
+activated$treatment = &quot;Activated&quot;
+repressed = same.gene.bw5[!is.na(same.gene.bw5$padj) &amp; same.gene.bw5$log2FoldChange &lt; 0,]
+repressed$treatment = &quot;Repressed&quot;
+
+
+df.bw5=as.data.frame(rbind(activated, repressed))
+df.bw5$treatment=as.factor(df.bw5$treatment)
+
+bw.plot.png.lattice(df.bw5, filename = &#39;changes_of_significant_genes_(+-E2)_after_adding_dTAG&#39;, 
+         title.main = &quot; +/- E2 with dTAG (n=198)&quot;,
+         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
+<ol start="6" style="list-style-type: decimal">
+<li>For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)</li>
+</ol>
+<pre class="r"><code>#df.bw1
+#df.bw5
+df.bw5$chr = sapply(strsplit(rownames(df.bw5), &#39;:&#39;), &#39;[&#39;, 1)
+df.bw5$start = sapply(strsplit(rownames(df.bw5), &#39;-&#39;), &#39;[&#39;, 1)
+df.bw5$start = sapply(strsplit(df.bw5$start, &#39;:&#39;), &#39;[&#39;, 2)
+df.bw5$end = sapply(strsplit(rownames(df.bw5), &#39;-&#39;), &#39;[&#39;, 2)
+df.bw5$gene=sapply(strsplit(df.bw5$end, &#39;_&#39;), &#39;[&#39;, 2)
+df.bw5$end = sapply(strsplit(df.bw5$end, &#39;_&#39;), &#39;[&#39;, 1)
+
+df.bw6=cbind(df.bw1[,c(11,2,7)], df.bw5[,c(2,7)])
+colnames(df.bw6)=c(&quot;gene&quot;, &quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;,&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot; )
+df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,&quot;shift_expression&quot;, ifelse(df.bw6$E2_ctrl_log2FoldChange &gt; df.bw6$E2_dTAG_log2FoldChange, &quot;decrease_activation&quot;, &quot;increase_activation&quot;))</code></pre>
+<ol start="7" style="list-style-type: decimal">
+<li>what is the change for genes that are activated in E2 treatment</li>
+</ol>
+<pre class="r"><code>#E2_activate=df.bw1[df.bw1$treatment==&quot;Activated&quot;,] #187
+E2_activate=df.bw6[df.bw6$E2_ctrl_treatment==&quot;Activated&quot;,] #187
+
+temp=E2_activate[,c(1,4,6)]
+colnames(temp)[2]=&quot;log2FoldChange&quot;
+temp[temp$treatment==&quot;shift_expression&quot;,]$treatment= &quot;previously_activated&quot;
+temp2=E2_activate[,c(1,2,6)]
+colnames(temp2)[2]=&quot;log2FoldChange&quot;
+temp2[temp2$treatment==&quot;increase_activation&quot;,]$treatment=&quot;noDTAG_less_activated&quot;
+temp2[temp2$treatment==&quot;decrease_activation&quot;,]$treatment=&quot;noDTAG_more_activated&quot;
+temp2[temp2$treatment==&quot;shift_expression&quot;,]$treatment= &quot;noDTAG_activated&quot;
+
+df2=rbind(temp,temp2)
+df2$treatment=as.factor(df2$treatment)
+df2$treatment &lt;- factor(df2$treatment, levels = c(&quot;noDTAG_more_activated&quot;, &quot;decrease_activation&quot;, &quot;noDTAG_less_activated&quot;, &quot;increase_activation&quot;, &quot;noDTAG_activated&quot;,&quot;previously_activated&quot;))
+
+
+bw.plot.png.lattice(df2, filename = &#39;E2_activated_gene&#39;, 
+         title.main = &quot;changes for genes that are activated in +/-E2 upon dTAG treatment (n=187)&quot;,
+         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))</code></pre>
+<ol start="8" style="list-style-type: decimal">
+<li>what is the change for genes that are repressed in E2 treatment</li>
+</ol>
+<pre class="r"><code>E2_repress=df.bw6[df.bw6$E2_ctrl_treatment==&quot;Repressed&quot;,] #11
+#unique(E2_repress$treatment)
+#[1] &quot;increase_activation&quot;
+E2_repress$treatment=&quot;less_repress&quot;
+
+temp=E2_repress[,c(1,4,6)]
+colnames(temp)[2]=&quot;log2FoldChange&quot;
+temp2=E2_repress[,c(1,2,6)]
+colnames(temp2)[2]=&quot;log2FoldChange&quot;
+temp2[temp2$treatment==&quot;less_repress&quot;,]$treatment=&quot;noDTAG_repress&quot;
+
+df3=rbind(temp,temp2)
+df3$treatment=as.factor(df3$treatment)
+df3$treatment &lt;- factor(df3$treatment, levels = c(&quot;noDTAG_repress&quot;, &quot;less_repress&quot;))
+
+
+bw.plot.png.lattice(df3, filename = &#39;E2_repressed_gene&#39;, 
+         title.main = &quot;changes for genes that are repressed in +/-E2 upon dTAG treatment (n=11)&quot;,
+         fill.col = c(&quot;light blue&quot;,&quot;blue&quot;))</code></pre>
 </div>
 <div id="ma-plot" class="section level3" number="4.6.2">
 <h3><span class="header-section-number">4.6.2</span> MA plot</h3>
