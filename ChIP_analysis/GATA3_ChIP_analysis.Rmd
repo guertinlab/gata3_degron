@@ -1204,9 +1204,11 @@ fastaFromBed -fi $genome -bed without_motifs_1234FOX.bed -fo without_motifs_1234
 sort -nrk5,5 without_motifs_1234FOX.bed | head -n 10000 > without_motifs_1234FOX_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_1234FOX_top10000.bed -fo without_motifs_1234FOX_top10000.fasta
 
-############################### motif5
+############################### motif5 -- found FOS::JUN-like motif--rerun, find second motif match to 
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
+
+meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
 ```
 
 
