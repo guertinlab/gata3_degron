@@ -21,6 +21,9 @@ geometry: margin=1in
 
 ### Renaming fastq files
 The raw fastq files are initially named as R1_001 and R2_001, we want to change them to PE1 and PE2 (meaning pair-end 1 and pair-end 2).\
+
+1) dep1 \
+
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 
@@ -28,30 +31,58 @@ The raw fastq files are initially named as R1_001 and R2_001, we want to change 
 #SBATCH -N 1                    # number of nodes
 #SBATCH -n 1                    # number of jobs / tasks
 #SBATCH -c 16                    # number of cores
-#SBATCH -p general           # SLURM partition
-#SBATCH --qos=general        # SLURM Quality of service
+#SBATCH -p himem           # SLURM partition
+#SBATCH --qos=himem       # SLURM Quality of service
 #SBATCH --mem=32G                # RAM (memory) requested
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ssun@uchc.edu
 #SBATCH -o cname.sh_%j.out
 #SBATCH -e cname.sh_%j.err
 
-gunzip *.gz
+cp /labs/Guertin/sathyan/MCF7_dTAGGATA3_PRO_060923/230609_NB551647_0102_AHVVGCBGXN/Data/Intensities/BaseCalls/Sathyan_MCF7_GATAPROSeq_09June23/*.gz .
 
-for i in *_S*R1_001.fastq
+for i in *_S*R1_001.fastq.gz
 do
     nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
     echo $nm
-        two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq" '{print $1}')
-        mv $i ${nm}_dep1_PE1.fastq 
-        mv ${two}R2_001.fastq ${nm}_dep1_PE2.fastq
+        two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq.gz" '{print $1}')
+        mv $i ${nm}_dep1_PE1.fastq.gz 
+        mv ${two}R2_001.fastq.gz ${nm}_dep1_PE2.fastq.gz
 done
 ```
 
-<!--
-combining dep1 and dep2 pro-seq data? (haven't got the dep2 data yet)
+2) dep2 \
+```{r}
+cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
+
+for i in *R1_001.fastq.gz
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    cat ${name}*R1_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_dep2_PE1.fastq.gz
+    cat ${name}*R2_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_dep2_PE2.fastq.gz    
+done
+```
+
+
+combining dep1 and dep2 pro-seq data \
 ```{r engine='bash', eval=F, echo=TRUE}
 cd /directory/of/GATA3_PRO
+
+cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
+
+for i in *_dTAG_*.gz
+do
+ nm=$(echo $i | awk -F"MCF7_dTAGGATAClone522_30min_dTAG_" '{print $2}')
+ mv $i MCF7_dTAGGATAClone522_30min_dTAGV1_${nm}
+done
+
+for i in *_noE2_*.gz
+do
+ nm=$(echo $i | awk -F"_noE2_" '{print $2}')
+ nmm=$(echo $i | awk -F"_noE2_" '{print $1}')
+ mv $i ${nmm}_NoE2_${nm}
+done
+
 
 for i in *_dep1_*.fastq.gz
 do
@@ -65,7 +96,36 @@ do
 	cat $i ${pre}_dep2_${suf} > ${pre}_${x}_final.fastq.gz
 done 
 ```
--->
+
+```{r engine='bash', eval=F, echo=TRUE}
+md5sum *final.fastq.gz
+
+dfe6c6094ed8541afe1ed0e47eaffb39  MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq.gz
+bc54f23cb075e9df0c9f1df176d949db  MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq.gz
+1ab84c09e7ba8e0221f77be8d64499ff  MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE1_final.fastq.gz
+d2084e5140c58439d59818d853171001  MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE2_final.fastq.gz
+fb2f948a9b7698f122df7a990c6908bd  MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE1_final.fastq.gz
+8465df9dc904f6b6db4d7b912a92cb6c  MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE2_final.fastq.gz
+9371d0fc6f0306df946db6250512cc6b  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE1_final.fastq.gz
+cb33664c6d717937b04be8ab65620ffd  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE2_final.fastq.gz
+9ba399f1d8d151400f94f031bee845ef  MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE1_final.fastq.gz
+4219c13ccfc27192339a6225dc0540c6  MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE2_final.fastq.gz
+3934e6610fbb924d4d3071630cb477f3  MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE1_final.fastq.gz
+f51fadb87683d75cb76db0dfba61991a  MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE2_final.fastq.gz
+e561d6d9a5d6afd3feb49c92079899de  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE1_final.fastq.gz
+81bd3d16663b6caf576ee45ff381dae5  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE2_final.fastq.gz
+98c0583af89871fc8f53b0e472996719  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE1_final.fastq.gz
+58d947dcefc157ac7556a9692869b5bd  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE2_final.fastq.gz
+436aba45c025d52efb369a6b00906497  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE1_final.fastq.gz
+56d81392872f2bb0f87da514b3ceaf8e  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE2_final.fastq.gz
+9c71109a93a58ca40925394992c60b0a  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE1_final.fastq.gz
+f4ffebc432c9534a13239ea9e74ad705  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE2_final.fastq.gz
+51875e618dd20b19f380597279de05ad  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE1_final.fastq.gz
+b04a79eb1437734418208a58fc1a65fa  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE2_final.fastq.gz
+08562b62fcb60fb0b749799956bfb787  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE1_final.fastq.gz
+6e6de59c8bc7ced3b07ad8bd38085c53  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE2_final.fastq.gz
+```
+
 
 ## Install softwares and scripts
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -2010,7 +2070,7 @@ same.gene.bw5= res4.df[rownames(res4.df) %in% rownames(df.bw1),] #198
 
 activated = same.gene.bw5[!is.na(same.gene.bw5$padj) & same.gene.bw5$log2FoldChange > 0,]
 activated$treatment = "Activated"
-repressed = same.gene.bw5[!is.na(same.gene.bw5$padj) & same.gene.bw5$log2FoldChange < 0,]
+re
 repressed$treatment = "Repressed"
 
 
@@ -2089,6 +2149,7 @@ bw.plot.png.lattice(df3, filename = 'E2_repressed_gene',
          title.main = "changes for genes that are repressed in +/-E2 upon dTAG treatment (n=11)",
          fill.col = c("light blue","blue"))
 
+#save.image('230918_GATA3_pro_DEA_interaction.Rdata')
 ```
 
 ### MA plot
