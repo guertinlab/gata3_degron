@@ -52,7 +52,7 @@ done
 ```
 
 2) dep2 \
-```{r}
+```{r engine='bash', eval=F, echo=TRUE}
 cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
 
 for i in *R1_001.fastq.gz
