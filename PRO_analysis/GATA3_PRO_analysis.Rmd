@@ -25,21 +25,7 @@ The raw fastq files are initially named as R1_001 and R2_001, we want to change 
 1) dep1 \
 
 ```{r engine='bash', eval=F, echo=TRUE}
-#!/bin/bash
-
-#SBATCH --job-name=cname.sh     # name for job
-#SBATCH -N 1                    # number of nodes
-#SBATCH -n 1                    # number of jobs / tasks
-#SBATCH -c 16                    # number of cores
-#SBATCH -p himem           # SLURM partition
-#SBATCH --qos=himem       # SLURM Quality of service
-#SBATCH --mem=32G                # RAM (memory) requested
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o cname.sh_%j.out
-#SBATCH -e cname.sh_%j.err
-
-cp /labs/Guertin/sathyan/MCF7_dTAGGATA3_PRO_060923/230609_NB551647_0102_AHVVGCBGXN/Data/Intensities/BaseCalls/Sathyan_MCF7_GATAPROSeq_09June23/*.gz .
+#cp /labs/Guertin/sathyan/MCF7_dTAGGATA3_PRO_060923/230609_NB551647_0102_AHVVGCBGXN/Data/Intensities/BaseCalls/Sathyan_MCF7_GATAPROSeq_09June23/*.gz .
 
 for i in *_S*R1_001.fastq.gz
 do
@@ -53,7 +39,7 @@ done
 
 2) dep2 \
 ```{r engine='bash', eval=F, echo=TRUE}
-cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
+#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
 
 for i in *R1_001.fastq.gz
 do
@@ -66,9 +52,8 @@ done
 
 combining dep1 and dep2 pro-seq data \
 ```{r engine='bash', eval=F, echo=TRUE}
-cd /directory/of/GATA3_PRO
-
-cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
+#cd /directory/of/GATA3_PRO
+#cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
 
 for i in *_dTAG_*.gz
 do
@@ -97,7 +82,7 @@ do
 done 
 ```
 
-```{r engine='bash', eval=F, echo=TRUE}
+```{r engine='bash', eval=F, echo=F}
 md5sum *final.fastq.gz
 
 dfe6c6094ed8541afe1ed0e47eaffb39  MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq.gz
@@ -177,7 +162,7 @@ cargo build --release
 ## Confirming read size and UMI length
 ```{r engine='bash', eval=F, echo=TRUE}
 # retrieve the readsize of raw library
-for i in *.fastq
+for i in *final.fastq
 do
 
 	#echo $i
@@ -204,20 +189,6 @@ install from source, if you have issues: guertin@uchc.edu \
 Genome \
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Genome_pro
-#! /bin/sh
-
-#SBATCH --job-name=getrefgenome.sh     # name for job
-#SBATCH -N 1                  
-#SBATCH -n 1                 
-#SBATCH -c 32                  
-#SBATCH -p general           
-#SBATCH --qos=general       
-#SBATCH --mem=32G               
-#SBATCH --mail-type=ALL 
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o getrefgenome.sh_%j.out
-#SBATCH -e getrefgenome.sh_%j.err
-
 export PATH=$PATH:/home/FCAM/ssun/packages/
 
 module load bowtie2/2.5.0
@@ -251,26 +222,16 @@ wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
 
 ```
 
-Annotation \
+Reference Gene Annotation \
+
+The Ensembl website (http://www.ensembl.org/index.html) contains the information for the latest release, at the time of writing the release for hg38 is 110.  
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Annotation
-#! /bin/sh
-
-#SBATCH --job-name=getesblannotation.sh     # name for job
-#SBATCH -N 1                  
-#SBATCH -n 1
-#SBATCH -c 32                  
-#SBATCH -p general           
-#SBATCH --qos=general
-#SBATCH --mem=32G           	
-#SBATCH --mail-type=ALL	
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o getesblannotation.sh_%j.out
-#SBATCH -e getesblannotation.sh_%j.err
-
 module load bedtools
 
-release=109
+release=110
+mkdir Annotation_${release}
+cd Annotation_${release}
 
 wget http://ftp.ensembl.org/pub/release-${release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
 gunzip Homo_sapiens.GRCh38.${release}.chr.gtf.gz
@@ -333,23 +294,34 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 
 # PRO alignment and parallelization:
 ## Processing reads
+
+### step by step process
+pre-alignment:
+1) **Remove Adapters**: use `cutadapt` to remove provided adapter sequences, and also removes any adapter-adapter ligation sequences. \ 
+In any normal case, after removing the adapter, the remaining sequences would be considered as an effective insert sequences by `cutadapt`, and the minimum effective size should be larger than the UMI length; in the case of adapter-adapter ligation, after removing the adapter sequences, there will be left with some sequences with 0 to UMIsize length, and we want to filter those sequences out because there are large chances these are product of adapter-adapter ligation sequences. Here in the code, we specify a `-m` parameter to discard processed reads that are shorter than (UMI_length+2) in PE1 and (UMI_length+10) in PE2. \
+The output .txt file is the `cutadapt` report, more details could be found here: (https://cutadapt.readthedocs.io/en/stable/guide.html#reporting)\
+We could also interpret the UMI size from the `cutadapt` report. There is a "Overview of removed sequences" table showing in the `cutadapt` output: the first and second column (length and count) will tell us X(length) bases were removed in Y (count) reads. It is expected that smaller bases are more likely to be found and removed, thus the corressponding count value will be large. However, in the table you would see that the second highest count number is found at a relatively high X. The UMI size should be the subtraction between read size and this X base value. \
+
+2)
+
+### parallel running at the same time
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
-#SBATCH --job-name=pro_processing_230802.sh     # name for job
+#SBATCH --job-name=pro_processing_230919.sh     
 #SBATCH -N 1                  
 #SBATCH -n 1                 
-#SBATCH -c 10                  
-#SBATCH -p general           
-#SBATCH --qos=general       
-#SBATCH --mem=32G               
+#SBATCH -c 32                  
+#SBATCH -p himem           
+#SBATCH --qos= himem      
+#SBATCH --mem=68G               
 #SBATCH --mail-type=ALL 
 #SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o pro_processing_230802.sh_%j.out
-#SBATCH -e pro_processing_230802.sh_%j.err
+#SBATCH -o pro_processing_230919.sh_%j.out
+#SBATCH -e pro_processing_230919.sh_%j.err
 
 hostname
-name=230802
+name=230919
 
 set -e
 # add path to the R files
@@ -372,7 +344,7 @@ module load bowtie2
 module load bedtools
 
 sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
-annotation_prefix=/home/FCAM/ssun/Annotation/Homo_sapiens.GRCh38.109 
+annotation_prefix=/home/FCAM/ssun/Annotation/Annotation_110/Homo_sapiens.GRCh38.110 
 UMI_length=8
 read_size=39
 cores=10
@@ -526,7 +498,7 @@ Run the previous chunk in parallel \
 ```{r engine='bash', eval=F, echo=TRUE}
 
 
-file=pro_processing_230802.sh
+file=pro_processing_230919.sh
 
 for i in *_dep1_PE1.fastq 
 do
