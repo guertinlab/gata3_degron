@@ -723,7 +723,11 @@ function toggle_visibility(id1) {
 </ul></li>
 <li><a href="#pro-alignment-and-parallelization" id="toc-pro-alignment-and-parallelization"><span class="toc-section-number">2</span> PRO alignment and parallelization:</a>
 <ul>
-<li><a href="#processing-reads" id="toc-processing-reads"><span class="toc-section-number">2.1</span> Processing reads</a></li>
+<li><a href="#processing-reads" id="toc-processing-reads"><span class="toc-section-number">2.1</span> Processing reads</a>
+<ul>
+<li><a href="#step-by-step-process" id="toc-step-by-step-process"><span class="toc-section-number">2.1.1</span> step by step process</a></li>
+<li><a href="#parallel-running-at-the-same-time" id="toc-parallel-running-at-the-same-time"><span class="toc-section-number">2.1.2</span> parallel running at the same time</a></li>
+</ul></li>
 <li><a href="#plot-all-qc-metrics" id="toc-plot-all-qc-metrics"><span class="toc-section-number">2.2</span> Plot all QC metrics</a></li>
 </ul></li>
 <li><a href="#primarytranscriptannotation-pta" id="toc-primarytranscriptannotation-pta"><span class="toc-section-number">3</span> primaryTranscriptAnnotation (PTA)</a>
@@ -783,21 +787,7 @@ function toggle_visibility(id1) {
 <li>dep1<br />
 </li>
 </ol>
-<pre class="bash"><code>#!/bin/bash
-
-#SBATCH --job-name=cname.sh     # name for job
-#SBATCH -N 1                    # number of nodes
-#SBATCH -n 1                    # number of jobs / tasks
-#SBATCH -c 16                    # number of cores
-#SBATCH -p himem           # SLURM partition
-#SBATCH --qos=himem       # SLURM Quality of service
-#SBATCH --mem=32G                # RAM (memory) requested
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o cname.sh_%j.out
-#SBATCH -e cname.sh_%j.err
-
-cp /labs/Guertin/sathyan/MCF7_dTAGGATA3_PRO_060923/230609_NB551647_0102_AHVVGCBGXN/Data/Intensities/BaseCalls/Sathyan_MCF7_GATAPROSeq_09June23/*.gz .
+<pre class="bash"><code>#cp /labs/Guertin/sathyan/MCF7_dTAGGATA3_PRO_060923/230609_NB551647_0102_AHVVGCBGXN/Data/Intensities/BaseCalls/Sathyan_MCF7_GATAPROSeq_09June23/*.gz .
 
 for i in *_S*R1_001.fastq.gz
 do
@@ -811,7 +801,7 @@ done</code></pre>
 <li>dep2<br />
 </li>
 </ol>
-<pre class="bash"><code>cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
+<pre class="bash"><code>#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO
 
 for i in *R1_001.fastq.gz
 do
@@ -821,9 +811,8 @@ do
 done</code></pre>
 <p>combining dep1 and dep2 pro-seq data<br />
 </p>
-<pre class="bash"><code>cd /directory/of/GATA3_PRO
-
-cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
+<pre class="bash"><code>#cd /directory/of/GATA3_PRO
+#cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
 
 for i in *_dTAG_*.gz
 do
@@ -850,32 +839,6 @@ do
     echo $x
     cat $i ${pre}_dep2_${suf} &gt; ${pre}_${x}_final.fastq.gz
 done </code></pre>
-<pre class="bash"><code>md5sum *final.fastq.gz
-
-dfe6c6094ed8541afe1ed0e47eaffb39  MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq.gz
-bc54f23cb075e9df0c9f1df176d949db  MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq.gz
-1ab84c09e7ba8e0221f77be8d64499ff  MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE1_final.fastq.gz
-d2084e5140c58439d59818d853171001  MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE2_final.fastq.gz
-fb2f948a9b7698f122df7a990c6908bd  MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE1_final.fastq.gz
-8465df9dc904f6b6db4d7b912a92cb6c  MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE2_final.fastq.gz
-9371d0fc6f0306df946db6250512cc6b  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE1_final.fastq.gz
-cb33664c6d717937b04be8ab65620ffd  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE2_final.fastq.gz
-9ba399f1d8d151400f94f031bee845ef  MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE1_final.fastq.gz
-4219c13ccfc27192339a6225dc0540c6  MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE2_final.fastq.gz
-3934e6610fbb924d4d3071630cb477f3  MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE1_final.fastq.gz
-f51fadb87683d75cb76db0dfba61991a  MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE2_final.fastq.gz
-e561d6d9a5d6afd3feb49c92079899de  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE1_final.fastq.gz
-81bd3d16663b6caf576ee45ff381dae5  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE2_final.fastq.gz
-98c0583af89871fc8f53b0e472996719  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE1_final.fastq.gz
-58d947dcefc157ac7556a9692869b5bd  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE2_final.fastq.gz
-436aba45c025d52efb369a6b00906497  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE1_final.fastq.gz
-56d81392872f2bb0f87da514b3ceaf8e  MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE2_final.fastq.gz
-9c71109a93a58ca40925394992c60b0a  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE1_final.fastq.gz
-f4ffebc432c9534a13239ea9e74ad705  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE2_final.fastq.gz
-51875e618dd20b19f380597279de05ad  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE1_final.fastq.gz
-b04a79eb1437734418208a58fc1a65fa  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE2_final.fastq.gz
-08562b62fcb60fb0b749799956bfb787  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE1_final.fastq.gz
-6e6de59c8bc7ced3b07ad8bd38085c53  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE2_final.fastq.gz</code></pre>
 </div>
 </div>
 <div id="install-softwares-and-scripts" class="section level2" number="1.2">
@@ -926,7 +889,7 @@ cargo build --release</code></pre>
 <div id="confirming-read-size-and-umi-length" class="section level2" number="1.3">
 <h2><span class="header-section-number">1.3</span> Confirming read size and UMI length</h2>
 <pre class="bash"><code># retrieve the readsize of raw library
-for i in *.fastq
+for i in *final.fastq
 do
 
     #echo $i
@@ -952,20 +915,6 @@ done 2&gt;&amp;1 | tee -a raw_reads_from_fastq_log.txt
 Genome<br />
 </p>
 <pre class="bash"><code># cd /home/FCAM/ssun/Genome_pro
-#! /bin/sh
-
-#SBATCH --job-name=getrefgenome.sh     # name for job
-#SBATCH -N 1                  
-#SBATCH -n 1                 
-#SBATCH -c 32                  
-#SBATCH -p general           
-#SBATCH --qos=general       
-#SBATCH --mem=32G               
-#SBATCH --mail-type=ALL 
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o getrefgenome.sh_%j.out
-#SBATCH -e getrefgenome.sh_%j.err
-
 export PATH=$PATH:/home/FCAM/ssun/packages/
 
 module load bowtie2/2.5.0
@@ -997,26 +946,15 @@ seqOutBias seqtable ../hg38.fa --read-size=39 #Compute mappability for the given
 cd ..
 wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
 </code></pre>
-<p>Annotation<br />
+<p>Reference Gene Annotation<br />
 </p>
+<p>The Ensembl website (<a href="http://www.ensembl.org/index.html" class="uri">http://www.ensembl.org/index.html</a>) contains the information for the latest release, at the time of writing the release for hg38 is 110.</p>
 <pre class="bash"><code># cd /home/FCAM/ssun/Annotation
-#! /bin/sh
-
-#SBATCH --job-name=getesblannotation.sh     # name for job
-#SBATCH -N 1                  
-#SBATCH -n 1
-#SBATCH -c 32                  
-#SBATCH -p general           
-#SBATCH --qos=general
-#SBATCH --mem=32G               
-#SBATCH --mail-type=ALL 
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o getesblannotation.sh_%j.out
-#SBATCH -e getesblannotation.sh_%j.err
-
 module load bedtools
 
-release=109
+release=110
+mkdir Annotation_${release}
+cd Annotation_${release}
 
 wget http://ftp.ensembl.org/pub/release-${release}/gtf/homo_sapiens/Homo_sapiens.GRCh38.${release}.chr.gtf.gz
 gunzip Homo_sapiens.GRCh38.${release}.chr.gtf.gz
@@ -1081,22 +1019,36 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 <h1><span class="header-section-number">2</span> PRO alignment and parallelization:</h1>
 <div id="processing-reads" class="section level2" number="2.1">
 <h2><span class="header-section-number">2.1</span> Processing reads</h2>
+<div id="step-by-step-process" class="section level3" number="2.1.1">
+<h3><span class="header-section-number">2.1.1</span> step by step process</h3>
+<p>pre-alignment:
+1) <strong>Remove Adapters</strong>: use <code>cutadapt</code> to remove provided adapter sequences, and also removes any adapter-adapter ligation sequences.  
+In any normal case, after removing the adapter, the remaining sequences would be considered as an effective insert sequences by <code>cutadapt</code>, and the minimum effective size should be larger than the UMI length; in the case of adapter-adapter ligation, after removing the adapter sequences, there will be left with some sequences with 0 to UMIsize length, and we want to filter those sequences out because there are large chances these are product of adapter-adapter ligation sequences. Here in the code, we specify a <code>-m</code> parameter to discard processed reads that are shorter than (UMI_length+2) in PE1 and (UMI_length+10) in PE2.<br />
+The output .txt file is the <code>cutadapt</code> report, more details could be found here: (<a href="https://cutadapt.readthedocs.io/en/stable/guide.html#reporting)\" class="uri">https://cutadapt.readthedocs.io/en/stable/guide.html#reporting)\</a>
+We could also interpret the UMI size from the <code>cutadapt</code> report. There is a “Overview of removed sequences” table showing in the <code>cutadapt</code> output: the first and second column (length and count) will tell us X(length) bases were removed in Y (count) reads. It is expected that smaller bases are more likely to be found and removed, thus the corressponding count value will be large. However, in the table you would see that the second highest count number is found at a relatively high X. The UMI size should be the subtraction between read size and this X base value.<br />
+</p>
+<ol start="2" style="list-style-type: decimal">
+<li></li>
+</ol>
+</div>
+<div id="parallel-running-at-the-same-time" class="section level3" number="2.1.2">
+<h3><span class="header-section-number">2.1.2</span> parallel running at the same time</h3>
 <pre class="bash"><code>#! /bin/sh
 
-#SBATCH --job-name=pro_processing_230802.sh     # name for job
+#SBATCH --job-name=pro_processing_230919.sh     
 #SBATCH -N 1                  
 #SBATCH -n 1                 
-#SBATCH -c 10                  
-#SBATCH -p general           
-#SBATCH --qos=general       
-#SBATCH --mem=32G               
+#SBATCH -c 32                  
+#SBATCH -p himem           
+#SBATCH --qos= himem      
+#SBATCH --mem=68G               
 #SBATCH --mail-type=ALL 
 #SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o pro_processing_230802.sh_%j.out
-#SBATCH -e pro_processing_230802.sh_%j.err
+#SBATCH -o pro_processing_230919.sh_%j.out
+#SBATCH -e pro_processing_230919.sh_%j.err
 
 hostname
-name=230802
+name=230919
 
 set -e
 # add path to the R files
@@ -1119,7 +1071,7 @@ module load bowtie2
 module load bedtools
 
 sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
-annotation_prefix=/home/FCAM/ssun/Annotation/Homo_sapiens.GRCh38.109 
+annotation_prefix=/home/FCAM/ssun/Annotation/Annotation_110/Homo_sapiens.GRCh38.110 
 UMI_length=8
 read_size=39
 cores=10
@@ -1270,7 +1222,7 @@ rm ${name}.notCombined_2.fastq.gz
 </p>
 <pre class="bash"><code>
 
-file=pro_processing_230802.sh
+file=pro_processing_230919.sh
 
 for i in *_dep1_PE1.fastq 
 do
@@ -1315,6 +1267,7 @@ cat aligned_reads_from_bam_log.txt
 #MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3.bam
 #7076786
 </code></pre>
+</div>
 </div>
 <div id="plot-all-qc-metrics" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Plot all QC metrics</h2>
