@@ -655,11 +655,7 @@ meme -p 16 -oc ${name}_motif.meme_output -nmotifs 5 -objfun classic -csites 2000
 
 
 By searching the top 10,000 most significant GATA peaks, we find the top 2 motif match to the GATA motif. \
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA motif"}
-library(knitr)
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo2.png") 
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output/logo_rc1.png") 
-```
+
 
 
 
@@ -1109,10 +1105,6 @@ mast -hit_list -best GATA3_without_motif12_top10000_output/meme.txt without_moti
 
 # without_motifs_123.fasta do not contain motif1, 2, 3
 
-
-
-# Is there peaks with both motif1 and 2 
-# Is there peaks with both motif1 and 2 and 3
 ```
 
 the fraction of peaks with motif1, motif2, motif3 in each quantile:
@@ -1179,6 +1171,44 @@ percent peaks with or without GATA3 motif variant 1,2,3:
 #library(knitr)
 knitr::include_graphics("./0916 percent peaks with or without GATA3 motif variant.png") 
 ```
+
+MAST \
+```{r, engine='R', eval=F, echo=TRUE}
+# isolate peaks that contains motif_FOX (exclude GATA-like motif1,2,3)
+mast -hit_list -best GATA3_without_motif123_top10000_output/meme.txt without_motifs_123.fasta > mast_GATA3_PSWM_in_peaks_FOX.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOX.txt
+wc -l mast_GATA3_PSWM_in_peaks_FOX.bed #5649
+
+#peaks without motif1 and motif2 and motif3, and without motif_FOX
+intersectBed -v -a without_motifs_123.bed -b mast_GATA3_PSWM_in_peaks_FOX.bed > without_motifs_123FOX.bed # 38160
+fastaFromBed -fi $genome -bed without_motifs_123FOX.bed -fo without_motifs_123FOX.fasta
+
+
+############################### motif4--found FOX-like motif--rerun, find second motif match to GATA
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif123_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta 
+
+wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif123_top10000_output2/meme.txt
+# HWRAGYAAAYA_meme.txt_meme.txt --motif FOX
+# NYTATCTNTHNATCT_meme.txt_meme.txt --motif4 (match to GATA)
+
+mast -hit_list -best NYTATCTNTHNATCT_meme.txt_meme.txt without_motifs_123FOX.fasta > mast_GATA3_PSWM_in_peaks_round4.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round4.txt
+wc -l mast_GATA3_PSWM_in_peaks_round4.bed #3482
+
+#peaks without motif1 and motif2 and motif3 and motif FOX, and motif4
+intersectBed -v -a without_motifs_123FOX.bed -b mast_GATA3_PSWM_in_peaks_round4.bed > without_motifs_1234FOX.bed #34678
+fastaFromBed -fi $genome -bed without_motifs_1234FOX.bed -fo without_motifs_1234FOX.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_1234FOX.bed | head -n 10000 > without_motifs_1234FOX_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234FOX_top10000.bed -fo without_motifs_1234FOX_top10000.fasta
+
+############################### motif5
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
+```
+
 
 
 <!-- 
