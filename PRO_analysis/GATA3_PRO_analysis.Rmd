@@ -112,7 +112,7 @@ b04a79eb1437734418208a58fc1a65fa  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_P
 ```
 
 
-## Install softwares and scripts
+### Pre-Install softwares and scripts
 ```{r engine='bash', eval=F, echo=TRUE}
 # mkdir scripts
 # pwd
@@ -159,9 +159,13 @@ cargo build --release
 ```
 
 
-## Confirming read size and UMI length
+### Confirming Read size and UMI length
+
+Knowing the read size and UMI length is important for downstream analysis (such as adapter removing...). If you know your experimental protocol well, you could also double check using approaches listed here. \
+
+**Read size:** \
 ```{r engine='bash', eval=F, echo=TRUE}
-# retrieve the readsize of raw library
+# retrieve the read size from raw library
 for i in *final.fastq
 do
 
@@ -172,21 +176,59 @@ done 2>&1 | tee -a raw_reads_from_fastq_log.txt
 #First column (with number) read number and second column (with number) read length.
 
 
-#MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE1.fastq
-#20343886 47
-#MCF7_dTAGGATAClone522_30min_control_E2_rep1_dep1_PE2.fastq
-#20343886 39
+#46197075 47
+#46197075 39
+#55526070 47
+#55526070 39
 #...
-#read size ==39
-#Read1 contains the barcoding information (UMI) followed by the polyT tail of the messenger RNA, and Read2 contains the actual sequence. 47-39=8
-#UMI == 8
+
+#Read1 contains the barcoding information (UMI) followed by the polyT tail of the messenger RNA, and Read2 contains the actual sequence. 
+
 ```
 
+read size = 39 \
+\
 
-## Genome and annotation processing
-install from source, if you have issues: guertin@uchc.edu \
+**UMI length:** \
+
+We could also interpret the UMI size from the `cutadapt` report. There is a "Overview of removed sequences" table showing in the `cutadapt` output: the first and second column (length and count) will tell us X(length) bases were removed in Y (count) reads. `cutadapt` search for adapter sequences, and once found match, will remove/trim the matched sequences. Since UMI length is fixed (let's call it N), but its sequence is variable, it is expected that in the case of adapter-adapter ligation, you would trim off most of your sequences except for the UMI. \
+```{r engine='bash', eval=F, echo=TRUE}
+# subset 2 million reads from one of the FASTQs
+zcat MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE1_final.fastq.gz | head -n 20000000 > UMI_test.fastq
+module load cutadapt
+
+# <cutadapt>
+# -m : minimum length
+# -O : [capital letter o] minimum overlap length between adapter and read
+# -a : adapter sequence ligated to 3' end, or of the first read in paired data
+# -o : [lowercase o] name of output file, which is a FASTQ with trimmed reads
+cutadapt --cores=12 -m 1 -O 1 -a TGGAATTCTCGGGTGCCAAGG UMI_test.fastq -o UMI_test_noadapt.fastq > UMI_test_cutadapt.txt
+
+tail -47 UMI_test_cutadapt.txt
+# 1	592436	1250000.0	0	592436
+# 2	144162	312500.0	0	144162
+# ...
+# 38	20859	0.0	2	18392 2283 184
+# 39	1919588	0.0	2	1819435 90946 9207
+# 40	68522	0.0	2	57236 10607 679
+# 41	44009	0.0	2	40378 2842 789
+# 42	36100	0.0	2	33541 2135 424
+# 43	32719	0.0	2	30383 1873 463
+# 44	29800	0.0	2	27750 1646 404
+# 45	27873	0.0	2	26077 1517 279
+# 46	34163	0.0	2	32187 1675 301
+# 47	38688	0.0	2	36157 2124 407
+```
+
+In our example above, we have a sequence of 47bp long, at length 39 (1st column), we see highest count value of 1919588 (2nd column), which means: `cutadapt` found matches of adapter sequences and trims 39 bases off in 1919588 reads. These sequences are most likely to be adapter-adapter ligation with UMI next to the adapter. \
+
+UMI length = 47-39 = 8.
+
+
+### Get Reference Genome and Genome Annotation
+Install from source, if you have issues: guertin@uchc.edu \
  \
-Genome \
+**Genome** \
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Genome_pro
 export PATH=$PATH:/home/FCAM/ssun/packages/
@@ -222,9 +264,9 @@ wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes
 
 ```
 
-Reference Gene Annotation \
+**Reference Gene Annotation** \
 
-The Ensembl website (http://www.ensembl.org/index.html) contains the information for the latest release, at the time of writing the release for hg38 is 110.  
+The Ensembl website (http://www.ensembl.org/index.html) contains the information for the latest release, at the time of writing the release for hg38 is 110.\
 ```{r engine='bash', eval=F, echo=TRUE}
 # cd /home/FCAM/ssun/Annotation
 module load bedtools
@@ -292,28 +334,43 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
     sort -k1,1 -k2,2n > Homo_sapiens.GRCh38.${release}.introns.bed 
 ```
 
-# PRO alignment and parallelization:
-## Processing reads
+## PRO-seq pre-alignment and alignment
 
-### step by step process
-pre-alignment:
+### Work Flow
+**Pre-alignment:** \
 1) **Remove Adapters**: use `cutadapt` to remove provided adapter sequences, and also removes any adapter-adapter ligation sequences. \ 
 In any normal case, after removing the adapter, the remaining sequences would be considered as an effective insert sequences by `cutadapt`, and the minimum effective size should be larger than the UMI length; in the case of adapter-adapter ligation, after removing the adapter sequences, there will be left with some sequences with 0 to UMIsize length, and we want to filter those sequences out because there are large chances these are product of adapter-adapter ligation sequences. Here in the code, we specify a `-m` parameter to discard processed reads that are shorter than (UMI_length+2) in PE1 and (UMI_length+10) in PE2. \
 The output .txt file is the `cutadapt` report, more details could be found here: (https://cutadapt.readthedocs.io/en/stable/guide.html#reporting)\
-We could also interpret the UMI size from the `cutadapt` report. There is a "Overview of removed sequences" table showing in the `cutadapt` output: the first and second column (length and count) will tell us X(length) bases were removed in Y (count) reads. It is expected that smaller bases are more likely to be found and removed, thus the corressponding count value will be large. However, in the table you would see that the second highest count number is found at a relatively high X. The UMI size should be the subtraction between read size and this X base value. \
 
-2)
+2) **Remove short RNA insertions** \
+3) **Remove PCR duplicates** \
+4) **Trim UMI and reverse complement** \
 
-### parallel running at the same time
+\
+**Align reads:** \
+1) **rDNA**:  \
+2) **Genome:** \
+
+**Quality control**: \
+1) **Adapter Ratio**: \
+2) **RNA integrity**: \
+3) **library complexity**: \
+4) **Nascent RNA purity**: \
+5) **Run-on efficiency**: \
+
+
+### parallel running 
+
+Create the "pro_processing_230919.sh":
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
 #SBATCH --job-name=pro_processing_230919.sh     
 #SBATCH -N 1                  
 #SBATCH -n 1                 
-#SBATCH -c 32                  
+#SBATCH -c 16                  
 #SBATCH -p himem           
-#SBATCH --qos= himem      
+#SBATCH --qos=himem      
 #SBATCH --mem=68G               
 #SBATCH --mail-type=ALL 
 #SBATCH --mail-user=ssun@uchc.edu
@@ -328,7 +385,7 @@ set -e
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 
 #initialize variables
-directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23
+directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final
 
 module load cutadapt/3.5
 module load seqtk/1.3
@@ -347,7 +404,7 @@ sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
 annotation_prefix=/home/FCAM/ssun/Annotation/Annotation_110/Homo_sapiens.GRCh38.110 
 UMI_length=8
 read_size=39
-cores=10
+cores=16
 genome=/home/FCAM/ssun/Genome_pro/hg38.fa
 genome_index=/home/FCAM/ssun/Genome_pro/hg38_bt2/hg38
 prealign_rdna_index=/home/FCAM/ssun/Genome_pro/human_rDNA_bt2/human_rDNA
@@ -358,13 +415,12 @@ table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
 #gunzip ${name}_PE2_final.fastq.gz
 
 echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
-# remove adapter sequences and discard reads that have insert sizes of one base. If the adapters ligate directly to one another, the UMI is treated as an insert to cutadapt and the effective insert length is equal to the UMI length. The option -m $((UMI_length+2)) provides a one base buffer and discards reads with a length of less than the UMI length + 2.
-cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_dep1_PE1.fastq \
+cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_PE1_final.fastq \
         -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt
-cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_dep1_PE2.fastq \
+cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_PE2_final.fastq \
         -o ${name}_PE2_noadap.fastq --too-short-output ${name}_PE2_short.fastq > ${name}_PE2_cutadapt.txt
 
-PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk '{print $1/4}') # calculate the raw sequencing depth
+PE1_total=$(wc -l ${name}_PE1_final.fastq | awk '{print $1/4}') # calculate the raw sequencing depth
 PE1_w_Adapter=$(wc -l ${name}_PE1_short.fastq | awk '{print $1/4}') # calculate the raw sequencing depth on files containing reads with 0 or 1 base insertions
 AAligation=$(echo "scale=2 ; $PE1_w_Adapter / $PE1_total" | bc) # adapter/adapter ligation product value
 echo -e  "value\texperiment\tthreshold\tmetric" > ${name}_QC_metrics.txt
@@ -430,7 +486,7 @@ fqComplexity -i ${name}_PE1_noadap_trimmed.fastq
 
 echo 'calculating and plotting theoretical sequencing depth' 
 echo 'to achieve a defined number of concordantly aligned reads for' $name
-PE1_total=$(wc -l ${name}_dep1_PE1.fastq | awk '{print $1/4}')
+PE1_total=$(wc -l ${name}_PE1_final.fastq | awk '{print $1/4}')
 PE1_noadap_trimmed=$(wc -l ${name}_PE1_noadap_trimmed.fastq | awk '{print $1/4}')
 factorX=$(echo "scale=2 ; $PE1_noadap_trimmed / $PE1_total" | bc)
 
@@ -441,10 +497,10 @@ factorY=$(echo "scale=2 ; $concordant_pe1 / $PE1_dedup" | bc)
     
 fqComplexity -i ${name}_PE1_noadap_trimmed.fastq -x $factorX -y $factorY
 echo 'Separating paired end reads and creating genomic BED and bigWig intensity files for' $name
-
+        
 seqOutBias scale $table ${name}.bam --no-scale --stranded --bed-stranded-positive \
         --bw=$name.bigWig --bed=$name.bed --out-split-pairends --only-paired \
-        --tail-edge --read-size=$read_size --tallymer=$tallymer
+        --tail-edge --read-size=$read_size --tallymer=$tallymer 2>&1 | tee ${name}_seqOutBias.log
 
 grep -v "random" ${name}_not_scaled_PE1.bed | grep -v "chrUn" | grep -v "chrEBV" | sort -k1,1 -k2,2n > ${name}_tmp.txt 
 mv ${name}_tmp.txt ${name}_not_scaled_PE1.bed 
@@ -496,21 +552,20 @@ rm ${name}.notCombined_2.fastq.gz
 Run the previous chunk in parallel \
 
 ```{r engine='bash', eval=F, echo=TRUE}
-
-
 file=pro_processing_230919.sh
 
-for i in *_dep1_PE1.fastq 
+for i in *_PE1_final.fastq 
 do
-    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_dep1_PE1.fastq" '{print $1}')
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1_final.fastq" '{print $1}')
     echo $nm
-    sed -e "s/230802/${nm}/g" "$file" > pro_processing_${nm}.sh
+    sed -e "s/230919/${nm}/g" "$file" > pro_processing_${nm}.sh
     sbatch pro_processing_${nm}.sh
     sleep 1
 done
 
 ```
 
+### aligned reads
 ```{r engine='bash', eval=F, echo=TRUE}
 # count the total aligned reads
 module load samtools/1.16.1
@@ -548,14 +603,12 @@ cat aligned_reads_from_bam_log.txt
 
 ```
 
-## Plot all QC metrics 
-
+### Plot QC metrics 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load R/4.1.2
 
 cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
 plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO # pdf output
-
 ```
 
 
