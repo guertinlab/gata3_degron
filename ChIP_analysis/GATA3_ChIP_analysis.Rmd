@@ -1204,11 +1204,41 @@ fastaFromBed -fi $genome -bed without_motifs_1234FOX.bed -fo without_motifs_1234
 sort -nrk5,5 without_motifs_1234FOX.bed | head -n 10000 > without_motifs_1234FOX_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_1234FOX_top10000.bed -fo without_motifs_1234FOX_top10000.fasta
 
-############################### motif5 -- found FOS::JUN-like motif--rerun, find second motif match to 
+############################### motif5 -- found FOS::JUN-like motif--rerun, find second motif match to GATA
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
 
+# isolate peaks that contains motif_FOS::JUN (exclude GATA-like motif1,2,3,4 and FOX)
+mast -hit_list -best GATA3_without_motif1234FOX_top10000_output/meme.txt without_motifs_1234FOX.fasta > mast_GATA3_PSWM_in_peaks_FOSJUN.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOSJUN.txt
+wc -l mast_GATA3_PSWM_in_peaks_FOSJUN.bed #3545
+
 meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
+
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif1234FOX_top10000_output2/meme.txt
+# MTGASTCAYHN_meme.txt_meme.txt --motif FOSJUN
+# TYATCWBYNHVATCT_meme.txt_meme.txt --motif5 (match to GATA)
+
+
+#peaks without motif1,2,3,4,without motif_FOX and motif FOSJUN
+intersectBed -v -a without_motifs_1234FOX.bed -b mast_GATA3_PSWM_in_peaks_FOSJUN.bed > without_motifs_1234FOX_FOSJUN.bed # 31132
+fastaFromBed -fi $genome -bed without_motifs_1234FOX_FOSJUN.bed -fo without_motifs_1234FOX_FOSJUN.fasta
+
+mast -hit_list -best TYATCWBYNHVATCT_meme.txt_meme.txt without_motifs_1234FOX_FOSJUN.fasta > mast_GATA3_PSWM_in_peaks_round5.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5.txt
+wc -l mast_GATA3_PSWM_in_peaks_round5.bed #2613
+
+#peaks without motif1 and motif2 and motif3 and motif FOX, FOSJUN, and motif5
+intersectBed -v -a without_motifs_1234FOX_FOSJUN.bed -b mast_GATA3_PSWM_in_peaks_round5.bed > without_motifs_12345FOX_FOSJUN.bed #28518
+fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN.bed -fo without_motifs_12345FOX_FOSJUN.fasta
+
+# select top 10000
+sort -nrk5,5 without_motifs_12345FOX_FOSJUN.bed | head -n 10000 > without_motifs_12345FOX_FOSJUN_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN_top10000.bed -fo without_motifs_12345FOX_FOSJUN_top10000.fasta
+
+############################### motif6 
+meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta
+
 ```
 
 
