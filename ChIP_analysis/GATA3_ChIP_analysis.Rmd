@@ -1236,9 +1236,10 @@ fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN.bed -fo without_mot
 sort -nrk5,5 without_motifs_12345FOX_FOSJUN.bed | head -n 10000 > without_motifs_12345FOX_FOSJUN_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN_top10000.bed -fo without_motifs_12345FOX_FOSJUN_top10000.fasta
 
-############################### motif6 
+############################### motif6, getting a GC-2mer, re-run
 meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta
 
+meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta
 ```
 
 
