@@ -1827,17 +1827,17 @@ Figure 3: <span class="caption-title">percent peaks with or without GATA3 motif 
 </div>
 <p>MAST<br />
 </p>
-<pre class="r"><code># isolate peaks that contains motif_FOX (exclude GATA-like motif1,2,3)
+<pre class="r"><code># isolate peaks that contains motif_FOX (from peaks without GATA-like motif1,2,3)
 mast -hit_list -best GATA3_without_motif123_top10000_output/meme.txt without_motifs_123.fasta &gt; mast_GATA3_PSWM_in_peaks_FOX.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOX.txt
 wc -l mast_GATA3_PSWM_in_peaks_FOX.bed #5649
 
-#peaks without motif1 and motif2 and motif3, and without motif_FOX
+# From peaks (without motif1,2, 3), exclude peaks with motif FOX
 intersectBed -v -a without_motifs_123.bed -b mast_GATA3_PSWM_in_peaks_FOX.bed &gt; without_motifs_123FOX.bed # 38160
 fastaFromBed -fi $genome -bed without_motifs_123FOX.bed -fo without_motifs_123FOX.fasta
 
 
-############################### motif4--found FOX-like motif--rerun, find second motif match to GATA
+############################### motif4--rerun, find second motif match to GATA
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif123_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta 
 
@@ -1846,11 +1846,12 @@ python2.7 MEME_individual_from_db.py -i GATA3_without_motif123_top10000_output2/
 # HWRAGYAAAYA_meme.txt_meme.txt --motif FOX
 # NYTATCTNTHNATCT_meme.txt_meme.txt --motif4 (match to GATA)
 
+# Mast find peaks with motif4
 mast -hit_list -best NYTATCTNTHNATCT_meme.txt_meme.txt without_motifs_123FOX.fasta &gt; mast_GATA3_PSWM_in_peaks_round4.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round4.txt
 wc -l mast_GATA3_PSWM_in_peaks_round4.bed #3482
 
-#peaks without motif1 and motif2 and motif3 and motif FOX, and motif4
+# From peaks (without motif1, 2, 3 and motif FOX), exclude peaks with motif4
 intersectBed -v -a without_motifs_123FOX.bed -b mast_GATA3_PSWM_in_peaks_round4.bed &gt; without_motifs_1234FOX.bed #34678
 fastaFromBed -fi $genome -bed without_motifs_1234FOX.bed -fo without_motifs_1234FOX.fasta
 # select top 10000
@@ -1861,7 +1862,7 @@ fastaFromBed -fi $genome -bed without_motifs_1234FOX_top10000.bed -fo without_mo
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif1234FOX_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234FOX_top10000.fasta 
 
-# isolate peaks that contains motif_FOS::JUN (exclude GATA-like motif1,2,3,4 and FOX)
+# isolate peaks that contains motif_FOS::JUN from peaks (without GATA-like motif1,2,3,4 and motif_FOX)
 mast -hit_list -best GATA3_without_motif1234FOX_top10000_output/meme.txt without_motifs_1234FOX.fasta &gt; mast_GATA3_PSWM_in_peaks_FOSJUN.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOSJUN.txt
 wc -l mast_GATA3_PSWM_in_peaks_FOSJUN.bed #3545
@@ -1873,15 +1874,16 @@ python2.7 MEME_individual_from_db.py -i GATA3_without_motif1234FOX_top10000_outp
 # TYATCWBYNHVATCT_meme.txt_meme.txt --motif5 (match to GATA)
 
 
-#peaks without motif1,2,3,4,without motif_FOX and motif FOSJUN
+# From peaks (without motif1,2,3,4, motif_FOX), exclude peaks with motif_FOSJUN
 intersectBed -v -a without_motifs_1234FOX.bed -b mast_GATA3_PSWM_in_peaks_FOSJUN.bed &gt; without_motifs_1234FOX_FOSJUN.bed # 31132
 fastaFromBed -fi $genome -bed without_motifs_1234FOX_FOSJUN.bed -fo without_motifs_1234FOX_FOSJUN.fasta
 
+# Mast find peak with motif5
 mast -hit_list -best TYATCWBYNHVATCT_meme.txt_meme.txt without_motifs_1234FOX_FOSJUN.fasta &gt; mast_GATA3_PSWM_in_peaks_round5.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5.txt
 wc -l mast_GATA3_PSWM_in_peaks_round5.bed #2613
 
-#peaks without motif1 and motif2 and motif3 and motif FOX, FOSJUN, and motif5
+# From peaks (without motif1,2,3,4 and motif FOX, FOSJUN), exclude peaks with motif5
 intersectBed -v -a without_motifs_1234FOX_FOSJUN.bed -b mast_GATA3_PSWM_in_peaks_round5.bed &gt; without_motifs_12345FOX_FOSJUN.bed #28518
 fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN.bed -fo without_motifs_12345FOX_FOSJUN.fasta
 
@@ -1889,10 +1891,44 @@ fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN.bed -fo without_mot
 sort -nrk5,5 without_motifs_12345FOX_FOSJUN.bed | head -n 10000 &gt; without_motifs_12345FOX_FOSJUN_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_12345FOX_FOSJUN_top10000.bed -fo without_motifs_12345FOX_FOSJUN_top10000.fasta
 
-############################### motif6, getting a GC-2mer, re-run
+############################### motif6, getting a SP-like motif--re-run, find second motif match to GATA
 meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta
 
-meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta</code></pre>
+# isolate peaks that contains motif_SP from peaks (without motif1,2,3,4,5,motif_FOX, motif_FOSJUN)
+mast -hit_list -best GATA3_without_motifs_12345FOX_FOSJUN__top10000_output/meme.txt without_motifs_12345FOX_FOSJUN.fasta &gt; mast_GATA3_PSWM_in_peaks_SP.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_SP.txt
+wc -l mast_GATA3_PSWM_in_peaks_SP.bed #5634
+
+meme -p 64 -oc GATA3_without_motifs_12345FOX_FOSJUN__top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345FOX_FOSJUN_top10000.fasta
+
+python2.7 MEME_individual_from_db.py -i GATA3_without_motifs_12345FOX_FOSJUN__top10000_output2/meme.txt
+#SSGSGGCGGSGGCSGSRGCG_meme.txt_meme.txt --motif SP
+#CTTATCAG_meme.txt_meme.txt --motif6 (match to GATA)
+
+# From peaks (without motif1,2,3,4,5,without motif_FOX, motif_FOSJUN), exclude peaks with motif_SP
+intersectBed -v -a without_motifs_12345FOX_FOSJUN.bed -b mast_GATA3_PSWM_in_peaks_SP.bed &gt; without_motifs_1234FOX_FOSJUN_SP.bed # 22880
+fastaFromBed -fi $genome -bed without_motifs_1234FOX_FOSJUN_SP.bed -fo without_motifs_1234FOX_FOSJUN_SP.fasta
+
+# MAST find peaks with motif6
+mast -hit_list -best CTTATCAG_meme.txt_meme.txt without_motifs_1234FOX_FOSJUN_SP.fasta &gt; mast_GATA3_PSWM_in_peaks_round6.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round6.txt
+wc -l mast_GATA3_PSWM_in_peaks_round6.bed #1229
+
+# From peaks (without motif1,2,3,4,5 and motif FOX, FOSJUN, SP), exclude peaks with motif6
+intersectBed -v -a without_motifs_1234FOX_FOSJUN_SP.bed -b mast_GATA3_PSWM_in_peaks_round6.bed &gt; without_motifs_123456FOX_FOSJUN_SP.bed #21651
+fastaFromBed -fi $genome -bed without_motifs_123456FOX_FOSJUN_SP.bed -fo without_motifs_123456FOX_FOSJUN_SP.fasta
+
+# select top 10000
+sort -nrk5,5 without_motifs_123456FOX_FOSJUN_SP.bed | head -n 10000 &gt; without_motifs_123456FOX_FOSJUN_SP_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456FOX_FOSJUN_SP_top10000.bed -fo without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
+
+############################### motif7
+meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
+<p>module load meme/5.4.1
+module load bedtools
+module load R/4.1.2</p>
+<p>genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 <!-- 
 # MAST for GATA peaks
 
@@ -3194,7 +3230,7 @@ dev.off()
 <!--
 #### troubleshoot
 
--->
+--></p>
 <div id="gata3-peaks-with-gata3-motif" class="section level3" number="8.1.1">
 <h3><span class="header-section-number">8.1.1</span> GATA3 peaks with GATA3 motif</h3>
 <p>“dTAGV1_NoE2” vs. “control_NoE2”: compare between with or without GATA3 (when ER is not activated)  
