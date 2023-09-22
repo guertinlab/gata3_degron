@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-09-20" />
+<meta name="date" content="2023-09-22" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-09-20</h4>
+<h4 class="date">2023-09-22</h4>
 
 </div>
 
@@ -1707,7 +1707,7 @@ Figure 2: <span class="caption-title">de novo motif matched to the GATA3 motif i
 </div>
 <p>Given a motif position weight matrix, one can search other for sequences for the occurrence of that motif. Usage: <a href="http://meme-suite.org/tools/mast" class="uri">http://meme-suite.org/tools/mast</a><br />
 </p>
-<p>MAST<br />
+<p><strong>MAST_1</strong><br />
 </p>
 <pre class="r"><code>############################### motif1
 fastaFromBed -fi $genome -bed ../../GATA_ChIP_summit_100window.bed -fo GATA_ChIP_summit_100window.fasta
@@ -1825,7 +1825,7 @@ percent peaks with or without GATA3 motif variant 1,2,3:
 Figure 3: <span class="caption-title">percent peaks with or without GATA3 motif variant 1,2,3</span><br>
 </p>
 </div>
-<p>MAST<br />
+<p><strong>MAST_2</strong><br />
 </p>
 <pre class="r"><code># isolate peaks that contains motif_FOX (from peaks without GATA-like motif1,2,3)
 mast -hit_list -best GATA3_without_motif123_top10000_output/meme.txt without_motifs_123.fasta &gt; mast_GATA3_PSWM_in_peaks_FOX.txt
@@ -1922,13 +1922,77 @@ fastaFromBed -fi $genome -bed without_motifs_123456FOX_FOSJUN_SP.bed -fo without
 sort -nrk5,5 without_motifs_123456FOX_FOSJUN_SP.bed | head -n 10000 &gt; without_motifs_123456FOX_FOSJUN_SP_top10000.bed
 fastaFromBed -fi $genome -bed without_motifs_123456FOX_FOSJUN_SP_top10000.bed -fo without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
 
-############################### motif7
-meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
-<p>module load meme/5.4.1
-module load bedtools
-module load R/4.1.2</p>
-<p>genome=/home/FCAM/ssun/Genome/hg38.fa
-sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+############################### motif7, find a TFAP2-like motif--rerun, find second motif to be A-enriched repetitive (znf? srf?) sequence
+meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
+
+meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
+<p><strong>FOX peak set</strong><br />
+For peaks with motif_FOX, how many peaks has FOX alone, how many peaks has GATA co-appear for same peak?<br />
+</p>
+<pre class="r"><code>#mast -hit_list -best GATA3_without_motif123_top10000_output/meme.txt without_motifs_123.fasta &gt; mast_GATA3_PSWM_in_peaks_FOX.txt
+#Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOX.txt
+#wc -l mast_GATA3_PSWM_in_peaks_FOX.bed #5649
+
+# peaks with FOX
+intersectBed -wa -a without_motifs_123.bed -b mast_GATA3_PSWM_in_peaks_FOX.bed &gt; with_FOX.bed #5652
+fastaFromBed -fi $genome -bed with_FOX.bed -fo with_FOX.fasta 
+
+#NYTATCTNTHNATCT_meme.txt_meme.txt --motif4 (match to GATA)
+#find motif4 in peaks with FOX
+mast -hit_list -best individual_meme/NYTATCTNTHNATCT_meme.txt_meme.txt with_FOX.fasta &gt; with_FOX_motif4.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R with_FOX_motif4.txt
+wc -l with_FOX_motif4.bed # there are 482 peaks contains both FOX and motif4
+
+#meme check if there are other GATA motifs in this FOX peak set
+meme -p 64 -oc GATA3_with_FOX_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_FOX.fasta </code></pre>
+<p><strong>FOS::JUN peak set</strong><br />
+For peaks with motif_FOS::JUN, how many peaks has FOS::JUN alone, how many peaks has GATA co-appear for same peak?<br />
+</p>
+<pre class="r"><code>#mast -hit_list -best GATA3_without_motif1234FOX_top10000_output/meme.txt without_motifs_1234FOX.fasta &gt; mast_GATA3_PSWM_in_peaks_FOSJUN.txt
+#Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_FOSJUN.txt
+#wc -l mast_GATA3_PSWM_in_peaks_FOSJUN.bed #3545
+
+# peaks with FOS::JUN
+intersectBed -wa -a without_motifs_1234FOX.bed -b mast_GATA3_PSWM_in_peaks_FOSJUN.bed &gt; with_FOSJUN.bed #3546
+fastaFromBed -fi $genome -bed with_FOSJUN.bed -fo with_FOSJUN.fasta 
+
+#TYATCWBYNHVATCT_meme.txt_meme.txt --motif5 (match to GATA)
+#find motif5 in peaks with FOS::JUN
+mast -hit_list -best individual_meme/TYATCWBYNHVATCT_meme.txt_meme.txt with_FOSJUN.fasta &gt; with_FOSJUN_motif5.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R with_FOSJUN_motif5.txt
+wc -l with_FOSJUN_motif5.bed # there are 278 peaks contains both FOS::JUN and motif5
+
+#meme check if there are other GATA motifs in this FOS::JUN peak set
+meme -p 64 -oc GATA3_with_FOSJUN_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_FOSJUN.fasta </code></pre>
+<p><strong>SP peak set</strong><br />
+For peaks with motif_SP, how many peaks has SP alone, how many peaks has GATA co-appear for same peak?<br />
+</p>
+<pre class="r"><code>#mast -hit_list -best GATA3_without_motifs_12345FOX_FOSJUN__top10000_output/meme.txt without_motifs_12345FOX_FOSJUN.fasta &gt; mast_GATA3_PSWM_in_peaks_SP.txt
+#Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_SP.txt
+#wc -l mast_GATA3_PSWM_in_peaks_SP.bed #5634
+
+# peaks with SP
+intersectBed -wa -a without_motifs_12345FOX_FOSJUN.bed -b mast_GATA3_PSWM_in_peaks_SP.bed &gt; with_SP.bed #5646
+fastaFromBed -fi $genome -bed with_SP.bed -fo with_SP.fasta 
+
+#CTTATCAG_meme.txt_meme.txt --motif6 (match to GATA)
+#find motif6 in peaks with SP
+mast -hit_list -best individual_meme/CTTATCAG_meme.txt_meme.txt with_SP.fasta &gt; with_SP_motif6.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R with_SP_motif6.txt
+wc -l with_SP_motif6.bed # there are 44 peaks contains both SP and motif6
+
+#meme check if there are other GATA motifs in this SP peak set
+meme -p 64 -oc GATA3_with_SP_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_SP.fasta </code></pre>
+<p>stack bar plot<br />
+</p>
+<p><strong>STREME</strong><br />
+Percent peaks with or without GATA3 motif variant 1,2,3,4,5,6:<br />
+STREME (Simple, Thorough, Rapid, Enriched Motif Elicitation)<br />
+</p>
+<pre class="r"><code>module load meme/5.4.1
+
+# perform STREME on peaks (without motif1,2,3,4,5,6 and motif FOX, FOSJUN, SP)
+# streme --o streme_output --nmotifs 1 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
 <!-- 
 # MAST for GATA peaks
 
@@ -3230,7 +3294,7 @@ dev.off()
 <!--
 #### troubleshoot
 
---></p>
+-->
 <div id="gata3-peaks-with-gata3-motif" class="section level3" number="8.1.1">
 <h3><span class="header-section-number">8.1.1</span> GATA3 peaks with GATA3 motif</h3>
 <p>“dTAGV1_NoE2” vs. “control_NoE2”: compare between with or without GATA3 (when ER is not activated)  
