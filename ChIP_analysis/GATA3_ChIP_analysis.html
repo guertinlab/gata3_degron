@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-09-22" />
+<meta name="date" content="2023-09-25" />
 
 <title>GATA3 ChIP-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">GATA3 ChIP-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-09-22</h4>
+<h4 class="date">2023-09-25</h4>
 
 </div>
 
@@ -1925,7 +1925,9 @@ fastaFromBed -fi $genome -bed without_motifs_123456FOX_FOSJUN_SP_top10000.bed -f
 ############################### motif7, find a TFAP2-like motif--rerun, find second motif to be A-enriched repetitive (znf? srf?) sequence
 meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
 
-meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
+meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output2 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
+
+meme -p 64 -oc GATA3_without_motifs_123456FOX_FOSJUN_SP_top10000_output3 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456FOX_FOSJUN_SP_top10000.fasta</code></pre>
 <p><strong>FOX peak set</strong><br />
 For peaks with motif_FOX, how many peaks has FOX alone, how many peaks has GATA co-appear for same peak?<br />
 </p>
@@ -1945,6 +1947,74 @@ wc -l with_FOX_motif4.bed # there are 482 peaks contains both FOX and motif4
 
 #meme check if there are other GATA motifs in this FOX peak set
 meme -p 64 -oc GATA3_with_FOX_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_FOX.fasta </code></pre>
+<p>bar plot for visualization</p>
+<pre class="r"><code>module load bedtools
+dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/&quot;
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with FOX
+cd FOX_peak
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir &#39;{print $2}&#39; | awk -F &quot;_summits_100window.bed&quot; &#39;{print $1}&#39;)
+  intersectBed -wa -a $i -b with_FOX.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOX.bed #FOX
+  intersectBed -wa -a $i -b with_FOX_motif4.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOX_motif4.bed
+done
+
+
+touch quantile.0924.FOX.100window.txt
+for i in *quantile*_with_FOX.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_FOX.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot;&quot;FOX_all&quot;&quot;&quot; $p &gt;&gt; quantile.0924.FOX.100window.txt
+done
+
+for i in *quantile*_with_FOX_motif4.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_FOX_motif4.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot; &quot;FOX_motif4&quot; &quot;&quot; $p&gt;&gt; quantile.0924.FOX.100window.txt
+done
+
+
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+library(&quot;reshape&quot;)
+library(&quot;reshape2&quot;)
+
+
+df_sum=read.table(&#39;quantile.0924.FOX.100window.txt&#39;, sep = &quot;&quot;, header=FALSE)
+colnames(df_sum)=c(&quot;quantile&quot;,&quot;enriched_Motif&quot;,&quot;number&quot;)
+
+df_sum_wide &lt;- df_sum
+df_sum_wide = cast(df_sum_wide, quantile ~ enriched_Motif)
+df_sum_wide$FOX = df_sum_wide$FOX_all - df_sum_wide$FOX_motif4
+df_sum_long &lt;- as.data.frame(df_sum_wide[,c(1,3,4)])
+df_sum_long &lt;- melt(df_sum_long, id.vars = &quot;quantile&quot;)
+
+df_sum_long$variable&lt;- factor(df_sum_long$variable, levels = c(&quot;FOX_motif4&quot;,&quot;FOX&quot;))
+
+pdf(&#39;0924 FOX peaks.pdf&#39;, width=8,height=3)
+my.settings &lt;- list(
+  superpose.polygon=list(col=c(&quot;red&quot;,&quot;light blue&quot;), border=&quot;transparent&quot;),
+  strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
+  strip.border=list(col=&quot;black&quot;)
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylab = &quot;peak set within intensity quantile&quot;,
+         xlab = &quot;FOX peak set&quot;,
+         par.settings = my.settings)
+)
+dev.off()</code></pre>
 <p><strong>FOS::JUN peak set</strong><br />
 For peaks with motif_FOS::JUN, how many peaks has FOS::JUN alone, how many peaks has GATA co-appear for same peak?<br />
 </p>
@@ -1964,6 +2034,74 @@ wc -l with_FOSJUN_motif5.bed # there are 278 peaks contains both FOS::JUN and mo
 
 #meme check if there are other GATA motifs in this FOS::JUN peak set
 meme -p 64 -oc GATA3_with_FOSJUN_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_FOSJUN.fasta </code></pre>
+<p>bar plot for visualization</p>
+<pre class="r"><code>module load bedtools
+dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/&quot;
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with FOSJUN
+cd FOSJUN_peak
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir &#39;{print $2}&#39; | awk -F &quot;_summits_100window.bed&quot; &#39;{print $1}&#39;)
+  intersectBed -wa -a $i -b with_FOSJUN.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOSJUN.bed #FOX
+  intersectBed -wa -a $i -b with_FOSJUN_motif5.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOSJUN_motif5.bed
+done
+
+
+touch quantile.0924.FOSJUN.100window.txt
+for i in *quantile*_with_FOSJUN.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_FOSJUN.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot;&quot;FOSJUN_all&quot;&quot;&quot; $p &gt;&gt; quantile.0924.FOSJUN.100window.txt
+done
+
+for i in *quantile*_with_FOSJUN_motif5.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_FOSJUN_motif5.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot; &quot;FOSJUN_motif5&quot; &quot;&quot; $p&gt;&gt; quantile.0924.FOSJUN.100window.txt
+done
+
+
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+library(&quot;reshape&quot;)
+library(&quot;reshape2&quot;)
+
+
+df_sum=read.table(&#39;quantile.0924.FOSJUN.100window.txt&#39;, sep = &quot;&quot;, header=FALSE)
+colnames(df_sum)=c(&quot;quantile&quot;,&quot;enriched_Motif&quot;,&quot;number&quot;)
+
+df_sum_wide &lt;- df_sum
+df_sum_wide = cast(df_sum_wide, quantile ~ enriched_Motif)
+df_sum_wide$FOSJUN = df_sum_wide$FOSJUN_all - df_sum_wide$FOSJUN_motif5
+df_sum_long &lt;- as.data.frame(df_sum_wide[,c(1,3,4)])
+df_sum_long &lt;- melt(df_sum_long, id.vars = &quot;quantile&quot;)
+
+df_sum_long$variable&lt;- factor(df_sum_long$variable, levels = c(&quot;FOSJUN_motif5&quot;,&quot;FOSJUN&quot;))
+
+pdf(&#39;0924 FOSJUN peaks.pdf&#39;, width=8,height=3)
+my.settings &lt;- list(
+  superpose.polygon=list(col=c(&quot;red&quot;,&quot;light blue&quot;), border=&quot;transparent&quot;),
+  strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
+  strip.border=list(col=&quot;black&quot;)
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylab = &quot;peak set within intensity quantile&quot;,
+         xlab = &quot;FOS::JUN peak set&quot;,
+         par.settings = my.settings)
+)
+dev.off()</code></pre>
 <p><strong>SP peak set</strong><br />
 For peaks with motif_SP, how many peaks has SP alone, how many peaks has GATA co-appear for same peak?<br />
 </p>
@@ -1982,9 +2120,196 @@ Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R with_SP_motif6.txt
 wc -l with_SP_motif6.bed # there are 44 peaks contains both SP and motif6
 
 #meme check if there are other GATA motifs in this SP peak set
-meme -p 64 -oc GATA3_with_SP_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_SP.fasta </code></pre>
-<p>stack bar plot<br />
-</p>
+meme -p 64 -oc GATA3_with_SP_output -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 with_SP.fasta 
+
+## no, 4 SP-like motifs and a</code></pre>
+<p>bar plot for visualization</p>
+<pre class="r"><code>module load bedtools
+dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/&quot;
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with SP
+cd SP_peak
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir &#39;{print $2}&#39; | awk -F &quot;_summits_100window.bed&quot; &#39;{print $1}&#39;)
+  intersectBed -wa -a $i -b with_SP.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_SP.bed #FOX
+  intersectBed -wa -a $i -b with_SP_motif6.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_SP_motif6.bed
+done
+
+
+touch quantile.0924.SP.100window.txt
+for i in *quantile*_with_SP.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_SP.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot;&quot;SP_all&quot;&quot;&quot; $p &gt;&gt; quantile.0924.SP.100window.txt
+done
+
+for i in *quantile*_with_SP_motif6.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_SP_motif6.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ echo $nm &quot;&quot; &quot;SP_motif6&quot; &quot;&quot; $p&gt;&gt; quantile.0924.SP.100window.txt
+done
+
+
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+library(&quot;reshape&quot;)
+library(&quot;reshape2&quot;)
+
+
+df_sum=read.table(&#39;quantile.0924.SP.100window.txt&#39;, sep = &quot;&quot;, header=FALSE)
+colnames(df_sum)=c(&quot;quantile&quot;,&quot;enriched_Motif&quot;,&quot;number&quot;)
+
+df_sum_wide &lt;- df_sum
+df_sum_wide = cast(df_sum_wide, quantile ~ enriched_Motif)
+df_sum_wide$SP = df_sum_wide$SP_all - df_sum_wide$SP_motif6
+df_sum_long &lt;- as.data.frame(df_sum_wide[,c(1,3,4)])
+df_sum_long &lt;- melt(df_sum_long, id.vars = &quot;quantile&quot;)
+
+df_sum_long$variable&lt;- factor(df_sum_long$variable, levels = c(&quot;SP_motif6&quot;,&quot;SP&quot;))
+
+pdf(&#39;0924 SP peaks.pdf&#39;, width=8,height=3)
+my.settings &lt;- list(
+  superpose.polygon=list(col=c(&quot;red&quot;,&quot;light blue&quot;), border=&quot;transparent&quot;),
+  strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
+  strip.border=list(col=&quot;black&quot;)
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylab = &quot;peak set within intensity quantile&quot;,
+         xlab = &quot;SP peak set&quot;,
+         par.settings = my.settings)
+)
+dev.off()</code></pre>
+<p><em>stack bar plot</em><br />
+bar plot</p>
+<pre class="r"><code># a bar plot showing how many peaks are have FOX, FOSJUN, SP, GATA, and other peaks
+wc -l  *round*.bed
+   #8777 mast_GATA3_PSWM_in_peaks_round1.bed
+   #7884 mast_GATA3_PSWM_in_peaks_round2.bed
+   #5433 mast_GATA3_PSWM_in_peaks_round3.bed
+   #3482 mast_GATA3_PSWM_in_peaks_round4.bed
+   #2613 mast_GATA3_PSWM_in_peaks_round5.bed
+   #1229 mast_GATA3_PSWM_in_peaks_round6.bed
+wc -l SP_peak/with_SP.bed 
+   #5646 SP_peak/with_SP.bed
+wc -l FOX_peak/with_FOX.bed 
+   #5652 FOX_peak/with_FOX.bed
+wc -l FOSJUN_peak/with_FOSJUN.bed
+   #3546 FOSJUN_peak/with_FOSJUN.bed
+wc -l without_motifs_123456FOX_FOSJUN_SP.bed 
+   #21651 without_motifs_123456FOX_FOSJUN_SP.bed
+
+#&quot;bar1.csv&quot;
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+bar1=read.csv(&#39;bar1.csv&#39;)
+bar1$dum.x=&quot;peak number&quot;
+bar1$enriched_motif&lt;- factor(bar1$enriched_motif, levels = c(&quot;GATA_1&quot;,&quot;GATA_2&quot;,&quot;GATA_3&quot;,&quot;GATA_4&quot;,&quot;GATA_5&quot;,&quot;GATA_6&quot;, &quot;FOX-like&quot;,&quot;FOSJUN-like&quot;, &quot;SP-like&quot;,&quot;other&quot;))
+
+pdf(&#39;0924 peak number with or without GATA3 motif variant.pdf&#39;, width=5,height=5)
+my.settings &lt;- list(
+  superpose.polygon=list(col=c(colorRampPalette(c(&quot;red&quot;,&quot;pink&quot;))(6),colorRampPalette(c(&quot;blue&quot;,&quot;light blue&quot;))(3), &quot;light grey&quot;), border=&quot;transparent&quot;),
+  strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
+  strip.border=list(col=&quot;black&quot;)
+)
+print(barchart(peak_numbers ~ dum.x,         
+         data = bar1,
+         groups = enriched_motif,
+         stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         #scales = list(x = list(rot = 45)),
+         ylab = &quot;peak set within intensity quantile&quot;,
+         xlab = &quot;number of peaks with/without GATA3 motif variant&quot;,
+         par.settings = my.settings)
+)
+dev.off()</code></pre>
+<p>fraction of peaks with motif in each quantile</p>
+<pre class="r"><code>module load bedtools
+dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP1_Sathyan_MCF7_GATA3/4_quantilebed/GATA_deseq/&quot;
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with individual motif
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir &#39;{print $2}&#39; | awk -F &quot;_summits_100window.bed&quot; &#39;{print $1}&#39;)
+  intersectBed -wa -a $i -b without_motifs_123456FOX_FOSJUN_SP.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_without_motifs_123456FOX_FOSJUN_SP.bed
+  intersectBed -wa -a $i -b FOX_peak/with_FOX.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOX.bed #FOX
+  intersectBed -wa -a $i -b FOSJUN_peak/with_FOSJUN.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_FOSJUN.bed #FOS::JUN
+  intersectBed -wa -a $i -b SP_peak/with_SP.bed | sort -k1,1 -k2,2n | uniq &gt;${nm}_with_SP.bed #SP
+done
+
+
+touch quantile.0924.sum.100window.txt
+for i in *quantile*_without_motifs_123456FOX_FOSJUN_SP.bed
+do
+ nm=$(echo $i | awk -F&quot;_without_motifs_123456FOX_FOSJUN_SP.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ withoutMotif=$(bc &lt;&lt;&lt; &quot;scale=4 ; $p / $totalp&quot;)
+ echo $nm &quot;&quot;&quot;other&quot;&quot;&quot; $withoutMotif &gt;&gt; quantile.0924.sum.100window.txt
+done
+
+for i in *quantile*_with_*.bed
+do
+ nm=$(echo $i | awk -F&quot;_with_&quot; &#39;{print $1}&#39;)
+ name=$(echo $i | awk -F&quot;_with_&quot; &#39;{print $2}&#39;| awk -F&quot;.bed&quot; &#39;{print $1}&#39;)
+ p=$(wc -l $i | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk &#39;{OFS=&quot;\t&quot;;} {print $1}&#39;)
+ withMotif=$(bc &lt;&lt;&lt; &quot;scale=4 ; $p / $totalp&quot;)
+ echo $nm &quot;&quot; $name &quot;&quot; $withMotif &gt;&gt; quantile.0924.sum.100window.txt
+done
+
+
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+library(&quot;reshape&quot;)
+library(&quot;reshape2&quot;)
+
+
+df_sum=read.table(&#39;quantile.0924.sum.100window.txt&#39;, sep = &quot;&quot;, header=FALSE)
+colnames(df_sum)=c(&quot;quantile&quot;,&quot;enriched_Motif&quot;,&quot;fraction&quot;)
+
+df_sum_wide &lt;- df_sum
+df_sum_wide = cast(df_sum_wide, quantile ~ enriched_Motif)
+df_sum_wide$GATA_motifs = 1-rowSums(df_sum_wide)
+df_sum_long &lt;- as.data.frame(df_sum_wide)
+df_sum_long &lt;- melt(df_sum_long, id.vars = &quot;quantile&quot;)
+
+df_sum_long$variable&lt;- factor(df_sum_long$variable, levels = c(&quot;GATA_motifs&quot;, &quot;FOX&quot;,&quot;FOSJUN&quot;, &quot;SP&quot;,&quot;other&quot;))
+
+pdf(&#39;0924 percent peaks with or without GATA3 motif variant.pdf&#39;, width=8,height=5)
+my.settings &lt;- list(
+  superpose.polygon=list(col=c(&quot;#000000&quot;, &quot;#53504D&quot;, &quot;#6F6B66&quot;, &quot;#8B8680&quot;,&quot;light grey&quot;), border=&quot;transparent&quot;),
+  strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
+  strip.border=list(col=&quot;black&quot;)
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylab = &quot;peak set within intensity quantile&quot;,
+         xlab = &quot;fraction of peaks with/without GATA3 motif variant&quot;,
+         par.settings = my.settings)
+)
+dev.off()</code></pre>
 <p><strong>STREME</strong><br />
 Percent peaks with or without GATA3 motif variant 1,2,3,4,5,6:<br />
 STREME (Simple, Thorough, Rapid, Enriched Motif Elicitation)<br />
