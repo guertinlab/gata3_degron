@@ -36,12 +36,36 @@ MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER de
 Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.
 
 # ChIP-seq processing
+
+## Convert and Rename Data
+**Convert form**
+```{r engine='bash', eval=F, echo=TRUE}
+#Transfer SampleSheet.csv to *_AHVTG3BGXN directory
+cd 230922_NB551647_0109_AHTHMJBGXT
+module load bcl2fastq
+nohup bcl2fastq --runfolder-dir ./ --output-dir ./Data/Intensities/BaseCalls/ --no-lane-splitting
+```
+
+**Rename file**
+We want to name the experiments with the trailing name being `PE1` or
+`PE2` for paired end data. 
+
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *_S*R1_001.fastq.gz
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    echo $nm
+	two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq.gz" '{print $1}')
+	mv $i ${nm}_PE1.fastq.gz
+	mv ${two}R2_001.fastq.gz ${nm}_PE2.fastq.gz
+done
+```
+
 ## check fastq file quality
 
-unzip GATA3_ChIP.zip
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
-#SBATCH --job-name=fastqc.sh     # name for job
+#SBATCH --job-name=fastqc.sh     
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 32                  
@@ -63,24 +87,6 @@ do
   fastqc $i 
 done
 ```
-
-
-## Renaming Data
-We want to name the experiments with the trailing name being `PE1` or
-`PE2` for paired end data. 
-
-```{r engine='bash', eval=F, echo=TRUE}
-for i in *_S*R1_001.fastq.gz
-do
-    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
-    echo $nm
-	two=$(echo $i | awk -F"/" '{print $NF}' | awk -F"R1_001.fastq.gz" '{print $1}')
-	mv $i ${nm}_PE1.fastq.gz
-	mv ${two}R2_001.fastq.gz ${nm}_PE2.fastq.gz
-done
-```
-
-
 ## Cut off the adapter with `cutadapt`
 
 In our daily workflow in the lab we use
@@ -169,21 +175,21 @@ browser tracks, which is accomplished by converted the paired-end
 normalize to read depth. \
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
-#SBATCH --job-name=chip_alignment_230718.sh     # name for job
+#SBATCH --job-name=chip_alignment_230925.sh     # name for job
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 32                  
-#SBATCH -p general           
+#SBATCH -p amd           
 #SBATCH --qos=general       
 #SBATCH --mem=32G               
 #SBATCH --mail-type=ALL 
 #SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o chip_alignment_230718.sh_%j.out
-#SBATCH -e chip_alignment_230718.sh_%j.err
+#SBATCH -o chip_alignment_230925.sh_%j.out
+#SBATCH -e chip_alignment_230925.sh_%j.err
 
 hostname
 
-name=230718
+name=230925
 
 # I have seqOutBias and other packages export to my Path
 export PATH=$PATH:/home/FCAM/ssun/packages/
@@ -200,7 +206,7 @@ sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
 genome=/home/FCAM/ssun/Genome/hg38.fa
 genome_index=/home/FCAM/ssun/Genome/hg38_bt2/hg38
-ncore=30 
+ncore=32 
 tallymer=hg38.tal_42.gtTxt.gz
 
 bowtie2 -p $ncore --maxins 800 -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools sort -@ $ncore -n -o ${name}.bw.bam
@@ -221,10 +227,12 @@ bedtools bamtobed -i ${name}.sorted.bam -bedpe > ${name}_bed12.bed
 awk '$1==$4 {print $0}' ${name}_bed12.bed | awk '{OFS="\t";} {print $1, $2, $6}' | awk '$1!="." && $3>$2 && (($3 - $2)<2000) {print $0}' | sort -k1,1 -k2,2n > ${name}_read_span.bed
 genomeCoverageBed -bg -i ${name}_read_span.bed -g $sizes > ${name}.bedGraph
 depth=`awk -F'\t' '{sum+=$5;}END{print sum;}' ${name}.hg38_not_scaled.bed`
+echo "depth is " $depth
 scaled=$(bc <<< "scale=3 ; 10000000 / $depth")
-echo $scaled
+echo "scale is " $scaled
 awk -v scaled="$scaled" '{OFS="\t";} {print $1, $2, $3, $4*scaled}' ${name}.bedGraph > ${name}_normalized.bedGraph
 wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+echo "complete"
 ```
 
 ## Run the previous chunk in parallel 
@@ -244,7 +252,7 @@ do
     fq=$(echo $i | rev | cut -f 1 -d '/' | rev)
     echo $nm
     echo $fq
-    sed -e "s/230718/${nm}/g" "$file" > chip_alignment_${nm}.sh
+    sed -e "s/230925/${nm}/g" "$file" > chip_alignment_${nm}.sh
     sbatch chip_alignment_${nm}.sh
     sleep 1
 done
