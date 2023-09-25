@@ -111,6 +111,63 @@ b04a79eb1437734418208a58fc1a65fa  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_P
 6e6de59c8bc7ced3b07ad8bd38085c53  MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE2_final.fastq.gz
 ```
 
+Pre-align raw reads \
+```{r engine='bash', eval=F, echo=TRUE}
+for i in *final*.fastq
+do
+ echo $i
+ echo $(cat $i |wc -l)/4|bc
+done
+
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq
+#46197075
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq
+#46197075
+#MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE1_final.fastq
+#55526070
+#MCF7_dTAGGATAClone522_30min_control_E2_rep2_PE2_final.fastq
+#55526070
+#MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE1_final.fastq
+#36656775
+#MCF7_dTAGGATAClone522_30min_control_E2_rep3_PE2_final.fastq
+#36656775
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE1_final.fastq
+#118386335
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_PE2_final.fastq
+#118386335
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE1_final.fastq
+#53342524
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2_PE2_final.fastq
+#53342524
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE1_final.fastq
+#39471875
+#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3_PE2_final.fastq
+#39471875
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE1_final.fastq
+#44290358
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1_PE2_final.fastq
+#44290358
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE1_final.fastq
+#67780216
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2_PE2_final.fastq
+#67780216
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE1_final.fastq
+#44984789
+#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3_PE2_final.fastq
+#44984789
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE1_final.fastq
+#36132418
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1_PE2_final.fastq
+#36132418
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE1_final.fastq
+#51329663
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2_PE2_final.fastq
+#51329663
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE1_final.fastq
+#51457906
+#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3_PE2_final.fastq
+#51457906
+```
 
 ### Pre-Install softwares and scripts
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -575,32 +632,30 @@ do
   samtools view -c -f 0x42 $i
 done 2>&1 | tee -a aligned_reads_from_bam_log.txt
 
-cat aligned_reads_from_bam_log.txt
-#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
-#7165927
-#MCF7_dTAGGATAClone522_30min_control_E2_rep2.bam
-#6368273
-#MCF7_dTAGGATAClone522_30min_control_E2_rep3.bam
-#7927577
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam
-#5383060
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2.bam
-#9783729
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3.bam
-#7954675
-#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1.bam
-#7797223
-#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2.bam
-#6695927
-#MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3.bam
-#8281655
-#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1.bam
-#11240496
-#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2.bam
-#7969310
-#MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3.bam
-#7076786
+# cat aligned_reads_from_bam_log.txt
 
+module load R/4.1.2 seq(1, 100, by=2)
+R 
+library("lattice") 
+df_sum=read.table('aligned_reads_from_bam_log.txt', sep = "", header=FALSE)
+
+df_plot=data.frame(file=df_sum[seq(1, nrow(df_sum), by=2),],
+                   reads=as.numeric(df_sum[seq(2, nrow(df_sum), by=2),]))
+
+pdf('barplot_GATA3_PRO_final_reads.pdf',width=8,height=8)
+print(barchart(reads~ file,         
+         data = df_plot,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "libraries",
+         xlab = "post-alignment reads",
+         col="light blue",
+         panel=function(...) {
+           panel.barchart(...)
+           panel.abline(h=15000000, lty = "dotted", col = "red", identifier = "abline")
+       })
+)
+dev.off()
 ```
 
 ### Plot QC metrics 
@@ -608,7 +663,7 @@ cat aligned_reads_from_bam_log.txt
 module load R/4.1.2
 
 cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
-plot_all_metrics.R project_QC_metrics.txt GATA3_degron_PRO # pdf output
+plot_all_metrics.R project_QC_metrics.txt GATA3_degron_final_PRO # pdf output
 ```
 
 
@@ -623,7 +678,7 @@ The purpose of this analysis is to define primary transcripts
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 10                  
-#SBATCH -p general           
+#SBATCH -p amd           
 #SBATCH --qos=general       
 #SBATCH --mem=32G               
 #SBATCH --mail-type=ALL 
@@ -649,7 +704,7 @@ get the merged bigWigs (minus and plus) for primaryTranscriptAnnotation （PE1 d
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 10                  
-#SBATCH -p general           
+#SBATCH -p amd           
 #SBATCH --qos=general       
 #SBATCH --mem=32G               
 #SBATCH --mail-type=ALL 
@@ -695,7 +750,7 @@ get the merged plus and minus for TSS inference (PE2 data) \
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 10                  
-#SBATCH -p general           
+#SBATCH -p amd           
 #SBATCH --qos=general       
 #SBATCH --mem=32G               
 #SBATCH --mail-type=ALL 
