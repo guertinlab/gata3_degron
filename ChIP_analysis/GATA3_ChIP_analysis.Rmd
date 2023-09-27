@@ -399,7 +399,7 @@ chip_alignment_MCF7_dTAGGATA522_IgG_CC_rep4
 
 ```
 
-# Combining replicates for Genome Browser
+# Genome Browser
 
 Usually we combine replicates into a single track for visualization
 and we compare the tracks between conditions. It is important that we
@@ -408,9 +408,15 @@ replicate. Otherwise, we would be weighting replicates differently;
 for example, if a library is sequenced to twice the read depth and we
 combine first then read depth normalize, then the more high coverage
 data is weighted twice as much in the final visualization. All the
-relevant track files are here:
-[http://guertinlab.cam.uchc.edu/znf143_hub/](http://guertinlab.cam.uchc.edu/znf143_hub/)
+relevant track files are here: \
 
+**Single library (normalized)** \
+
+trackhub link for non-merged data: http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt \
+
+<!--
+**Combining replicates** \
+trackhub link for data merged by reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=combine_rep.sh     # name for job
@@ -484,9 +490,7 @@ do
 done
 ```
 
-trackhub link for data merged by reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
-
-trackhub link for non-merged data: http://guertinlab.cam.uchc.edu/GATA3_nonmerge_hub/hub.txt \
+-->
 
 # Peak calling
 
