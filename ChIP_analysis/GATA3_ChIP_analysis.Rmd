@@ -260,56 +260,84 @@ done
 
 ```
 
-### extract the read depth and scale factor from the analysis
+**read depth** 
 ```{r engine='bash', eval=F, echo=TRUE}
 for i in *chip_alignment*.out
 do
   name=$(echo $i | awk -F".sh" '{print $1}')
   echo $name
-  echo "scale factor"
-  scalee=$(cat $i | tail -1)
-  echo $scalee
-  echo "read depth"
-  depth=$(bc <<< "scale=1 ; 10000000 / $scalee")
-  echo $depth
+  echo $(cat $i | grep "depth") # the depth are came from seqoutbias not_scaled.bed
 done 2>&1 | tee read_depth.txt
+
+# cat read_depth.txt
 ```
 
 ```{r engine='bash', eval=F, echo=F}
-chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep1 29411764.7
-chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep2 41152263.3
-chip_alignment_MCF7_dTAGGATA522_CTCF_CE_rep1 34722222.2
-chip_alignment_MCF7_dTAGGATA522_CTCF_dE_rep1 49751243.7
-chip_alignment_MCF7_dTAGGATA522_CTER_CE_rep1 40816326.5
-chip_alignment_MCF7_dTAGGATA522_CTER_dE_rep1 47393364.9
-chip_alignment_MCF7_dTAGGATA522_ER_CE_rep1 34722222.2
-chip_alignment_MCF7_dTAGGATA522_ER_CE_rep2 41152263.3
-chip_alignment_MCF7_dTAGGATA522_ER_dE_rep1 36363636.3
-chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep1 30581039.7
-chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep2 28985507.2
-chip_alignment_MCF7_dTAGGATA522_GATA_CC_rep3 30769230.7
-chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep1 44642857.1
-chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1 29761904.7
-
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep3
+depth is 152293642
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep2
+depth is 123533474
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep3
+depth is 139178277
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep2
+depth is 129267365
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep3
+depth is 119549230
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep2
+depth is 118795119
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep3
+depth is 74922069
+chip_alignment_MCF7_dTAGGATA522_IgG_CC_rep4
+depth is 79195389
 ```
 
-<!--
-alternative methods:
+**aligned reads**
+```{r engine='bash', eval=F, echo=T}
+module load samtools/1.16.1
+for i in *bw.bam
+do
+  echo $i
+  samtools view -c -f 0x42 $i
+done 2>&1 | tee -a aligned_reads_from_bam_log.txt
+
+module load R/4.1.2
+R 
+library("lattice") 
+df_sum=read.table('aligned_reads_from_bam_log.txt', sep = "", header=FALSE)
+
+df_plot=data.frame(file=df_sum[seq(1, nrow(df_sum), by=2),],
+                   reads=as.numeric(df_sum[seq(2, nrow(df_sum), by=2),]))
+
+pdf('barplot_GATA3_ChIP_Pool2_1_reads.pdf',width=8,height=8)
+print(barchart(reads~ file,         
+         data = df_plot,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "libraries",
+         xlab = "post-alignment reads",
+         col="light blue",
+         panel=function(...) {
+           panel.barchart(...)
+           panel.abline(h=15000000, lty = "dotted", col = "red", identifier = "abline")
+       })
+)
+dev.off()
+```
+
 ```{r engine='bash', eval=F, echo=F}
-#  average coverage for all covered regions
-samtools depth  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
+1   MCF7_dTAGGATA522_ER_CE_rep3.bw.bam 89256497
+2   MCF7_dTAGGATA522_ER_dE_rep2.bw.bam 72530455
+3   MCF7_dTAGGATA522_ER_dE_rep3.bw.bam 81621491
+4 MCF7_dTAGGATA522_GATA_CE_rep2.bw.bam 75599385
+5 MCF7_dTAGGATA522_GATA_CE_rep3.bw.bam 69879621
+6 MCF7_dTAGGATA522_GATA_dE_rep2.bw.bam 70114353
 
-# include regions that were not covered in this calculation
-samtools depth -a  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
+7 MCF7_dTAGGATA522_GATA_dE_rep3.bw.bam 43816064
 
-# get average X coverage: divide by total size of the genome, instead of dividing by NR in the command above.
-samtools view -H *bamfile* | grep -P '^@SQ' | cut -f 3 -d ':' | awk '{sum+=$1} END {print sum}' > totalsize # The total size
-samtools depth  *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
-samtools depth -a *bamfile*  |  awk '{sum+=$3} END { print "Average = ",sum/${totalsize}}'
+8  MCF7_dTAGGATA522_IgG_CC_rep4.bw.bam 46610755
 ```
--->
 
-### extract the alignment rate from the analysis
+**alignment rate**
 ```{r engine='bash', eval=F, echo=TRUE}
 for i in *chip_alignment*.err
 do
@@ -321,6 +349,7 @@ done 2>&1 | tee alignment_rate.txt
 ```
 
 ```{r engine='bash', eval=F, echo=F}
+#pool1:
 chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep1
 99.19% overall alignment rate
 chip_alignment_MCF7_dTAGGATA522_CTCF_CC_rep2
@@ -349,6 +378,24 @@ chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep1
 98.97% overall alignment rate
 chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep1
 98.54% overall alignment rate
+
+#pool2_1:
+chip_alignment_MCF7_dTAGGATA522_ER_CE_rep3
+98.57% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep2
+98.63% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_ER_dE_rep3
+98.64% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep2
+98.55% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep3
+98.80% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep2
+98.21% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep3
+98.68% overall alignment rate
+chip_alignment_MCF7_dTAGGATA522_IgG_CC_rep4
+97.86% overall alignment rate
 
 ```
 
