@@ -724,7 +724,7 @@ function toggle_visibility(id1) {
 <li><a href="#run-the-previous-chunk-in-parallel" id="toc-run-the-previous-chunk-in-parallel"><span class="toc-section-number">4.4.1</span> Run the previous chunk in parallel</a></li>
 </ul></li>
 </ul></li>
-<li><a href="#combining-replicates-for-genome-browser" id="toc-combining-replicates-for-genome-browser"><span class="toc-section-number">5</span> Combining replicates for Genome Browser</a></li>
+<li><a href="#genome-browser" id="toc-genome-browser"><span class="toc-section-number">5</span> Genome Browser</a></li>
 <li><a href="#peak-calling" id="toc-peak-calling"><span class="toc-section-number">6</span> Peak calling</a>
 <ul>
 <li><a href="#removing-peaks-on-contigs-and-within-blacklisted-regions" id="toc-removing-peaks-on-contigs-and-within-blacklisted-regions"><span class="toc-section-number">6.1</span> Removing peaks on contigs and within blacklisted regions</a></li>
@@ -1053,8 +1053,8 @@ done 2&gt;&amp;1 | tee alignment_rate.txt</code></pre>
 </div>
 </div>
 </div>
-<div id="combining-replicates-for-genome-browser" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> Combining replicates for Genome Browser</h1>
+<div id="genome-browser" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Genome Browser</h1>
 <p>Usually we combine replicates into a single track for visualization
 and we compare the tracks between conditions. It is important that we
 read-depth normalize before we combine the signal from each
@@ -1062,9 +1062,18 @@ replicate. Otherwise, we would be weighting replicates differently;
 for example, if a library is sequenced to twice the read depth and we
 combine first then read depth normalize, then the more high coverage
 data is weighted twice as much in the final visualization. All the
-relevant track files are here:
-<a href="http://guertinlab.cam.uchc.edu/znf143_hub/">http://guertinlab.cam.uchc.edu/znf143_hub/</a></p>
-<pre class="bash"><code>#!/bin/bash
+relevant track files are here:<br />
+</p>
+<p><strong>Single library (normalized)</strong><br />
+</p>
+<p>trackhub link for non-merged data: <a href="http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt" class="uri">http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt</a><br />
+</p>
+<!--
+**Combining replicates** \
+trackhub link for data merged by reps: http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt \
+
+```bash
+#!/bin/bash
 #SBATCH --job-name=combine_rep.sh     # name for job
 #SBATCH -N 1                  
 #SBATCH -n 1                 
@@ -1082,26 +1091,30 @@ sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
 for i in *MCF*rep1_PE1.fastq.gz
 do
-    nm=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_PE1.fastq.gz&quot; &#39;{print $1}&#39;)
-    name=$(echo $nm | awk -F&quot;_rep1&quot; &#39;{print $1}&#39;)
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1.fastq.gz" '{print $1}')
+    name=$(echo $nm | awk -F"_rep1" '{print $1}')
     echo $name
     reps=$(ls ${name}_rep*normalized.bigWig | wc -w | bc)
     echo $reps
     files=$(ls ${name}_rep*normalized.bigWig)
     echo $files
     bigWigMerge $files tmp.bg
-    scaleall=$(bc &lt;&lt;&lt; &quot;scale=4 ; 1.0 / $reps&quot;)
+    scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
     echo scale:
     echo $scaleall
-    awk -v scaleall=&quot;$scaleall&quot; &#39;{OFS=&quot;\t&quot;;} {print $1, $2, $3, $4*scaleall}&#39; tmp.bg &gt; ${name}_normalized.bedGraph
+    awk -v scaleall="$scaleall" '{OFS="\t";} {print $1, $2, $3, $4*scaleall}' tmp.bg > ${name}_normalized.bedGraph
     rm tmp.bg
     wigToBigWig ${name}_normalized.bedGraph $sizes ${name}.bigWig
-    awk -v var=&quot;$name&quot; &#39;BEGIN {  print &quot;browser position chr11:5,289,521-5,291,937&quot;; print &quot;track type=bedGraph name=\&quot;&quot; var &quot;\&quot; description=\&quot;&quot; var &quot;_bedGraph\&quot; visibility=full autoScale=on alwaysZero=on color=0,0,0&quot;}  { print $0}&#39; ${name}_normalized.bedGraph &gt; ${name}_header_normalized.bedGraph
+    awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,0,0"}  { print $0}' ${name}_normalized.bedGraph > ${name}_header_normalized.bedGraph
     gzip ${name}_header_normalized.bedGraph
 done
 
-# side note: only few files has replicates: CTCF_CC (2 reps), ER_CE (2 reps), and GATA_CC (3reps)</code></pre>
-<pre class="bash"><code># we have single replicate for IgG_dE, IgG_CE, and IgG_CC. Here I am trying to merge the three IgG files together
+# side note: only few files has replicates: CTCF_CC (2 reps), ER_CE (2 reps), and GATA_CC (3reps)
+```
+
+
+```bash
+# we have single replicate for IgG_dE, IgG_CE, and IgG_CC. Here I am trying to merge the three IgG files together
 
 #!/bin/bash
 module load ucsc_genome/2012.05.22
@@ -1113,25 +1126,28 @@ files=$(ls ${name}*_normalized.bigWig)
 echo $files
 
 bigWigMerge $files tmp.bg
-scaleall=$(bc &lt;&lt;&lt; &quot;scale=4 ; 1.0 / $reps&quot;)
+scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
 echo scale:
 echo $scaleall
-awk -v scaleall=&quot;$scaleall&quot; &#39;{OFS=&quot;\t&quot;;} {print $1, $2, $3, $4*scaleall}&#39; tmp.bg &gt; ${name}_normalized.bedGraph
+awk -v scaleall="$scaleall" '{OFS="\t";} {print $1, $2, $3, $4*scaleall}' tmp.bg > ${name}_normalized.bedGraph
 rm tmp.bg
 wigToBigWig ${name}_normalized.bedGraph $sizes ${name}.bigWig
-awk -v var=&quot;$name&quot; &#39;BEGIN {  print &quot;browser position chr11:5,289,521-5,291,937&quot;; print &quot;track type=bedGraph name=\&quot;&quot; var &quot;\&quot; description=\&quot;&quot; var &quot;_bedGraph\&quot; visibility=full autoScale=on alwaysZero=on color=0,0,0&quot;}  { print $0}&#39; ${name}_normalized.bedGraph &gt; ${name}_header_normalized.bedGraph
+awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,0,0"}  { print $0}' ${name}_normalized.bedGraph > ${name}_header_normalized.bedGraph
 gzip ${name}_header_normalized.bedGraph
-</code></pre>
-<pre class="bash"><code>for i in *MCF*PE1.fastq.gz
+
+```
+
+
+```bash
+for i in *MCF*PE1.fastq.gz
 do
-    name=$(echo $i | awk -F&quot;/&quot; &#39;{print $NF}&#39; | awk -F&quot;_PE1.fastq.gz&quot; &#39;{print $1}&#39;)
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1.fastq.gz" '{print $1}')
     mkdir ${name}_files
       mv ${name}* ./${name}_files
-done</code></pre>
-<p>trackhub link for data merged by reps: <a href="http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt" class="uri">http://guertinlab.cam.uchc.edu/GATA3_hub/hub.txt</a><br />
-</p>
-<p>trackhub link for non-merged data: <a href="http://guertinlab.cam.uchc.edu/GATA3_nonmerge_hub/hub.txt" class="uri">http://guertinlab.cam.uchc.edu/GATA3_nonmerge_hub/hub.txt</a><br />
-</p>
+done
+```
+
+-->
 </div>
 <div id="peak-calling" class="section level1" number="6">
 <h1><span class="header-section-number">6</span> Peak calling</h1>
