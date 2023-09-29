@@ -15,7 +15,7 @@ fontsize: 14pt
 geometry: margin=1in
 ---
 
-# PRO-seq analysis
+# PRO-seq Data Processing
 
 ## Pre-processing PRO-seq Data
 
@@ -634,7 +634,7 @@ done 2>&1 | tee -a aligned_reads_from_bam_log.txt
 
 # cat aligned_reads_from_bam_log.txt
 
-module load R/4.1.2 seq(1, 100, by=2)
+module load R/4.1.2
 R 
 library("lattice") 
 df_sum=read.table('aligned_reads_from_bam_log.txt', sep = "", header=FALSE)
@@ -666,6 +666,25 @@ cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt
 plot_all_metrics.R project_QC_metrics.txt GATA3_degron_final_PRO # pdf output
 ```
 
+```{r engine='bash', eval=F, echo=F}
+for i in *bowtie2.log
+do
+cat $i | tail -1
+done
+
+86.88% overall alignment rate
+86.93% overall alignment rate
+87.91% overall alignment rate
+81.57% overall alignment rate
+87.68% overall alignment rate
+86.66% overall alignment rate
+88.29% overall alignment rate
+84.52% overall alignment rate
+88.31% overall alignment rate
+88.78% overall alignment rate
+88.01% overall alignment rate
+88.18% overall alignment rate
+```
 
 # primaryTranscriptAnnotation (PTA) 
 The purpose of this analysis is to define primary transcripts 
@@ -788,7 +807,7 @@ rm tmpMinus${pair}.bg
 
 ## Transcription start site (TSS) Inference analysis
 
-TSS Annotations \
+**TSS Annotations**
 ```{r engine='R', eval=F, echo=TRUE}
 # download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
 # content: Basic gene annotation; region: Chr; Download: GTF
@@ -811,7 +830,7 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
 
 ```
 
-TSS \
+**TSS**
 ```{r engine='R', eval=F, echo=TRUE}
 # at the TSS working directory (where you saved the merged bigWig files)
 module load R/4.1.2
@@ -846,7 +865,7 @@ head(potential.tss2)
 
 ## Primary Transcription Annotations 
 
-Annotations \
+**Annotations**
 ```{r engine='R', eval=F, echo=TRUE}
 #mkdir Annotation_v42
 #cd Annotation_v42
