@@ -523,6 +523,30 @@ module load macs3
 
 mkdir temp_macs
 
+# GATA all (merged from GATA_CC,CE,dE)
+macs3 callpeak --call-summits -t *_GATA_*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+
+```
+<!--
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=chip_peak_calling.sh     # name for job
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 2
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o chip_peak_calling.sh_%j.out
+#SBATCH -e chip_peak_calling.sh_%j.err
+
+hostname
+module load macs3
+
+mkdir temp_macs
+
 # CTCF (merged from CTCF_CC_2files, CE, dE); my -c input: IgG (control, merged from IgG_dE,CE,CC)
 macs3 callpeak --call-summits -t *_CTCF_*bam -c *IgG*bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 # ER (merged from ER_CE_2files,dE)
@@ -536,6 +560,7 @@ macs3 callpeak --call-summits -t *_GATA_*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0
 # CTER
 macs3 callpeak --call-summits -t *CTER_*bam -c *IgG*bam -n CTER_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 ```
+-->
 
 ## Removing peaks on contigs and within blacklisted regions
 
