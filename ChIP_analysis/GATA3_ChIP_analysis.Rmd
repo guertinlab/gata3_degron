@@ -18,37 +18,29 @@ geometry: margin=1in
 
 # ChIP-seq experiments
 
-ChIP-seq measures protein abundance on DNA and one can quantify
-protein modifications if an antibody to the modification is
-available. 
+ChIP-seq measures protein abundance on DNA and one can quantify protein modifications if an antibody to the modification is
+available. Controls are important. An IgG (or mock) IP is superior to input as a control. 
 
-# ChIP-seq experimental design
-
-Controls are important.  An IgG (or mock) IP is superior to input as
-a control. I am happy to discuss the design of ChIP-seq experiments 
-with you **before** you generate any data. It is much easier to design
-the proper experiments and controls and analyze the data compared to
-the alternative of trying to salvage poorly controlled experiments.
-
-# Info about this experiment
+# ChIP-seq experiments design
 
 MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER deprived) are treated under 3 conditions: 1) CC: null+null; 2) CE: null+ E2; 3) dE: dTAG+E2. \
-Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER.
+Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER. \
 
-# ChIP-seq processing
+IgG ChIP is an control for background signals. \
 
-## Convert and Rename Data
-**Convert form**
+# ChIP-seq data processing
+
+## Convert/Rename Data
+**Converting data form**
 ```{r engine='bash', eval=F, echo=TRUE}
-#Transfer SampleSheet.csv to *_AHVTG3BGXN directory
-cd 230922_NB551647_0109_AHTHMJBGXT
+# make sure there is a SampleSheet.csv in the *_AHVTG3BGXN directory
+# cd 230922_NB551647_0109_AHTHMJBGXT
 module load bcl2fastq
 nohup bcl2fastq --runfolder-dir ./ --output-dir ./Data/Intensities/BaseCalls/ --no-lane-splitting
 ```
 
-**Rename file**
-We want to name the experiments with the trailing name being `PE1` or
-`PE2` for paired end data. 
+**Renaming file**
+We want to name the experiments with the trailing name being `PE1` or `PE2` for paired end data. 
 
 ```{r engine='bash', eval=F, echo=TRUE}
 for i in *_S*R1_001.fastq.gz
@@ -61,44 +53,30 @@ do
 done
 ```
 
-## check fastq file quality
+## check fastq file quality with `fastqc`
 
 ```{r engine='bash', eval=F, echo=TRUE}
-#!/bin/bash
-#SBATCH --job-name=fastqc.sh     
-#SBATCH -N 1                  
-#SBATCH -n 1                 
-#SBATCH -c 32                  
-#SBATCH -p general           
-#SBATCH --qos=general       
-#SBATCH --mem=32G               
-#SBATCH --mail-type=ALL 
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o fastqc.sh_%j.out
-#SBATCH -e fastqc.sh_%j.err
-
-#mkdir fastqc_out
-#cd fastqc_out
 module load fastqc 
 
-for i in ../*fastq.gz
+for i in *fastq.gz
 do
   echo $i
   fastqc $i 
 done
 ```
+
+
 ## Cut off the adapter with `cutadapt`
 
-In our daily workflow in the lab we use
-`cutadapt` to remove adapter sequences. The options we use below are:
+In our daily workflow in the lab we use `cutadapt` to remove adapter sequences. The options we use below are: \
 
-- `-j` for the number of cores to use
-- `-m` specifies the minimal length of a read to keep after adapter sequence removal
-- `-O` is the number of bases to trim off the end of the read if it overlaps with the adapter sequence 
-- `-a` adapter sequence of PE1 reads 
-- `-A` adapter sequence of PE2 reads
-- `-o` PE1 output file 
-- `-p` PE2 output file
+- `-j` for the number of cores to use \
+- `-m` specifies the minimal length of a read to keep after adapter sequence removal \
+- `-O` is the number of bases to trim off the end of the read if it overlaps with the adapter sequence \
+- `-a` adapter sequence of PE1 reads \
+- `-A` adapter sequence of PE2 reads \
+- `-o` PE1 output file \
+- `-p` PE2 output file \
 
 If the genome contains 25% of each base, then you would expect one quarter of the
 reads that have no adapter to have the trailing base
@@ -106,13 +84,11 @@ trimmed. Likewise, approximately 1/16 of the remaining
 reads without the adapter will have the final two bases
 trimmed. Technically these values are not exact, because the reads with
 matches to longer trailing k-mers (in this case 19-mers) would be
-removed first, then 18-mer matches removed, etcetera...  \
+removed first, then 18-mer matches removed, etc...  \
 
-The `-a` and `-A`
-options are the adapter sequences of the PE1 and PE2 reads.  The
-output file is `-o` (PE1) and `-p` PE2. The last two positional
-areguments are the input `fastq` files. We save the output
-to a log file.
+The `-a` and `-A` options are the adapter sequences of the PE1 and PE2 reads.  The
+output file is `-o` (PE1) and `-p` PE2. The last two positional arguments are the input `fastq` files. 
+We save the output to a log file.
 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load cutadapt
@@ -133,20 +109,6 @@ done
 First we want to generate a folder in the convenient directory and name it as Genome. We will save all the genome files here. `cd` to this working directory, we are getting reference genome and chrom.sizes file from the USCS genome server, and build the genome index with `bowtie2-build`.
 
 ```{r engine='bash', eval=F, echo=TRUE}
-#! /bin/sh
-
-#SBATCH --job-name=getrefgenome.sh     # name for job
-#SBATCH -N 1
-#SBATCH -n 1
-#SBATCH -c 32
-#SBATCH -p general
-#SBATCH --qos=general
-#SBATCH --mem=32G
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=ssun@uchc.edu
-#SBATCH -o getrefgenome.sh_%j.out
-#SBATCH -e getrefgenome.sh_%j.err
-
 module load genometools/1.5.10
 module load bowtie2
 export PATH=$PATH:/home/FCAM/ssun/packages
@@ -158,24 +120,23 @@ bowtie2-build hg38.fa hg38
 wget https://hgdownload-test.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
 ```
 
-Now we are aligning to the `hg38.fa` genome. The difference between ChIPseq data and PRO is that the ChIP libraries are paired end. Note the `-1` and
-`-2` options for the respective paired-end `fastq` files. There is no
-need to save the output `sam` file, so the output is piped to
-`samtools` to convert to `bam`, then sorted by name (`-n`) so paired
-end reads are adjacent in the file, then piped to `samtools fixmate`
-which adds information about the fragment length by comparing the PE1
-and PE2 coordinates, then the files are sorted by coordinate, then
-piped to `samtools markdup` to remove duplicate reads. Duplicate reads
-have the same PE1 and PE2 ends. This is very unlikely to happen by
-chance unless you sequence to very high read depth, so these reads are
-considered PCR amplicon duplicates. The `fixmate` step is necessary to
-pipe to `markdup`. We use the entire DNA fragment for making the
-browser tracks, which is accomplished by converted the paired-end
-`bam` file to a `bed12` and taking out discordant reads. We also
-normalize to read depth. \
+Now we are aligning the processed fastq files (no_adapt.fastq) to the `hg38.fa` genome. ChIP libraries are paired end. Note the `-1` and
+`-2` options for the respective paired-end `fastq` files. There is no need to save the output `sam` file, so the output is piped to
+`samtools` to convert to `bam`, then sorted by name (`-n`) so paired end reads are adjacent in the file.\
+
+The `bw.bam` files are piped to `samtools fixmate` which adds information about the fragment length by comparing the PE1
+and PE2 coordinates, then the files are sorted by coordinate, then piped to `samtools markdup` to remove duplicate reads. Duplicate reads
+have the same PE1 and PE2 ends. This is very unlikely to happen by chance unless you sequence to very high read depth, so these reads are
+considered as PCR duplicates. The `fixmate` step is necessary to pipe to `markdup`. \
+
+We also run `seqOutBias` to generate the .bigWig files. \
+
+`samtools sort` sorts the output `hg38.bam` by name (`-n`) and generates `sorted.bam`. We will use these `sorted.bam` files to call peaks later. \ 
+
+We use the entire DNA fragment for making the browser tracks, which is accomplished by converted the paired-end `sorted.bam` file to a `bed12` and taking out discordant reads. We also normalize to read depth. We will upload these `normalized.bigWig` to trackhub for UCSC genome browser visualization. \
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
-#SBATCH --job-name=chip_alignment_230925.sh     # name for job
+#SBATCH --job-name=chip_alignment_230925.sh     
 #SBATCH -N 1                  
 #SBATCH -n 1                 
 #SBATCH -c 32                  
@@ -188,7 +149,6 @@ normalize to read depth. \
 #SBATCH -e chip_alignment_230925.sh_%j.err
 
 hostname
-
 name=230925
 
 # I have seqOutBias and other packages export to my Path
@@ -237,7 +197,7 @@ wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
 echo "complete"
 ```
 
-### Run the previous chunk in parallel 
+**Run the previous chunk in parallel**
 
 Now we are generating tallymer files and table use `seqOutBias` outside the loop, and then run the previous chunk in parallel. \
 We need to know the read size of our library. Here the read size is 42.\
@@ -257,87 +217,11 @@ do
     sbatch pro_processing_${nm}.sh
     sleep 1
 done
-
 ```
 
-**read depth** 
-```{r engine='bash', eval=F, echo=TRUE}
-for i in *chip_alignment*.out
-do
-  name=$(echo $i | awk -F".sh" '{print $1}')
-  echo $name
-  echo $(cat $i | grep "depth") # the depth are came from seqoutbias not_scaled.bed
-done 2>&1 | tee read_depth.txt
+## Alignment rate and post-alignment read depth
 
-# cat read_depth.txt
-```
-
-```{r engine='bash', eval=F, echo=F}
-chip_alignment_MCF7_dTAGGATA522_ER_CE_rep3
-depth is 152293642
-chip_alignment_MCF7_dTAGGATA522_ER_dE_rep2
-depth is 123533474
-chip_alignment_MCF7_dTAGGATA522_ER_dE_rep3
-depth is 139178277
-chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep2
-depth is 129267365
-chip_alignment_MCF7_dTAGGATA522_GATA_CE_rep3
-depth is 119549230
-chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep2
-depth is 118795119
-chip_alignment_MCF7_dTAGGATA522_GATA_dE_rep3
-depth is 74922069
-chip_alignment_MCF7_dTAGGATA522_IgG_CC_rep4
-depth is 79195389
-```
-
-**aligned reads**
-```{r engine='bash', eval=F, echo=T}
-module load samtools/1.16.1
-for i in *bw.bam
-do
-  echo $i
-  samtools view -c -f 0x42 $i
-done 2>&1 | tee -a aligned_reads_from_bam_log.txt
-
-module load R/4.1.2
-R 
-library("lattice") 
-df_sum=read.table('aligned_reads_from_bam_log.txt', sep = "", header=FALSE)
-
-df_plot=data.frame(file=df_sum[seq(1, nrow(df_sum), by=2),],
-                   reads=as.numeric(df_sum[seq(2, nrow(df_sum), by=2),]))
-
-pdf('barplot_GATA3_ChIP_Pool2_1_reads.pdf',width=8,height=8)
-print(barchart(reads~ file,         
-         data = df_plot,
-         auto.key=list(space="right"),
-         scales = list(x = list(rot = 45)),
-         ylab = "libraries",
-         xlab = "post-alignment reads",
-         col="light blue",
-         panel=function(...) {
-           panel.barchart(...)
-           panel.abline(h=15000000, lty = "dotted", col = "red", identifier = "abline")
-       })
-)
-dev.off()
-```
-
-```{r engine='bash', eval=F, echo=F}
-1   MCF7_dTAGGATA522_ER_CE_rep3.bw.bam 89256497
-2   MCF7_dTAGGATA522_ER_dE_rep2.bw.bam 72530455
-3   MCF7_dTAGGATA522_ER_dE_rep3.bw.bam 81621491
-4 MCF7_dTAGGATA522_GATA_CE_rep2.bw.bam 75599385
-5 MCF7_dTAGGATA522_GATA_CE_rep3.bw.bam 69879621
-6 MCF7_dTAGGATA522_GATA_dE_rep2.bw.bam 70114353
-
-7 MCF7_dTAGGATA522_GATA_dE_rep3.bw.bam 43816064
-
-8  MCF7_dTAGGATA522_IgG_CC_rep4.bw.bam 46610755
-```
-
-**alignment rate**
+**Alignment rate**
 ```{r engine='bash', eval=F, echo=TRUE}
 for i in *chip_alignment*.err
 do
@@ -399,6 +283,147 @@ chip_alignment_MCF7_dTAGGATA522_IgG_CC_rep4
 
 ```
 
+**Aligned reads**
+bowtie2 direct output: \
+```{r engine='bash', eval=F, echo=T}
+module load samtools/1.16.1
+for i in *bw.bam
+do
+  echo $i
+  samtools view -c -f 0x42 $i
+done 2>&1 | tee -a aligned_reads_from_bam_log.txt
+
+module load R/4.1.2
+R 
+library("lattice") 
+df_sum=read.table('aligned_reads_from_bam_log.txt', sep = "", header=FALSE)
+
+df_plot=data.frame(file=df_sum[seq(1, nrow(df_sum), by=2),],
+                   reads=as.numeric(df_sum[seq(2, nrow(df_sum), by=2),]))
+
+pdf('barplot_GATA3_ChIP_Pool2_1_reads.pdf',width=8,height=8)
+print(barchart(reads~ file,         
+         data = df_plot,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "libraries",
+         xlab = "post-alignment reads",
+         col="light blue",
+         panel=function(...) {
+           panel.barchart(...)
+           panel.abline(h=15000000, lty = "dotted", col = "red", identifier = "abline")
+       })
+)
+dev.off()
+```
+
+```{r engine='bash', eval=F, echo=F}
+# pool1
+MCF7_dTAGGATA522_ER_CE_rep1.bw.bam 20352514
+MCF7_dTAGGATA522_ER_CE_rep2.bw.bam 24080913
+MCF7_dTAGGATA522_ER_dE_rep1.bw.bam 21222967
+
+MCF7_dTAGGATA522_GATA_CC_rep1.bw.bam 17318142
+MCF7_dTAGGATA522_GATA_CC_rep2.bw.bam 16625583
+MCF7_dTAGGATA522_GATA_CC_rep3.bw.bam 17558144
+MCF7_dTAGGATA522_GATA_CE_rep1.bw.bam 26070891
+MCF7_dTAGGATA522_GATA_dE_rep1.bw.bam 17421066
+
+MCF7_dTAGGATA522_IgG_CC_rep1.bw.bam 12224376
+MCF7_dTAGGATA522_IgG_CE_rep2.bw.bam 15304212
+MCF7_dTAGGATA522_IgG_dE_rep3.bw.bam 17468152
+
+# pool2_1
+1   MCF7_dTAGGATA522_ER_CE_rep3.bw.bam 89256497
+2   MCF7_dTAGGATA522_ER_dE_rep2.bw.bam 72530455
+3   MCF7_dTAGGATA522_ER_dE_rep3.bw.bam 81621491
+
+4 MCF7_dTAGGATA522_GATA_CE_rep2.bw.bam 75599385
+5 MCF7_dTAGGATA522_GATA_CE_rep3.bw.bam 69879621
+6 MCF7_dTAGGATA522_GATA_dE_rep2.bw.bam 70114353
+7 MCF7_dTAGGATA522_GATA_dE_rep3.bw.bam 43816064
+
+8  MCF7_dTAGGATA522_IgG_CC_rep4.bw.bam 46610755
+```
+
+de-duplicate, sorted output: \
+```{r engine='bash', eval=F, echo=T}
+module load samtools/1.16.1
+for i in *sorted.bam
+do
+  echo $i
+  samtools view -c -f 0x42 $i
+done 2>&1 | tee -a aligned_reads_from_sorted_bam_log.txt
+
+```
+
+```{r engine='bash', eval=F, echo=F}
+#CTCF
+MCF7_dTAGGATA522_CTCF_CC_rep1.sorted.bam 16215114
+MCF7_dTAGGATA522_CTCF_CC_rep2.sorted.bam 22866082
+MCF7_dTAGGATA522_CTCF_CE_rep1.sorted.bam 19793957
+MCF7_dTAGGATA522_CTCF_dE_rep1.sorted.bam 28294558
+
+#CTER
+MCF7_dTAGGATA522_CTER_CE_rep1.sorted.bam 23473299
+MCF7_dTAGGATA522_CTER_dE_rep1.sorted.bam 27127637
+
+#ER
+MCF7_dTAGGATA522_ER_CE_rep1.sorted.bam 19964251
+MCF7_dTAGGATA522_ER_CE_rep2.sorted.bam 23620150
+MCF7_dTAGGATA522_ER_CE_rep3.sorted.bam 87481895
+
+MCF7_dTAGGATA522_ER_dE_rep1.sorted.bam 20821602
+MCF7_dTAGGATA522_ER_dE_rep2.sorted.bam 71054112
+MCF7_dTAGGATA522_ER_dE_rep3.sorted.bam 79943755
+
+#GATA
+MCF7_dTAGGATA522_GATA_CC_rep1.sorted.bam 16974308
+MCF7_dTAGGATA522_GATA_CC_rep2.sorted.bam 16292698
+MCF7_dTAGGATA522_GATA_CC_rep3.sorted.bam 17237793
+
+MCF7_dTAGGATA522_GATA_CE_rep1.sorted.bam 25556294
+MCF7_dTAGGATA522_GATA_CE_rep2.sorted.bam 73917484
+MCF7_dTAGGATA522_GATA_CE_rep3.sorted.bam 68419380
+
+MCF7_dTAGGATA522_GATA_dE_rep1.sorted.bam 17068071
+MCF7_dTAGGATA522_GATA_dE_rep2.sorted.bam 68135679
+MCF7_dTAGGATA522_GATA_dE_rep3.sorted.bam 42832756
+
+#IgG
+MCF7_dTAGGATA522_IgG_CC_rep1.sorted.bam 11967422
+MCF7_dTAGGATA522_IgG_CC_rep4.sorted.bam 45395007
+MCF7_dTAGGATA522_IgG_CE_rep2.sorted.bam 14984887
+MCF7_dTAGGATA522_IgG_dE_rep3.sorted.bam 17081696
+
+
+module load R/4.1.2
+R 
+library("lattice") 
+df_GATA=read.csv('GATA_sorted_bam_reads.csv')
+df_ER=read.csv('ER_sorted_bam_reads.csv')
+df_IgG=read.csv('IgG_sorted_bam_reads.csv')
+
+df_sum=rbind(df_GATA, df_ER, df_IgG)
+df_sum$supp=c(rep("GATA",9), rep("ER", 6), rep("IgG", 4))
+df_sum$rep=c(rep(c(1,2,3),6 ),4)
+df_sum$supp2=as.factor(paste(df_sum$treatment,df_sum$rep, sep = "_"))
+
+pdf('barplot_sorted_bam_reads.pdf',width=16,height=8)
+print(barchart(aligned_reads~ supp2|supp,
+         group=treatment,
+         stack=T,
+         data = df_sum,
+         #auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         xlab = "libraries",
+         ylab = "post-alignment reads (sorted_bam)",
+         par.settings = list(superpose.polygon=list(col=c("light blue","#00AAFF", "#FF9999"), border="transparent")))
+         #col=rep(c(rep("light blue",3),rep("#00AAFF",3), rep("#FF9999",4)),3))
+)
+dev.off()
+```
+
 # Genome Browser
 
 Usually we combine replicates into a single track for visualization
@@ -412,7 +437,7 @@ relevant track files are here: \
 
 **Single library (normalized)** \
 
-trackhub link for non-merged data: http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt \
+UCSC Genome Browser trackhub link for non-merged, normalized bigWig files: http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt \
 
 <!--
 **Combining replicates** \
@@ -494,6 +519,7 @@ done
 
 # Peak calling
 
+## calling GATA peaks with `Macs3`
 We want to call a set of universal peaks for the same ChIP factors. The reasons are: taking intersection of peaks between replicates/conditions will result in high false negative rates. We may lose important binding regions for transcription factor analysis. Here we are doing a compromise to call every peaks on all files and later in downstream analysis we will decide the functional peaks. \
 
 We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment files against the control genomic input. \
@@ -506,11 +532,11 @@ We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment fi
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
-#SBATCH --job-name=chip_peak_calling.sh     # name for job
+#SBATCH --job-name=GATA_chip_peak_calling.sh    
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH -c 2
-#SBATCH -p general
+#SBATCH -p amd
 #SBATCH --qos=general
 #SBATCH --mem=32G
 #SBATCH --mail-type=ALL
@@ -522,10 +548,12 @@ hostname
 module load macs3
 
 mkdir temp_macs
+directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/sorted.bam_final/
+# GATA_CC against IgG
+macs3 callpeak --call-summits -t ${directory}*_GATA_CC*sorted.bam -c ${directory}*IgG*sorted.bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
 
-# GATA all (merged from GATA_CC,CE,dE)
-macs3 callpeak --call-summits -t *_GATA_*bam -c *IgG*bam -n GATA_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
-
+#wc -l GATA_ChIP_summits.bed
+#99289 
 ```
 <!--
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -578,11 +606,11 @@ We use a standard window size to calculate peak intensity, but we use a much wid
 
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
-#SBATCH --job-name=remove_peak.sh     # name for job
+#SBATCH --job-name=remove_peak.sh     
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH -c 2
-#SBATCH -p general
+#SBATCH -p amd
 #SBATCH --qos=general
 #SBATCH --mem=32G
 #SBATCH --mail-type=ALL
@@ -591,8 +619,8 @@ We use a standard window size to calculate peak intensity, but we use a much wid
 #SBATCH -e remove_peak.sh_%j.err
 module load deeptools/3.5.0
 module load bedtools
-#wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
-#gunzip hg38-blacklist.v2.bed.gz
+wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+gunzip hg38-blacklist.v2.bed.gz
 blacklist=hg38-blacklist.v2.bed
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
@@ -607,7 +635,13 @@ do
 done
 ```
 
-check peak numbers we called for each factor
+**peak numbers** 
+```{r engine='bash', eval=F, echo=TRUE}
+wc -l GATA_ChIP_summits_final.bed
+#96868
+```
+
+<!--
 ```{r engine='bash', eval=F, echo=TRUE}
 83228 CTCF_ChIP_summits_final.bed
    40993 CTER_ChIP_summits_final.bed
@@ -616,39 +650,47 @@ check peak numbers we called for each factor
   # 78974 GATActrl_ChIP_summits_final.bed
   #   374 GATAdegrade_ChIP_summits_final.bed
 ```
+-->
 
+# FRiP
+FRiP (Fraction of Reads in Peaks), is a common quality measurement for ChIP-seq experiment. It calculates the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
 
-# Check the top De novo motif analysis at universal peak set
+## FRiP for GATA
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+module load samtools/1.12
+peaks=../peak_call/GATA_ChIP_summit_400window.bed
 
-De novo motif analysis uses tools like `MEME`, `TOMTOM`, `MAST` and `FIMO` to analyze binding site. The `MEME` analysis suite allows users to indentify (de novo) enriched motifs with a set of sequences, and compare to databases of known motifs; it also allow users to search for motifs of interest within a set of sequences... The user manual and more usage can be found here：https://meme-suite.org/meme/doc/meme.html \
+for i in not_scaled_bed/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b ${nm}_sorted.bed > ${nm}_peak_counts.txt
+done
 
-## quality check
-In this analysis, we will first convert the coordinate bed file to a sequence fasta file, then we perform de novo motif analysis with `meme`. But first, we want to do a quick quality check by manually looking at the top hit to ensure that it is a GATA motif variant for GATA peaks, and ER motif variant for ER peaks. \
-## ER peaks:
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F".hg38_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}.hg38_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x42  ../sorted.bam_final/${name}.sorted.bam) # count the total aligned reads
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
 
-Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` and after removing redundant peaks we only get 127 peaks. So we will `meme` de novo motif analysis search on the entire set.
-
-```{r engine='bash', eval=F, echo=TRUE}
-name=ER_ChIP
-
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal ER mortif is AGGTCA, minw can be set to 6
-
-name=ER05_ChIP
-fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
-meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - $peaks | paste -d'\t' - *peak_counts.txt > Combined_GATA_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_GATA_FRiP.txt
+rm rowname.txt
 ```
 
-by searching ER peaks, we find the top motif match to the ER motif.
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ESR1 motif"}
-library(knitr)
-knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
-```
 
-### FRiP for ER
-
-FRiP (Fraction of Reads in Peaks), is another quality measurement for ChIP-seq experiment. It is the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
-However, for calculating FRiP score for ER, we cannot use peaks we generated from MACS3 since we only have 127 peaks. We will do the following instead: \
+## FRiP for ER
+For calculating FRiP score for ER, we cannot use peaks we generated from MACS3 since we only have 127 peaks. We will do the following instead: \
 
 1. get a set of ER-ChIP peaks on MCF7 cells from published works. Here we were using the previously published work from our lab (GEO-GSE54855).\
 2. use UCSC-liftover to convert genome coordinates from hg19 to hg38.\
@@ -706,6 +748,35 @@ echo -e "FrIP" >> rowname.txt
 paste -d'\t' rowname.txt *.hg38_FRiP.txt > Combined_ER_FRiP.txt
 rm rowname.txt
 ```
+
+# Check the top De novo motif analysis at universal peak set
+
+De novo motif analysis uses tools like `MEME`, `TOMTOM`, `MAST` and `FIMO` to analyze binding site. The `MEME` analysis suite allows users to indentify (de novo) enriched motifs with a set of sequences, and compare to databases of known motifs; it also allow users to search for motifs of interest within a set of sequences... The user manual and more usage can be found here：https://meme-suite.org/meme/doc/meme.html \
+
+## quality check
+In this analysis, we will first convert the coordinate bed file to a sequence fasta file, then we perform de novo motif analysis with `meme`. But first, we want to do a quick quality check by manually looking at the top hit to ensure that it is a GATA motif variant for GATA peaks, and ER motif variant for ER peaks. \
+## ER peaks:
+
+Recall that ER set has fewer peaks: using q-value cutoff of 0.01 in `macs3--callpeak` and after removing redundant peaks we only get 127 peaks. So we will `meme` de novo motif analysis search on the entire set.
+
+```{r engine='bash', eval=F, echo=TRUE}
+name=ER_ChIP
+
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta # normal ER mortif is AGGTCA, minw can be set to 6
+
+name=ER05_ChIP
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta
+```
+
+by searching ER peaks, we find the top motif match to the ER motif.
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ESR1 motif"}
+library(knitr)
+knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
+```
+
+
 
 ## GATA peaks
 ```{r engine='bash', eval=F, echo=TRUE}
