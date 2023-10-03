@@ -1108,8 +1108,12 @@ final.coords = inferred.coords$bed
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 #save.image('231003_GATA3_pro_PTA_final.Rdata')
+
+# we have one chrM coordinates exceeds chrM end: chrM	14746	16809	MT-CYB	0	+
+# removed this single line when uploading TSS.bed to genome browser.
 ```
 
+A trackhub link to visualize (merged)plus/minus PE1/PE2 PRO-data and the inferred TSSs: http://guertinlab.cam.uchc.edu/GATA3_pro_test/hub.txt \
 
 # Differential expression analysis with DESeq2
 
@@ -1203,6 +1207,52 @@ plotPCAlattice <- function(df, file = 'PCA_lattice.pdf') {
   dev.off()
 }
 
+plotPCAlattice_png <- function(df, file = 'PCA_lattice.pdf') {  
+  perVar = round(100 * attr(df, "percentVar"))
+  df = data.frame(cbind(df, sapply(strsplit(as.character(df$name), '_rep'), '[', 1)))
+  colnames(df) = c(colnames(df)[1:(ncol(df)-1)], 'unique_condition')
+  print(df)
+  #get colors and take away the hex transparency
+  color.x = substring(rainbow(length(unique(df$unique_condition))), 1,7) 
+  
+  df$color = NA
+  df$alpha.x = NA
+  df$alpha.y = NA
+  df$colpal = NA
+  
+  for (i in 1:length(unique(df$unique_condition))) {
+    
+    df[df$unique_condition == unique(df$unique_condition)[[i]],]$color = color.x[i]   
+    #gives replicates for unique condition
+    reps_col<- df[df$unique_condition == unique(df$unique_condition)[[i]],]
+    #gives number of replicates in unique condition
+    replicates.x = nrow(reps_col)
+    alx <- rev(seq(0.2, 1, length.out = replicates.x))
+    
+    #count transparency(alx), convert alx to hex(aly), combain color and transparency(cp)
+    for(rep in 1:replicates.x) {
+    
+      na <- reps_col[rep, ]$name
+      df[df$name == na, ]$alpha.x = alx[rep]
+      aly = as.hexmode(round(alx * 255))
+      df[df$name == na, ]$alpha.y = aly[rep]
+      cp = paste0(color.x[i], aly)
+      df[df$name == na, ]$colpal = cp[rep]
+      #print(df)
+    }
+  }
+  colpal = df$colpal
+  df$name = gsub('_', ' ', df$name)
+  png(file)
+  print(xyplot(PC2 ~ PC1, groups = name, data=df,
+               xlab = paste('PC1: ', perVar[1], '% variance', sep = ''),
+               ylab = paste('PC2: ', perVar[2], '% variance', sep = ''),
+               par.settings = list(superpose.symbol = list(pch = c(20), col=colpal)),
+               pch = 20, cex = 1.7,
+               auto.key = TRUE,
+               col = colpal))
+  dev.off()
+}
 #run.deseq.list <- function(mat, untreated = 4, treated=4) {
 # sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
   
@@ -1300,45 +1350,37 @@ dev.off()
 
 ## load the unnormalized bigWig PRO data 
 
-estimate read size use the `DESeq2` function `estimateSizeFactorsForMatrix`: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
+We are loading the un-normalized bigWig (and notice only the PE1 files) to `get.raw.counts.interval`, this will output the raw counts for each input file. \
+Then we will estimate read size use the `DESeq2` function `estimateSizeFactorsForMatrix`: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
 
 ```{r engine='R', eval=F, echo=TRUE}
-inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
+inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 
-counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 # estimate read size
 estimateSizeFactorsForMatrix(counts.df)
-#MCF7_dTAGGATAClone522_30min_control_E2_rep1 
-#                                    0.9217157 
-#  MCF7_dTAGGATAClone522_30min_control_E2_rep2 
-#                                    0.8219647 
-#  MCF7_dTAGGATAClone522_30min_control_E2_rep3 
-#                                   1.0366662 
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep1 
-#                                    0.6803199 
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep2 
-#                                    1.3319295 
-#MCF7_dTAGGATAClone522_30min_control_NoE2_rep3 
-#                                    1.0590939 
-#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1 
-#                                    1.0224496 
-#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2 
-#                                    0.8222466 
-#   MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3 
-#                                    1.0810677 
-# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 
-#                                    1.5296429 
-# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 
-#                                    1.0432574 
-# MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 
-#                                    0.9394534 
 ```
 
-## Principal Component Analysis for Visualization (PCA)
-In this PRO exp, we have 4 levels, here we define the sample conditions based on our experiment treatment set the levels, and plot PCA plot to see similarity within conditions and differences across conditions. \
+```{r engine='R', eval=F, echo=F}
+MCF7_dTAGGATAClone522_30min_control_E2_rep1 0.9505786 
+MCF7_dTAGGATAClone522_30min_control_E2_rep2 0.9749445 
+MCF7_dTAGGATAClone522_30min_control_E2_rep3 0.9423860 
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep1 0.9870192 
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep2 1.4476334 **
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep3 0.9765735 
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1 0.9640323 
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2 0.9340603 **
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3 0.9533636 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 1.0184865 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 0.9556203 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 0.9959829 
+```
 
-### call DESeq
+## Principal Component Analysis (PCA)
+In this PRO-seq exp, we have 4 levels. Here we define the sample conditions based on our experimental treatment and set the levels, then plot a PCA plot to see similarity within conditions and differences across conditions. \
+
+**Making inputs with DESeq2**
 ```{r engine='R', eval=F, echo=TRUE}
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
                            levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
@@ -1355,7 +1397,9 @@ res = results(dds)
 rld <- rlog(dds)
 ```
 
-### PCA plot for 12 reps
+### plot PCA
+
+**all 12 samples** \
 ```{r engine='R', eval=F, echo=TRUE}
 #PCA for experiments
 plotPCA(rld)
@@ -1363,15 +1407,16 @@ plotPCA(rld)
 pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
 pca.plot$sample.conditions = rownames(pca.plot)
 plotPCAlattice(pca.plot, file = 'PCA_GATA3_PRO.pdf')
+#plotPCAlattice_png(pca.plot, file = 'PCA_GATA3_PRO.png')
 ```
 
+we can see a clear separation between libraries with or without dTAG treatment: \
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA"}
 #library(knitr)
 knitr::include_graphics("./png_image/PCA_GATA3_PRO.png") 
 ```
 
-### PCA plot for separated groups
-In the above PCA, we can see a clear separation between libraries with or without dTAG treatment. We can further seprate the libraries to two groups and check if there is also clear separation bewteen E2 treated groups. \
+**separated groups** \
 
 1) "control_E2" and "control_NoE2" \
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1381,6 +1426,7 @@ rld.control.sub <- rld[, rld$condition %in% c("control_E2", "control_NoE2") ]
 pca.plot1 = plotPCA(rld.control.sub, intgroup="sample.conditions", returnData=TRUE)
 pca.plot1$sample.conditions = rownames(pca.plot1)
 plotPCAlattice(pca.plot1, file = 'PCA_GATA3_PRO_control_sub.pdf')
+#plotPCAlattice_png(pca.plot1, file = 'PCA_GATA3_PRO_control_sub.png')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA E2 sub"}
@@ -1396,6 +1442,7 @@ rld.dTAG.sub <- rld[, rld$condition %in% c("dTAGV1_E2", "dTAGV1_NoE2") ]
 pca.plot2 = plotPCA(rld.dTAG.sub, intgroup="sample.conditions", returnData=TRUE)
 pca.plot2$sample.conditions = rownames(pca.plot2)
 plotPCAlattice(pca.plot2, file = 'PCA_GATA3_PRO_dTAG_sub.pdf')
+#plotPCAlattice_png(pca.plot2, file = 'PCA_GATA3_PRO_dTAG_sub.png')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="PCA dTAG sub"}
@@ -1403,6 +1450,9 @@ plotPCAlattice(pca.plot2, file = 'PCA_GATA3_PRO_dTAG_sub.pdf')
 knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png") 
 ```
 
+## Differential Expression Analysis with `DESeq2` 
+
+<!--
 ## DESeq2 design 1
 
 if we consider only one varaible at a time, in other words, if we only care about how one factor affect our gene expression, we could do the following:\
@@ -2284,5 +2334,6 @@ cdf plot for condition 5
 ```
 
 
+-->
 # integrate with ChIP...
 The above activated, repressed, and matched files in bed format are going to be integrated with our ChIP exp to determine functional ChIP peaks. \
