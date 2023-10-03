@@ -746,12 +746,12 @@ function toggle_visibility(id1) {
 <ul>
 <li><a href="#plot-pca" id="toc-plot-pca"><span class="toc-section-number">3.3.1</span> plot PCA</a></li>
 </ul></li>
-<li><a href="#differential-expression-analysis-with-deseq2-1" id="toc-differential-expression-analysis-with-deseq2-1"><span class="toc-section-number">3.4</span> Differential Expression Analysis with <code>DESeq2</code></a>
+<li><a href="#differential-expression-analysis-with-deseq2-1" id="toc-differential-expression-analysis-with-deseq2-1"><span class="toc-section-number">3.4</span> Differential Expression Analysis with <code>DESeq2</code></a></li>
+<li><a href="#gata3-degradtaion-induces-changes-of-gene-expression-level" id="toc-gata3-degradtaion-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.5</span> GATA3 degradtaion induces changes of gene expression level</a></li>
+<li><a href="#e2-treatment-induces-changes-of-gene-expression-level" id="toc-e2-treatment-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.6</span> E2 treatment induces changes of gene expression level</a></li>
+<li><a href="#interactions-between-er-activity-and-gata3-perturbation" id="toc-interactions-between-er-activity-and-gata3-perturbation"><span class="toc-section-number">3.7</span> Interactions between ER activity and GATA3 perturbation</a>
 <ul>
-<li><a href="#bw-plot-for-different-condition-priority" id="toc-bw-plot-for-different-condition-priority"><span class="toc-section-number">3.4.1</span> bw plot for different condition (priority)</a></li>
-<li><a href="#ma-plot" id="toc-ma-plot"><span class="toc-section-number">3.4.2</span> MA plot</a></li>
-<li><a href="#heatmap-for-4-factor-de-genes" id="toc-heatmap-for-4-factor-de-genes"><span class="toc-section-number">3.4.3</span> heatmap for 4 factor DE genes</a></li>
-<li><a href="#are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites" id="toc-are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites"><span class="toc-section-number">3.4.4</span> are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?</a></li>
+<li><a href="#bw-plot-for-different-condition-priority" id="toc-bw-plot-for-different-condition-priority"><span class="toc-section-number">3.7.1</span> bw plot for different condition (priority)</a></li>
 </ul></li>
 </ul></li>
 <li><a href="#integrate-with-chip" id="toc-integrate-with-chip"><span class="toc-section-number">4</span> integrate with ChIP…</a></li>
@@ -2094,6 +2094,8 @@ Figure 5: <span class="caption-title">PCA dTAG sub</span><br>
 </div>
 <div id="differential-expression-analysis-with-deseq2-1" class="section level2" number="3.4">
 <h2><span class="header-section-number">3.4</span> Differential Expression Analysis with <code>DESeq2</code></h2>
+<p><strong>Call DESeq2</strong><br />
+</p>
 <pre class="r"><code>inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
 
@@ -2111,288 +2113,330 @@ resultsNames(dds)
 #[3] &quot;supp.condition2_dTAG_vs_ctrl&quot;     
 #[4] &quot;supp.condition1E2.supp.condition2dTAG&quot;
 
-# 1) the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
+save.image(&#39;231003_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
+</div>
+<div id="gata3-degradtaion-induces-changes-of-gene-expression-level" class="section level2" number="3.5">
+<h2><span class="header-section-number">3.5</span> GATA3 degradtaion induces changes of gene expression level</h2>
+<p>Extract <strong>GATA3 degradation effects</strong> under no-E2 reference level:<br />
+</p>
+<pre class="r"><code># the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
 res1 = results(dds, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;))
 sum(res1$padj &lt; 0.1 &amp; !is.na(res1$padj))
-# 1814
-
-# 2) the effect of dTAG treatment in ER activated condition (main effect + interaction term)
-res2 = results(dds, list(c(&quot;supp.condition2_dTAG_vs_ctrl&quot;, &quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+# 2837</code></pre>
+<p><strong>MA plot</strong></p>
+</div>
+<div id="e2-treatment-induces-changes-of-gene-expression-level" class="section level2" number="3.6">
+<h2><span class="header-section-number">3.6</span> E2 treatment induces changes of gene expression level</h2>
+<p>Extract <strong>E2 effects</strong> under no-dTAG reference level:<br />
+</p>
+<pre class="r"><code># What is the difference between E2 treated and noE2 without dTAG treatment (didn&#39;t degrade GATA3)?
+res2 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
 sum(res2$padj &lt; 0.1 &amp; !is.na(res2$padj))
-#1269
-
-# 3) What is the difference between E2 treated and noE2 without dTAG treatment (didn&#39;t degrade GATA3)?
-res3 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
+#393</code></pre>
+<p><strong>MA plot</strong></p>
+</div>
+<div id="interactions-between-er-activity-and-gata3-perturbation" class="section level2" number="3.7">
+<h2><span class="header-section-number">3.7</span> Interactions between ER activity and GATA3 perturbation</h2>
+<pre class="r"><code># the effect of dTAG treatment in ER activated condition (main effect + interaction term)
+res3 = results(dds, list(c(&quot;supp.condition2_dTAG_vs_ctrl&quot;, &quot;supp.condition1E2.supp.condition2dTAG&quot;)))
 sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
-#198
+#1965
 
-# 4) With dTAG treatment, what is the difference between E2 treated and noE2?
+
+# With dTAG treatment, what is the difference between E2 treated and noE2?
 res4 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
 sum(res4$padj &lt; 0.1 &amp; !is.na(res4$padj))
-#261
+#552
 
-# 5) The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
+# The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
 res5 = results(dds, name=&quot;supp.condition1E2.supp.condition2dTAG&quot;)
 sum(res5$padj &lt; 0.1 &amp; !is.na(res5$padj))
-#22
+# 99</code></pre>
+<div id="bw-plot-for-different-condition-priority" class="section level3" number="3.7.1">
+<h3><span class="header-section-number">3.7.1</span> bw plot for different condition (priority)</h3>
+<!--
+### bw plot for different condition (priority)
+1) bw plot for +/- E2, activated vs. repressed
 
-#save.image(&#39;230901_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
-<div id="bw-plot-for-different-condition-priority" class="section level3" number="3.4.1">
-<h3><span class="header-section-number">3.4.1</span> bw plot for different condition (priority)</h3>
-<ol style="list-style-type: decimal">
-<li>bw plot for +/- E2, activated vs. repressed</li>
-</ol>
-<pre class="r"><code># load(&#39;230901_GATA3_pro_DEA_interaction.Rdata&#39;)
-# res3 = results(dds, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;))
-sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
+```r
+# load('230901_GATA3_pro_DEA_interaction.Rdata')
+# res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
 #198
 
 ############################### activated
-activated = res3[res3$padj &lt; 0.1 &amp; !is.na(res3$padj) &amp; res3$log2FoldChange &gt; 0,]
-#activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
-#write.table(activated.strand, file = &#39;control_E2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+activated = res3[res3$padj < 0.1 & !is.na(res3$padj) & res3$log2FoldChange > 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+#write.table(activated.strand, file = 'control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 
 # unchanged Matched to Activated
-#unchanged = res3[!is.na(res3$padj) &amp; res3$padj &gt; 0.1 &amp; abs(res3$log2FoldChange) &lt; 0.01,]
+#unchanged = res3[!is.na(res3$padj) & res3$padj > 0.1 & abs(res3$log2FoldChange) < 0.01,]
  #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
 #unchanged$treatment = 0
 #activated$treatment = 1
 #df.deseq.effects.lattice = rbind(unchanged, activated)
-#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
 #unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
-#write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 
-activated$treatment = &quot;Activated&quot;
+activated$treatment = "Activated"
 
 
 ############################### repressed
-repressed = res3[res3$padj &lt; 0.1 &amp; !is.na(res3$padj) &amp; res3$log2FoldChange &lt; 0,]
-#repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
-#write.table(repressed.strand, file = &#39;control_E2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+repressed = res3[res3$padj < 0.1 & !is.na(res3$padj) & res3$log2FoldChange < 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)] 
+#write.table(repressed.strand, file = 'control_E2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 
 # unchanged Matched to repressed 
-#unchanged = res3[!is.na(res3$padj) &amp; res3$padj &gt; 0.1 &amp; abs(res3$log2FoldChange) &lt; 0.01,]
+#unchanged = res3[!is.na(res3$padj) & res3$padj > 0.1 & abs(res3$log2FoldChange) < 0.01,]
 #unchanged$treatment = 0
 #repressed$treatment = 1
 #df.deseq.effects.lattice = rbind(unchanged, repressed)
-#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
 #unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
-#write.table(unchanged.strand, file = &#39;control_E2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 
-repressed$treatment = &quot;Repressed&quot;</code></pre>
-<pre class="r"><code># bw plot
+repressed$treatment = "Repressed"
+```
+
+
+```r
+# bw plot
 df.bw1=as.data.frame(rbind(activated, repressed))
 df.bw1$treatment=as.factor(df.bw1$treatment)
 
 
-bw.plot.png.lattice(df.bw1, filename = &#39;control_E2_vs_control_NoE2&#39;, 
-         title.main = &quot;differentially expressed gene +/- E2 (FDR=0.1)&quot;,
-         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
-<ol start="2" style="list-style-type: decimal">
-<li>bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed</li>
-</ol>
-<pre class="r"><code>#res4 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
-sum(res4$padj &lt; 0.1 &amp; !is.na(res4$padj))
+bw.plot.png.lattice(df.bw1, filename = 'control_E2_vs_control_NoE2', 
+         title.main = "differentially expressed gene +/- E2 (FDR=0.1)",
+         fill.col = c("red",  "blue"))
+```
+
+2) bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed
+
+```r
+#res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
+sum(res4$padj < 0.1 & !is.na(res4$padj))
 #261
 
 ############################### activated
-activated = res4[res4$padj &lt; 0.1 &amp; !is.na(res4$padj) &amp; res4$log2FoldChange &gt; 0,]
-#activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
-#write.table(activated.strand, file = &#39;withorwithoutE2_dTAG_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+activated = res4[res4$padj < 0.1 & !is.na(res4$padj) & res4$log2FoldChange > 0,]
+#activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+#write.table(activated.strand, file = 'withorwithoutE2_dTAG_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 # unchanged Matched to Activated
-#unchanged = res4[!is.na(res4$padj) &amp; res4$padj &gt; 0.1 &amp; abs(res4$log2FoldChange) &lt; 0.01,]
+#unchanged = res4[!is.na(res4$padj) & res4$padj > 0.1 & abs(res4$log2FoldChange) < 0.01,]
  #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
 #unchanged$treatment = 0
 #activated$treatment = 1
 #df.deseq.effects.lattice = rbind(unchanged, activated)
-#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
 #unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
-#write.table(unchanged.strand, file = &#39;withorwithoutE2_dTAG_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-activated$treatment = &quot;Activated&quot;
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = 'withorwithoutE2_dTAG_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+activated$treatment = "Activated"
 
 ############################### repressed
-repressed = res4[res4$padj &lt; 0.1 &amp; !is.na(res4$padj) &amp; res4$log2FoldChange &lt; 0,]
-#repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)] 
-#write.table(repressed.strand, file = &#39;withorwithoutE2_dTAG_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+repressed = res4[res4$padj < 0.1 & !is.na(res4$padj) & res4$log2FoldChange < 0,]
+#repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)] 
+#write.table(repressed.strand, file = 'withorwithoutE2_dTAG_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
 
 # unchanged Matched to repressed 
-#unchanged = res4[!is.na(res4$padj) &amp; res4$padj &gt; 0.1 &amp; abs(res4$log2FoldChange) &lt; 0.01,]
+#unchanged = res4[!is.na(res4$padj) & res4$padj > 0.1 & abs(res4$log2FoldChange) < 0.01,]
 #unchanged$treatment = 0
 #repressed$treatment = 1
 #df.deseq.effects.lattice = rbind(unchanged, repressed)
-#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+#out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
 #unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
-#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
-#write.table(unchanged.strand, file = &#39;withorwithoutE2_dTAG_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
-repressed$treatment = &quot;Repressed&quot;</code></pre>
-<pre class="r"><code># bw plot
+#unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  
+#write.table(unchanged.strand, file = 'withorwithoutE2_dTAG_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+repressed$treatment = "Repressed"
+```
+
+
+```r
+# bw plot
 df.bw2=as.data.frame(rbind(activated, repressed))
 df.bw2$treatment=as.factor(df.bw2$treatment)
 
-bw.plot.png.lattice(df.bw2, filename = &#39;withorwithoutE2_dTAG&#39;, 
-         title.main = &quot;differentially expressed gene +/- E2 with dTAG (FDR=0.1)&quot;,
-         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
-<ol start="3" style="list-style-type: decimal">
-<li>bw plot for genes that reappear to be significantly changed after adding dTAG</li>
-</ol>
-<pre class="r"><code>nrow(df.bw1) # +/-E2
+bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG', 
+         title.main = "differentially expressed gene +/- E2 with dTAG (FDR=0.1)",
+         fill.col = c("red",  "blue"))
+```
+
+
+
+3) bw plot for genes that reappear to be significantly changed after adding dTAG
+
+```r
+nrow(df.bw1) # +/-E2
 #198
 nrow(df.bw2) # +/-E2 +dTAG
 #261
 
-df.bw1$chr = sapply(strsplit(rownames(df.bw1), &#39;:&#39;), &#39;[&#39;, 1)
-df.bw1$start = sapply(strsplit(rownames(df.bw1), &#39;-&#39;), &#39;[&#39;, 1)
-df.bw1$start = sapply(strsplit(df.bw1$start, &#39;:&#39;), &#39;[&#39;, 2)
-df.bw1$end = sapply(strsplit(rownames(df.bw1), &#39;-&#39;), &#39;[&#39;, 2)
-df.bw1$gene=sapply(strsplit(df.bw1$end, &#39;_&#39;), &#39;[&#39;, 2)
-df.bw1$end = sapply(strsplit(df.bw1$end, &#39;_&#39;), &#39;[&#39;, 1)
+df.bw1$chr = sapply(strsplit(rownames(df.bw1), ':'), '[', 1)
+df.bw1$start = sapply(strsplit(rownames(df.bw1), '-'), '[', 1)
+df.bw1$start = sapply(strsplit(df.bw1$start, ':'), '[', 2)
+df.bw1$end = sapply(strsplit(rownames(df.bw1), '-'), '[', 2)
+df.bw1$gene=sapply(strsplit(df.bw1$end, '_'), '[', 2)
+df.bw1$end = sapply(strsplit(df.bw1$end, '_'), '[', 1)
 
-df.bw2$chr = sapply(strsplit(rownames(df.bw2), &#39;:&#39;), &#39;[&#39;, 1)
-df.bw2$start = sapply(strsplit(rownames(df.bw2), &#39;-&#39;), &#39;[&#39;, 1)
-df.bw2$start = sapply(strsplit(df.bw2$start, &#39;:&#39;), &#39;[&#39;, 2)
-df.bw2$end = sapply(strsplit(rownames(df.bw2), &#39;-&#39;), &#39;[&#39;, 2)
-df.bw2$gene=sapply(strsplit(df.bw2$end, &#39;_&#39;), &#39;[&#39;, 2)
-df.bw2$end = sapply(strsplit(df.bw2$end, &#39;_&#39;), &#39;[&#39;, 1)
+df.bw2$chr = sapply(strsplit(rownames(df.bw2), ':'), '[', 1)
+df.bw2$start = sapply(strsplit(rownames(df.bw2), '-'), '[', 1)
+df.bw2$start = sapply(strsplit(df.bw2$start, ':'), '[', 2)
+df.bw2$end = sapply(strsplit(rownames(df.bw2), '-'), '[', 2)
+df.bw2$gene=sapply(strsplit(df.bw2$end, '_'), '[', 2)
+df.bw2$end = sapply(strsplit(df.bw2$end, '_'), '[', 1)
 
 same.gene.bw1= df.bw1[rownames(df.bw1) %in% rownames(df.bw2),]#106
 same.gene.bw1= same.gene.bw1[,c(2,7,11)] # log2FoldChange, treatment, gene
 same.gene.bw2 = df.bw2[rownames(df.bw2) %in% rownames(df.bw1),] #106
 same.gene.bw2= same.gene.bw2[,c(2,7,11)] # log2FoldChange, treatment, gene
 
-colnames(same.gene.bw1)=c(&quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;, &quot;gene&quot;)
-colnames(same.gene.bw2)=c(&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot;, &quot;gene&quot;)
-df.bw3=merge(same.gene.bw1,same.gene.bw2,by=&#39;gene&#39;,all=TRUE)
-#ifelse(&lt;condition&gt;, &lt;yes&gt;, ifelse(&lt;condition&gt;, &lt;yes&gt;, &lt;no&gt;))
-df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,&quot;previously_activated&quot; , ifelse(df.bw3$E2_ctrl_log2FoldChange &gt; df.bw3$E2_dTAG_log2FoldChange, &quot;decrease_activation&quot;, &quot;increase_activation&quot;))
+colnames(same.gene.bw1)=c("E2_ctrl_log2FoldChange","E2_ctrl_treatment", "gene")
+colnames(same.gene.bw2)=c("E2_dTAG_log2FoldChange","E2_dTAG_treatment", "gene")
+df.bw3=merge(same.gene.bw1,same.gene.bw2,by='gene',all=TRUE)
+#ifelse(<condition>, <yes>, ifelse(<condition>, <yes>, <no>))
+df.bw3$treatment = ifelse(df.bw3$E2_ctrl_treatment != df.bw3$E2_dTAG_treatment,"previously_activated" , ifelse(df.bw3$E2_ctrl_log2FoldChange > df.bw3$E2_dTAG_log2FoldChange, "decrease_activation", "increase_activation"))
 
 temp=df.bw3[,c(1,4,6)]
-colnames(temp)[2]=&quot;log2FoldChange&quot;
+colnames(temp)[2]="log2FoldChange"
 temp2=df.bw3[,c(1,2,6)]
-colnames(temp2)[2]=&quot;log2FoldChange&quot;
-temp2[temp2$treatment==&quot;increase_activation&quot;,]$treatment=&quot;noDTAG_less_activated&quot;
-temp2[temp2$treatment==&quot;decrease_activation&quot;,]$treatment=&quot;noDTAG_more_activated&quot;
-temp2[temp2$treatment==&quot;previously_activated&quot;,]$treatment= &quot;noDTAG_activated&quot;
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="increase_activation",]$treatment="noDTAG_less_activated"
+temp2[temp2$treatment=="decrease_activation",]$treatment="noDTAG_more_activated"
+temp2[temp2$treatment=="previously_activated",]$treatment= "noDTAG_activated"
 
 df=rbind(temp,temp2)
 df$treatment=as.factor(df$treatment)
-df$treatment &lt;- factor(df$treatment, levels = c(&quot;noDTAG_more_activated&quot;, &quot;decrease_activation&quot;, &quot;noDTAG_less_activated&quot;, &quot;increase_activation&quot;, &quot;noDTAG_activated&quot;,&quot;previously_activated&quot;))
+df$treatment <- factor(df$treatment, levels = c("noDTAG_more_activated", "decrease_activation", "noDTAG_less_activated", "increase_activation", "noDTAG_activated","previously_activated"))
 
 
-bw.plot.png.lattice(df, filename = &#39;same gene&#39;, 
-         title.main = &quot;differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)&quot;,
-         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))</code></pre>
-<ol start="4" style="list-style-type: decimal">
-<li>bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)</li>
-</ol>
-<pre class="r"><code>new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
+bw.plot.png.lattice(df, filename = 'same gene', 
+         title.main = "differentially expressed gene in +/-E2 and reappear in +/- E2 with dTAG (FDR=0.1)",
+         fill.col = c("pink","red", "pink","red","pink", "blue"))
+```
+
+4) bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)
+
+```r
+new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
 new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
 
-bw.plot.png.lattice(new.gene.bw2, filename = &#39;new_gene&#39;, 
-         title.main = &quot;differentially expressed gene newly found in +/-E2 with dTAG (FDR=0.1)&quot;,
-         fill.col = c(&quot;red&quot;, &quot;blue&quot;))
+bw.plot.png.lattice(new.gene.bw2, filename = 'new_gene', 
+         title.main = "differentially expressed gene newly found in +/-E2 with dTAG (FDR=0.1)",
+         fill.col = c("red", "blue"))
 
-#save.image(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
-<ol start="5" style="list-style-type: decimal">
-<li>if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be “significant” in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:</li>
-</ol>
-<pre class="r"><code># not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+#save.image('230914_GATA3_pro_DEA_interaction.Rdata')
+```
 
-#load(&#39;230914_GATA3_pro_DEA_interaction.Rdata&#39;)
+5) if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be "significant" in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:
+
+
+```r
+# not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
+
+#load('230914_GATA3_pro_DEA_interaction.Rdata')
 #head(df.bw1)
 
 # +/- E2 genes + dTAG
 res4.df=as.data.frame(res4)
 same.gene.bw5= res4.df[rownames(res4.df) %in% rownames(df.bw1),] #198
 
-activated = same.gene.bw5[!is.na(same.gene.bw5$padj) &amp; same.gene.bw5$log2FoldChange &gt; 0,]
-activated$treatment = &quot;Activated&quot;
+activated = same.gene.bw5[!is.na(same.gene.bw5$padj) & same.gene.bw5$log2FoldChange > 0,]
+activated$treatment = "Activated"
 re
-repressed$treatment = &quot;Repressed&quot;
+repressed$treatment = "Repressed"
 
 
 df.bw5=as.data.frame(rbind(activated, repressed))
 df.bw5$treatment=as.factor(df.bw5$treatment)
 
-bw.plot.png.lattice(df.bw5, filename = &#39;changes_of_significant_genes_(+-E2)_after_adding_dTAG&#39;, 
-         title.main = &quot; +/- E2 with dTAG (n=198)&quot;,
-         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
-<ol start="6" style="list-style-type: decimal">
-<li>For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)</li>
-</ol>
-<pre class="r"><code>#df.bw1
+bw.plot.png.lattice(df.bw5, filename = 'changes_of_significant_genes_(+-E2)_after_adding_dTAG', 
+         title.main = " +/- E2 with dTAG (n=198)",
+         fill.col = c("red",  "blue"))
+```
+
+6) For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)
+
+
+```r
+#df.bw1
 #df.bw5
-df.bw5$chr = sapply(strsplit(rownames(df.bw5), &#39;:&#39;), &#39;[&#39;, 1)
-df.bw5$start = sapply(strsplit(rownames(df.bw5), &#39;-&#39;), &#39;[&#39;, 1)
-df.bw5$start = sapply(strsplit(df.bw5$start, &#39;:&#39;), &#39;[&#39;, 2)
-df.bw5$end = sapply(strsplit(rownames(df.bw5), &#39;-&#39;), &#39;[&#39;, 2)
-df.bw5$gene=sapply(strsplit(df.bw5$end, &#39;_&#39;), &#39;[&#39;, 2)
-df.bw5$end = sapply(strsplit(df.bw5$end, &#39;_&#39;), &#39;[&#39;, 1)
+df.bw5$chr = sapply(strsplit(rownames(df.bw5), ':'), '[', 1)
+df.bw5$start = sapply(strsplit(rownames(df.bw5), '-'), '[', 1)
+df.bw5$start = sapply(strsplit(df.bw5$start, ':'), '[', 2)
+df.bw5$end = sapply(strsplit(rownames(df.bw5), '-'), '[', 2)
+df.bw5$gene=sapply(strsplit(df.bw5$end, '_'), '[', 2)
+df.bw5$end = sapply(strsplit(df.bw5$end, '_'), '[', 1)
 
 df.bw6=cbind(df.bw1[,c(11,2,7)], df.bw5[,c(2,7)])
-colnames(df.bw6)=c(&quot;gene&quot;, &quot;E2_ctrl_log2FoldChange&quot;,&quot;E2_ctrl_treatment&quot;,&quot;E2_dTAG_log2FoldChange&quot;,&quot;E2_dTAG_treatment&quot; )
-df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,&quot;shift_expression&quot;, ifelse(df.bw6$E2_ctrl_log2FoldChange &gt; df.bw6$E2_dTAG_log2FoldChange, &quot;decrease_activation&quot;, &quot;increase_activation&quot;))</code></pre>
-<ol start="7" style="list-style-type: decimal">
-<li>what is the change for genes that are activated in E2 treatment</li>
-</ol>
-<pre class="r"><code>#E2_activate=df.bw1[df.bw1$treatment==&quot;Activated&quot;,] #187
-E2_activate=df.bw6[df.bw6$E2_ctrl_treatment==&quot;Activated&quot;,] #187
+colnames(df.bw6)=c("gene", "E2_ctrl_log2FoldChange","E2_ctrl_treatment","E2_dTAG_log2FoldChange","E2_dTAG_treatment" )
+df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,"shift_expression", ifelse(df.bw6$E2_ctrl_log2FoldChange > df.bw6$E2_dTAG_log2FoldChange, "decrease_activation", "increase_activation"))
+```
+
+7) what is the change for genes that are activated in E2 treatment
+
+```r
+#E2_activate=df.bw1[df.bw1$treatment=="Activated",] #187
+E2_activate=df.bw6[df.bw6$E2_ctrl_treatment=="Activated",] #187
 
 temp=E2_activate[,c(1,4,6)]
-colnames(temp)[2]=&quot;log2FoldChange&quot;
-temp[temp$treatment==&quot;shift_expression&quot;,]$treatment= &quot;previously_activated&quot;
+colnames(temp)[2]="log2FoldChange"
+temp[temp$treatment=="shift_expression",]$treatment= "previously_activated"
 temp2=E2_activate[,c(1,2,6)]
-colnames(temp2)[2]=&quot;log2FoldChange&quot;
-temp2[temp2$treatment==&quot;increase_activation&quot;,]$treatment=&quot;noDTAG_less_activated&quot;
-temp2[temp2$treatment==&quot;decrease_activation&quot;,]$treatment=&quot;noDTAG_more_activated&quot;
-temp2[temp2$treatment==&quot;shift_expression&quot;,]$treatment= &quot;noDTAG_activated&quot;
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="increase_activation",]$treatment="noDTAG_less_activated"
+temp2[temp2$treatment=="decrease_activation",]$treatment="noDTAG_more_activated"
+temp2[temp2$treatment=="shift_expression",]$treatment= "noDTAG_activated"
 
 df2=rbind(temp,temp2)
 df2$treatment=as.factor(df2$treatment)
-df2$treatment &lt;- factor(df2$treatment, levels = c(&quot;noDTAG_more_activated&quot;, &quot;decrease_activation&quot;, &quot;noDTAG_less_activated&quot;, &quot;increase_activation&quot;, &quot;noDTAG_activated&quot;,&quot;previously_activated&quot;))
+df2$treatment <- factor(df2$treatment, levels = c("noDTAG_more_activated", "decrease_activation", "noDTAG_less_activated", "increase_activation", "noDTAG_activated","previously_activated"))
 
 
-bw.plot.png.lattice(df2, filename = &#39;E2_activated_gene&#39;, 
-         title.main = &quot;changes for genes that are activated in +/-E2 upon dTAG treatment (n=187)&quot;,
-         fill.col = c(&quot;pink&quot;,&quot;red&quot;, &quot;pink&quot;,&quot;red&quot;,&quot;pink&quot;, &quot;blue&quot;))</code></pre>
-<ol start="8" style="list-style-type: decimal">
-<li>what is the change for genes that are repressed in E2 treatment</li>
-</ol>
-<pre class="r"><code>E2_repress=df.bw6[df.bw6$E2_ctrl_treatment==&quot;Repressed&quot;,] #11
+bw.plot.png.lattice(df2, filename = 'E2_activated_gene', 
+         title.main = "changes for genes that are activated in +/-E2 upon dTAG treatment (n=187)",
+         fill.col = c("pink","red", "pink","red","pink", "blue"))
+```
+
+8) what is the change for genes that are repressed in E2 treatment
+
+
+```r
+E2_repress=df.bw6[df.bw6$E2_ctrl_treatment=="Repressed",] #11
 #unique(E2_repress$treatment)
-#[1] &quot;increase_activation&quot;
-E2_repress$treatment=&quot;less_repress&quot;
+#[1] "increase_activation"
+E2_repress$treatment="less_repress"
 
 temp=E2_repress[,c(1,4,6)]
-colnames(temp)[2]=&quot;log2FoldChange&quot;
+colnames(temp)[2]="log2FoldChange"
 temp2=E2_repress[,c(1,2,6)]
-colnames(temp2)[2]=&quot;log2FoldChange&quot;
-temp2[temp2$treatment==&quot;less_repress&quot;,]$treatment=&quot;noDTAG_repress&quot;
+colnames(temp2)[2]="log2FoldChange"
+temp2[temp2$treatment=="less_repress",]$treatment="noDTAG_repress"
 
 df3=rbind(temp,temp2)
 df3$treatment=as.factor(df3$treatment)
-df3$treatment &lt;- factor(df3$treatment, levels = c(&quot;noDTAG_repress&quot;, &quot;less_repress&quot;))
+df3$treatment <- factor(df3$treatment, levels = c("noDTAG_repress", "less_repress"))
 
 
-bw.plot.png.lattice(df3, filename = &#39;E2_repressed_gene&#39;, 
-         title.main = &quot;changes for genes that are repressed in +/-E2 upon dTAG treatment (n=11)&quot;,
-         fill.col = c(&quot;light blue&quot;,&quot;blue&quot;))
+bw.plot.png.lattice(df3, filename = 'E2_repressed_gene', 
+         title.main = "changes for genes that are repressed in +/-E2 upon dTAG treatment (n=11)",
+         fill.col = c("light blue","blue"))
 
-#save.image(&#39;230918_GATA3_pro_DEA_interaction.Rdata&#39;)</code></pre>
-</div>
-<div id="ma-plot" class="section level3" number="3.4.2">
-<h3><span class="header-section-number">3.4.2</span> MA plot</h3>
-<p>MA plot for condition1, condition2, condition 4 and condition 5</p>
-</div>
-<div id="heatmap-for-4-factor-de-genes" class="section level3" number="3.4.3">
-<h3><span class="header-section-number">3.4.3</span> heatmap for 4 factor DE genes</h3>
-<p>try to draw heatmap for differentially expressed genes on condition 3.</p>
-</div>
-<div id="are-the-ones-less-e2-activated-in-dtag-treatment-than-in-ctrl-treatment-closer-to-gata3-binding-sites" class="section level3" number="3.4.4">
-<h3><span class="header-section-number">3.4.4</span> are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?</h3>
-<p>cdf plot for condition 5</p>
+#save.image('230918_GATA3_pro_DEA_interaction.Rdata')
+```
+
+
+### heatmap for 4 factor DE genes
+try to draw heatmap for differentially expressed genes on condition 3. 
+
+
+
+### are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?
+cdf plot for condition 5
+
+-->
 <!--
 ## DESeq2 design 1
 
