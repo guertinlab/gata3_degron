@@ -1451,9 +1451,10 @@ knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png")
 ```
 
 ## Differential Expression Analysis with `DESeq2` 
+
 ```{r engine='R', eval=F, echo=TRUE}
-inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
-counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
+inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
 supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
@@ -1978,10 +1979,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Diff
 #save.image('230818_GATA3_pro_DEA_dTAGV1_E2_vs_dTAGV1_NoE2.Rdata')
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
-#library(knitr)
-knitr::include_graphics("./png_image/MA_plot_dTAGV1_E2_vs_dTAGV1_NoE2_response.png") 
-```
+
 
 ### 3) dTAGV1_E2_vs_control_E2 \ 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -2054,10 +2052,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Diffe
 #save.image('230810_GATA3_pro_DEA_dTAGV1_E2_vs_control_E2.Rdata')
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
-#library(knitr)
-knitr::include_graphics("./png_image/MA_plot_dTAGV1_E2_vs_control_E2_response.png") 
-```
+
 
 
 ### 4) dTAGV1_NoE2_vs_control_NoE2 \ 
@@ -2144,10 +2139,8 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="D
 #save.image('230818_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="MA plot"}
-#library(knitr)
-knitr::include_graphics("./png_image/MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.png") 
-```
+
+
 
 
 ## DESeq2 design2
