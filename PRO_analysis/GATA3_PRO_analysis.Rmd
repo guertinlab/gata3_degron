@@ -1452,6 +1452,7 @@ knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png")
 
 ## Differential Expression Analysis with `DESeq2` 
 
+**Call DESeq2** \
 ```{r engine='R', eval=F, echo=TRUE}
 inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
@@ -1470,34 +1471,55 @@ resultsNames(dds)
 #[3] "supp.condition2_dTAG_vs_ctrl"     
 #[4] "supp.condition1E2.supp.condition2dTAG"
 
-# 1) the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
-res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
-sum(res1$padj < 0.1 & !is.na(res1$padj))
-# 1814
-
-# 2) the effect of dTAG treatment in ER activated condition (main effect + interaction term)
-res2 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
-sum(res2$padj < 0.1 & !is.na(res2$padj))
-#1269
-
-# 3) What is the difference between E2 treated and noE2 without dTAG treatment (didn't degrade GATA3)?
-res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
-sum(res3$padj < 0.1 & !is.na(res3$padj))
-#198
-
-# 4) With dTAG treatment, what is the difference between E2 treated and noE2?
-res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
-sum(res4$padj < 0.1 & !is.na(res4$padj))
-#261
-
-# 5) The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
-res5 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
-sum(res5$padj < 0.1 & !is.na(res5$padj))
-#22
-
-#save.image('230901_GATA3_pro_DEA_interaction.Rdata')
+save.image('231003_GATA3_pro_DEA_interaction.Rdata')
 ```
 
+## GATA3 degradtaion induces changes of gene expression level 
+
+Extract **GATA3 degradation effects** under no-E2 reference level: \
+```{r engine='R', eval=F, echo=TRUE}
+# the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
+res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
+sum(res1$padj < 0.1 & !is.na(res1$padj))
+# 2837
+```
+
+**MA plot** 
+
+## E2 treatment induces changes of gene expression level
+
+Extract **E2 effects** under no-dTAG reference level: \
+```{r engine='R', eval=F, echo=TRUE}
+# What is the difference between E2 treated and noE2 without dTAG treatment (didn't degrade GATA3)?
+res2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res2$padj < 0.1 & !is.na(res2$padj))
+#393
+```
+
+**MA plot** 
+
+## Interactions between ER activity and GATA3 perturbation
+
+```{r engine='R', eval=F, echo=TRUE}
+# the effect of dTAG treatment in ER activated condition (main effect + interaction term)
+res3 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+#1965
+
+
+# With dTAG treatment, what is the difference between E2 treated and noE2?
+res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
+sum(res4$padj < 0.1 & !is.na(res4$padj))
+#552
+
+# The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
+res5 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
+sum(res5$padj < 0.1 & !is.na(res5$padj))
+# 99
+```
+
+### bw plot for different condition (priority)
+<!--
 ### bw plot for different condition (priority)
 1) bw plot for +/- E2, activated vs. repressed
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1783,11 +1805,6 @@ bw.plot.png.lattice(df3, filename = 'E2_repressed_gene',
 #save.image('230918_GATA3_pro_DEA_interaction.Rdata')
 ```
 
-### MA plot
-MA plot for condition1, condition2, condition 4 and condition 5
-```{r engine='R', eval=F, echo=TRUE}
-
-```
 
 ### heatmap for 4 factor DE genes
 try to draw heatmap for differentially expressed genes on condition 3. 
@@ -1795,12 +1812,13 @@ try to draw heatmap for differentially expressed genes on condition 3.
 
 ```
 
+
 ### are the ones less E2-activated in dTAG treatment than in Ctrl treatment closer to GATA3 binding sites?
 cdf plot for condition 5
 ```{r engine='R', eval=F, echo=TRUE}
 
 ```
-
+-->
 
 
 <!--
