@@ -1,0 +1,149 @@
+********************************************************************************
+MEME - Motif discovery tool
+********************************************************************************
+MEME version 5.4.1 (Release date: Sat Aug 21 19:23:23 2021 -0700)
+
+For further information on how to interpret these results please access https://meme-suite.org/meme.
+To get a copy of the MEME Suite software please access https://meme-suite.org.
+
+********************************************************************************
+
+
+********************************************************************************
+REFERENCE
+********************************************************************************
+If you use this program in your research, please cite:
+
+Timothy L. Bailey and Charles Elkan,
+"Fitting a mixture model by expectation maximization to
+discover motifs in biopolymers",
+Proceedings of the Second International Conference on Intelligent Systems
+for Molecular Biology, pp. 28-36, AAAI Press, Menlo Park, California, 1994.
+********************************************************************************
+
+
+********************************************************************************
+TRAINING SET
+********************************************************************************
+PRIMARY SEQUENCES= GATA_ChIP_top2000_summit_100window.fasta
+CONTROL SEQUENCES= --none--
+ALPHABET= ACGT
+
+********************************************************************************
+
+********************************************************************************
+COMMAND LINE SUMMARY
+********************************************************************************
+This information can also be useful in the event you wish to report a
+problem with the MEME software.
+
+command: meme -oc GATA_ChIP_top2000_meme_test -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_ChIP_top2000_summit_100window.fasta -mpi 
+
+model:  mod=         zoops    nmotifs=         1    evt=           inf
+objective function:           em=       E-value of product of p-values
+                              starts=   E-value of product of p-values
+strands: + -
+width:  minw=            5    maxw=           15
+nsites: minsites=        2    maxsites=     2000    wnsites=       0.8
+theta:  spmap=         uni    spfuzz=        0.5
+em:     prior=   dirichlet    b=            0.01    maxiter=        50
+        distance=    1e-05
+trim:   wg=             11    ws=              1    endgaps=       yes
+data:   n=          202000    N=            2000
+sample: seed=            0    hsfrac=          0
+        searchsize= 202000    norand=         no    csites=      20000
+Letter frequencies in dataset:
+A 0.306 C 0.194 G 0.194 T 0.306 
+Background letter frequencies (from file dataset with add-one prior applied):
+A 0.306 C 0.194 G 0.194 T 0.306 
+Background model order: 3
+********************************************************************************
+
+
+********************************************************************************
+MOTIF VWGATBTTATCTN MEME-1	width =  13  sites = 370  llr = 3517  E-value = 6.8e-226
+********************************************************************************
+--------------------------------------------------------------------------------
+	Motif VWGATBTTATCTN MEME-1 Description
+--------------------------------------------------------------------------------
+Simplified        A  25:a:212a::32
+pos.-specific     C  4::::22:::a:3
+probability       G  2:a::41::::13
+matrix            T  25::a268:a:62
+
+         bits    2.4           *  
+                 2.1   *       *  
+                 1.9   *       *  
+                 1.7   **    ***  
+Relative         1.4   ***   ***  
+Entropy          1.2   ***   ***  
+(13.7 bits)      0.9   ***  ****  
+                 0.7   ***  ****  
+                 0.5  ****  ***** 
+                 0.2 ************ 
+                 0.0 -------------
+
+Multilevel           CAGATGTTATCTC
+consensus            AT   CC    AG
+sequence             G    T      A
+                                 T
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif VWGATBTTATCTN MEME-1 position-specific scoring matrix
+--------------------------------------------------------------------------------
+log-odds matrix: alength= 4 w= 13 n= 178000 bayes= 9.31617 E= 6.8e-226 
+   -32     93     26   -102 
+    72   -317   -616     63 
+  -402  -1518    234  -1518 
+   171  -1518  -1518  -1518 
+ -1518   -458   -226    164 
+   -82     23     94    -43 
+  -165     10    -47     86 
+   -94  -1518   -616    145 
+   168  -1518   -336  -1518 
+ -1518  -1518  -1518    171 
+ -1518    237  -1518  -1518 
+    -8   -208   -184    100 
+   -33     59     40    -56 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif VWGATBTTATCTN MEME-1 position-specific probability matrix
+--------------------------------------------------------------------------------
+letter-probability matrix: alength= 4 w= 13 nsites= 370 E= 6.8e-226 
+ 0.245946  0.370270  0.232432  0.151351 
+ 0.502703  0.021622  0.002703  0.472973 
+ 0.018919  0.000000  0.981081  0.000000 
+ 1.000000  0.000000  0.000000  0.000000 
+ 0.000000  0.008108  0.040541  0.951351 
+ 0.172973  0.227027  0.372973  0.227027 
+ 0.097297  0.208108  0.140541  0.554054 
+ 0.159459  0.000000  0.002703  0.837838 
+ 0.981081  0.000000  0.018919  0.000000 
+ 0.000000  0.000000  0.000000  1.000000 
+ 0.000000  1.000000  0.000000  0.000000 
+ 0.289189  0.045946  0.054054  0.610811 
+ 0.243243  0.291892  0.256757  0.208108 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif VWGATBTTATCTN MEME-1 regular expression
+--------------------------------------------------------------------------------
+[CAG][AT]GAT[GCT][TC]TATC[TA][CGAT]
+--------------------------------------------------------------------------------
+
+
+
+
+Time 494.84 secs.
+
+********************************************************************************
+
+********************************************************************************
+Stopped because requested number of motifs (1) found.
+********************************************************************************
+
+CPU: xanadu-43
+
+********************************************************************************
