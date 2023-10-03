@@ -50,7 +50,7 @@ done
 ```
 
 
-combining dep1 and dep2 pro-seq data \
+combining dep1 and dep2 PRO-seq data \
 ```{r engine='bash', eval=F, echo=TRUE}
 #cd /directory/of/GATA3_PRO
 #cp /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/230915_NB551647_0108_AHTGWHBGXT/Data/Intensities/BaseCalls/230915_GATA3_PRO/*dep2*.gz .
@@ -395,18 +395,22 @@ subtractBed -s -a Homo_sapiens.GRCh38.${release}.bed -b Homo_sapiens.GRCh38.${re
 
 ### Work Flow
 **Pre-alignment:** \
-1) **Remove Adapters**: use `cutadapt` to remove provided adapter sequences, and also removes any adapter-adapter ligation sequences. \ 
+1) **Remove Adapters**: use `cutadapt` to trim out the provided adapter sequences, and also removes any adapter-adapter ligation sequences. \ 
 In any normal case, after removing the adapter, the remaining sequences would be considered as an effective insert sequences by `cutadapt`, and the minimum effective size should be larger than the UMI length; in the case of adapter-adapter ligation, after removing the adapter sequences, there will be left with some sequences with 0 to UMIsize length, and we want to filter those sequences out because there are large chances these are product of adapter-adapter ligation sequences. Here in the code, we specify a `-m` parameter to discard processed reads that are shorter than (UMI_length+2) in PE1 and (UMI_length+10) in PE2. \
 The output .txt file is the `cutadapt` report, more details could be found here: (https://cutadapt.readthedocs.io/en/stable/guide.html#reporting)\
 
 2) **Remove short RNA insertions** \
+Short insertions are removed by  indirect indicators for RNA integrity.
 3) **Remove PCR duplicates** \
 4) **Trim UMI and reverse complement** \
 
+
 \
-**Align reads:** \
+**Alignment:** \
 1) **rDNA**:  \
+There are >80% rDNA in mature RNA, and 10% to 20% rDNA in nascent RNA. The rDNA alignment rate lower than 20% is acceptable. \
 2) **Genome:** \
+Here we map to hg38 genome. \
 
 **Quality control**: \
 1) **Adapter Ratio**: \
@@ -526,11 +530,11 @@ PE1_prior_rDNA=$(wc -l ${name}_PE1_processed.fastq | awk '{print $1/4}')
 PE1_post_rDNA=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
 total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
 #calculate the total that concordantly align to hg38 and/or rDNA
-concordant_pe1=$(samtools view -c -f 0x42 ${name}.bam)
+concordant_pe1=$(samtools view -c -f 0x42 ${name}.bam)                     
 total=$(echo "$(($concordant_pe1+$total_rDNA))")
-#rDNA alignment rate
+#rDNA alignment rate (20% lower rDNA alignment is good)
 rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
-echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> ${name}_QC_metrics.txt
+echo -e "$rDNA_alignment\t$name\t0.20\trDNA Alignment Rate" >> ${name}_QC_metrics.txt
 
 #Mappability rate (expect an alignment rate above 80% for high quality libraries)
 map_pe1=$(samtools view -c -f 0x42 ${name}.bam)
@@ -619,19 +623,27 @@ do
     sbatch pro_processing_${nm}.sh
     sleep 1
 done
-
 ```
 
-### aligned reads
+### Plot QC metrics 
+```{r engine='bash', eval=F, echo=TRUE}
+module load R/4.1.2
+
+cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt m,              
+plot_all_metrics.R project_QC_metrics.txt GATA3_degron_final_PRO # pdf output
+```
+
+### Additional quanlity control
+**aligned reads**
 ```{r engine='bash', eval=F, echo=TRUE}
 # count the total aligned reads
 module load samtools/1.16.1
 for i in *.bam
 do
-  echo $i
+  echo $i                                                                                                  
   samtools view -c -f 0x42 $i
 done 2>&1 | tee -a aligned_reads_from_bam_log.txt
-
+         
 # cat aligned_reads_from_bam_log.txt
 
 module load R/4.1.2
@@ -658,19 +670,13 @@ print(barchart(reads~ file,
 dev.off()
 ```
 
-### Plot QC metrics 
-```{r engine='bash', eval=F, echo=TRUE}
-module load R/4.1.2
-
-cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt 
-plot_all_metrics.R project_QC_metrics.txt GATA3_degron_final_PRO # pdf output
-```
-
+**bowtie2 alignment rate**
 ```{r engine='bash', eval=F, echo=F}
 for i in *bowtie2.log
 do
+echo $i
 cat $i | tail -1
-done
+done 2>&1 | tee -a bowtie2_alignment_rate.txt
 
 86.88% overall alignment rate
 86.93% overall alignment rate
@@ -684,7 +690,10 @@ done
 88.78% overall alignment rate
 88.01% overall alignment rate
 88.18% overall alignment rate
+
 ```
+
+
 
 # primaryTranscriptAnnotation (PTA) 
 The purpose of this analysis is to define primary transcripts 
@@ -830,7 +839,11 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
 
 ```
 
-**TSS**
+**TSS** \
+Here we define the TSS, by first making a unique bed file with function `parse.bed.exon1`, which modified the GTF file exon1 info for each gene. In the output gene.exon1 data frame, we will have unique genes with its correct chrom, and strand info. It also contains most upstream and most downstream TSS in the second and third columns in a strand-specific manner. \
+
+Then we take the merged (control + experimental) bigWig files generated at previous steps into the `TSSinference` function. `TSSinference` will first increase 100window (by default) up and down for most upstream and most downstream TSSs. Then it will find the position in this increased window that has the top reads, and output a 1bp position as the potential TSSs. Notice that we are using PE2 data, so we are looking for upstream antisense TSSs, and we need to flip the minus and plus input files. \
+
 ```{r engine='R', eval=F, echo=TRUE}
 # at the TSS working directory (where you saved the merged bigWig files)
 module load R/4.1.2
@@ -840,6 +853,8 @@ R
 source("/home/FCAM/ssun/scripts/TSSinference.R")
 library(bigWig)
 # prepare annotation file
+
+#TSS_annot_input=read.table("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed",col.names=c('chrom', 'start', 'end', 'gene', 'v5', 'strand'))
 gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed")
 
 # assign bigWig variables
@@ -847,25 +862,26 @@ gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.ba
 bw.plus='MCF7_dTAGGATAClone522_30min_plus_PE2_scaled.bigWig'
 bw.minus='MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig'
 
-
-#potential.tss = TSSinference(gene.exon1, bw.plus, bw.minus, densityFilter=TRUE)
 potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE) # looking for upstream antisense TSSs
-```
+# TSSinference <- function(bed, bw.plus, bw.minus, tssWin = 100, top.num.peaks = 20, low.limit.tss.factor = 3, denWin = 100, densityFilter = FALSE)
 
-```{r engine='R', eval=F, echo=TRUE}
 head(potential.tss2)
-#   chrom     start       end  gene  misc strand height up down
+#chrom     start       end  gene  misc strand height up down
 #1  chr19  58353491  58353492  A1BG  A1BG      -     NA NA   NA
 #2  chr10  50885674  50885675  A1CF  A1CF      -     NA NA   NA
 #3  chr12   9115918   9115919   A2M   A2M      -     NA NA   NA
 #4  chr12   8822621   8822622 A2ML1 A2ML1      +     NA NA   NA
 #7   chr3 138132389 138132390 A4GNT A4GNT      -     NA NA   NA
 #10  chr3 151814073 151814074 AADAC AADAC      +     NA NA   NA
+
+save.image('231003_GATA3_pro_TSS.Rdata')
 ```
 
-## Primary Transcription Annotations 
 
-**Annotations**
+## Primary Transcription Annotations 
+We are employing WarrenDavidAnderson's `Primary Transcription Annotation` package. \
+
+**PTA Annotations** \
 ```{r engine='R', eval=F, echo=TRUE}
 #mkdir Annotation_v42
 #cd Annotation_v42
@@ -888,8 +904,8 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
     tr " " "\t" | tr -d '"' > gencode.v42.transcript.bed
 ```
 
-PTA \
-1.Loading key packages and preprocessed Pro-seq data
+**PTA** \
+1.Loading key packages and pre-processed PRO-seq data
 ```{r engine='R', eval=F, echo=TRUE}
 #if (!require("BiocManager", quietly = TRUE))
 #    install.packages("BiocManager")
@@ -931,9 +947,9 @@ gencode.transcript = dat0
 chrom.sizes = read.table("/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes",stringsAsFactors=F,header=F) 
 names(chrom.sizes) = c("chr","size")
 
-# merged plus
+# merged PE1 plus
 plus.file = "MCF7_dTAGGATAClone522_30min_plus_PE1_scaled.bigWig" 
-# merged minus
+# merged PE1 minus
 minus.file = "MCF7_dTAGGATAClone522_30min_minus_PE1_scaled.bigWig" 
 
 bw.plus = load.bigWig(plus.file)
@@ -951,21 +967,18 @@ transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus
 
 # str(transcript.reads)
 #List of 2
-# $ counts : Named num [1:19650] 0 0 0 249 144 ...
+# $ counts : Named num [1:19650] 0 0 0 244 140 ...
 #  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
-# $ density: Named num [1:19650] 0 0 0 0.01207 0.00954 ...
+# $ density: Named num [1:19650] 0 0 0 0.01183 0.00932 ...
 #  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
 ```
 
 3. Evaluate count and density distribution \
 ```{r engine='R', eval=F, echo=TRUE}
-png(file="count_density_distribution.png")
+pdf(file="count_density_distribution.pdf", width=8,height=5)
 par(mfrow=c(1,2)) 
-hist(log(transcript.reads$density), breaks=200,
-col="black",xlab="log read density",main="") 
-
-hist(log(transcript.reads$counts), breaks=200,
-     col="black",xlab="log read count",main="")
+hist(log(transcript.reads$density), breaks=200, col="black",xlab="log read density",main="") 
+hist(log(transcript.reads$counts), breaks=200, col="black",xlab="log read count",main="")
 dev.off()
 ```
 
@@ -985,13 +998,11 @@ ind.cut.den = which(log(transcript.reads$density) < den.cut)
 ind.cut.cnt = which(log(transcript.reads$counts) < cnt.cut) 
 ind.cut = union(ind.cut.den, ind.cut.cnt)
 
-png(file="cut_count_density_distribution.png")
+pdf(file="cut_count_density_distribution.pdf",width=8,height=5)
 par(mfrow=c(1,2))
-hist(log(transcript.reads$density), breaks=200,
-col="black",xlab="log read density",main="") 
+hist(log(transcript.reads$density), breaks=200, col="black",xlab="log read density",main="") 
 abline(v=den.cut, col="red") 
-hist(log(transcript.reads$counts), breaks=200,
-col="black",xlab="log read count",main="") 
+hist(log(transcript.reads$counts), breaks=200, col="black",xlab="log read count",main="") 
 abline(v=cnt.cut, col="red")
 dev.off()
 ```
@@ -1005,10 +1016,12 @@ knitr::include_graphics("./png_image/cut_count_density_distribution.png")
 5. remove genes with low/no expression
 ```{r engine='R', eval=F, echo=TRUE}
 unexp = names(transcript.reads$counts)[ind.cut]
+# length(unexp)
+# 5841
 largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]
 
 #head(largest.interval.bed)
-#        chr    start      end    gene xy strand
+# chr    start      end    gene xy strand
 #57158 chr19 58345183 58353492    A1BG na      -
 #31276 chr10 50799409 50885675    A1CF na      -
 #37570 chr12  9067708  9115919     A2M na      -
@@ -1019,7 +1032,7 @@ largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in
 
 6. TSS identification and remove overlaps \
 
-In previous TSS analysis session, we have identified transcription start site (TSS).\
+In previous TSS analysis session, we find potential transcription start site (TSS).\
 ```{r engine='R', eval=F, echo=TRUE}
 # from TSSInference
 tss.interval.bed = merge(potential.tss2, largest.interval.expr.bed, by.x="gene", by.y="gene")
@@ -1033,13 +1046,14 @@ colnames(tss.interval.bed) = c('chr', 'start', 'end', 'gene', 'xy', 'strand')
 tss.interval.bed$xy <- 0
 
 # head(tss.interval.bed)
-#    chr     start       end    gene xy strand
+#chr     start       end    gene xy strand
 #1 chr19  58345183  58353492    A1BG  0      -
-#2  chr1  33306766  33321142 A3GALT2  0      -
-#3 chr22  42692121  42718965  A4GALT  0      -
+#2  chr1  33306766  33321127 A3GALT2  0      -
+#3 chr22  42692121  42720870  A4GALT  0      -
 #4 chr12  53307459  53321610    AAAS  0      -
 #5 chr12 125065402 125143316    AACS  0      +
 #6  chr4 170060222 170090202   AADAT  0      -
+
 ```
 
 Now we want to address overlaps (if multiple genes' occupying same coordinates) and filter them out from TSSs. 
@@ -1080,7 +1094,7 @@ tau.dist = 50000
 frac.max = 1
 frac.min = 0.3
 
-#save.image('230817_GATA3_pro_TSS.Rdata')
+#save.image('231003_GATA3_pro_PTA.Rdata')
 
 inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           bw.plus=bw.plus, bw.minus=bw.minus,
@@ -1093,7 +1107,7 @@ final.coords = inferred.coords$bed
 
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
-#save.image('230817_GATA3_pro_TSS2.Rdata')
+#save.image('231003_GATA3_pro_PTA_final.Rdata')
 ```
 
 
