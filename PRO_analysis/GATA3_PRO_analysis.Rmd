@@ -1007,7 +1007,7 @@ abline(v=cnt.cut, col="red")
 dev.off()
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Evaluate count and density distribution 2"}
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="choosing a cut-off based on count and density distribution"}
 #library(knitr)
 knitr::include_graphics("./png_image/cut_count_density_distribution.png") 
 ```
@@ -1477,14 +1477,90 @@ save.image('231003_GATA3_pro_DEA_interaction.Rdata')
 ## GATA3 degradtaion induces changes of gene expression level 
 
 Extract **GATA3 degradation effects** under no-E2 reference level: \
+(dTAGV1_NoE2_vs_control_NoE2) \
 ```{r engine='R', eval=F, echo=TRUE}
 # the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
 res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
 sum(res1$padj < 0.1 & !is.na(res1$padj))
 # 2837
+sum(res1$padj < 0.05 & !is.na(res1$padj))
+# 2309
+sum(res1$padj < 0.01 & !is.na(res1$padj))
+# 1619
 ```
 
-**MA plot** 
+```{r engine='R', eval=F, echo=TRUE}
+# activated
+activated = res1[res1$padj < 0.01 & !is.na(res1$padj) & res1$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res1[!is.na(res1$padj) & res1$padj > 0.1 & abs(res1$log2FoldChange) < 0.015,]
+
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+        #unchanged has 655 genes, activated has 893 genes. Change log2FoldChange cutoff for unchanged gene (from 0.01) to 0.015, which increase the number of unchanged genes to 960. Now we have enough unchanged to match with the activated genes.
+
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res1[res1$padj < 0.01 & !is.na(res1$padj) & res1$log2FoldChange < 0,] #726
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res1[!is.na(res1$padj) & res1$padj > 0.1 & abs(res1$log2FoldChange) < 0.015,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+        
+        
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+**MA plot** \
+```{r engine='R', eval=F, echo=TRUE}
+# padj: 0.01 activated:893 repressed:726
+# Unchanged is the combine matched genes.
+ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res1[!(rownames(res1) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+
+
+ma.plot.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="GATA3 degradation effects (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="GATA3 degradation effects (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
+
+#save.image('231003_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 degradation effects (FDR <0.01)"}
+#library(knitr)
+knitr::include_graphics("./png_image/MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.png") 
+```
 
 ## E2 treatment induces changes of gene expression level
 
@@ -1496,7 +1572,75 @@ sum(res2$padj < 0.1 & !is.na(res2$padj))
 #393
 ```
 
-**MA plot** 
+```{r engine='R', eval=F, echo=TRUE}
+# activated
+activated = res2[res2$padj < 0.1 & !is.na(res2$padj) & res2$log2FoldChange > 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), "Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]  # "chr" "start" "end" "gene" "Activated" "strand"
+write.table(activated.strand, file = 'control_E2_vs_control_NoE2_activated_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+  
+# unchanged Matched to Activated
+unchanged = res2[!is.na(res2$padj) & res2$padj > 0.1 & abs(res2$log2FoldChange) < 0.01,]
+ #unchanged = unchanged[sample(x, size, replace = FALSE, prob = NULL),]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Activated"
+activated$treatment = "Activated"
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res2[res2$padj < 0.1 & !is.na(res2$padj) & res2$log2FoldChange < 0,]
+repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(repressed.strand, file = 'control_E2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+ 
+
+# unchanged Matched to repressed 
+unchanged = res2[!is.na(res2$padj) & res2$padj > 0.1 & abs(res2$log2FoldChange) < 0.01,]
+ # unchanged = res.deseq[rownames(res.deseq) %notin% rownames(repressed) & !is.na(res.deseq$padj) & res.deseq$log2FoldChange > 0,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
+write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
+unchanged$treatment = "Matched to Repressed"
+repressed$treatment = "Repressed"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+```
+
+
+**MA plot** \
+```{r engine='R', eval=F, echo=TRUE}
+ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+# all.other genes
+all.other=res2[!(rownames(res2) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+
+# repressed: 57; activated: 336
+
+
+ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
+
+#save.image('231003_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Effect of E2 treatment (FDR <0.1)"}
+#library(knitr)
+knitr::include_graphics("./png_image/MA_plot_control_E2_vs_control_NoE2_response.png") 
+```
 
 ## Interactions between ER activity and GATA3 perturbation
 
