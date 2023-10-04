@@ -1286,8 +1286,8 @@ meme -p 16 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 2000
 
 by searching ER peaks, we find the top motif match to the ER motif.
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="First de novo identified motif matched to the ESR1 motif"}
-library(knitr)
-knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
+#library(knitr)
+#knitr::include_graphics("./ER_ChIP_motif.meme_output/logo1.png") 
 ```
 
 
@@ -1435,8 +1435,8 @@ meme -p 16 -oc noGATAmotif_top2000.memeClassic_output -nmotifs 3 -objfun classic
 
 By searching the top2000 peaks without GATA3 motif variant1 and 2, we found a new motif variant match to GATA3 motif family.
 ```{r, engine='R', eval=F, echo=TRUE}
-library(knitr)
-knitr::include_graphics("./noGATAmotif_top2000.memeClassic_output/logo.png") 
+#library(knitr)
+#knitr::include_graphics("./noGATAmotif_top2000.memeClassic_output/logo.png") 
 ```
 
 
@@ -1827,7 +1827,7 @@ meme -p 48 -oc ${name}_motif.meme_output -nmotifs 1 -objfun classic -csites 2000
 The top 10000 (ranked by intensity) peaks discovered the top de-novo motif match to GATA3. \
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo motif matched to the GATA3 motif in top 10000 peaks"}
 #library(knitr)
-knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output_new/logo_rc1.png") 
+#knitr::include_graphics("./GATA_ChIP_top10000_motif.meme_output_new/logo_rc1.png") 
 ```
 
 Given a motif position weight matrix, one can search other for sequences for the occurrence of that motif. Usage: http://meme-suite.org/tools/mast \
@@ -1955,7 +1955,7 @@ dev.off()
 percent peaks with or without GATA3 motif variant 1,2,3:
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="percent peaks with or without GATA3 motif variant 1,2,3"}
 #library(knitr)
-knitr::include_graphics("./0916 percent peaks with or without GATA3 motif variant.png") 
+#knitr::include_graphics("./0916 percent peaks with or without GATA3 motif variant.png") 
 ```
 
 **MAST_2** \
