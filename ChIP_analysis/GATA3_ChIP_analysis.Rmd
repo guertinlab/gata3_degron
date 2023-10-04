@@ -3806,7 +3806,7 @@ df.all$status <- factor(df.all$status, levels=c("Repressed","Matched to Represse
 plot_cdf_all(df.all, 
              tf = "all_GATA3_dTAGV1_NoE2_vs_control_NoE2",
              main="GATA3 ChIP peaks distance to GATA3 regulated gene groups",
-             col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), 
+             col.lines = c("blue", "grey60", "#ff0000", "grey90"), 
              line.type = c(1), 
              cex = 0.5)
 
@@ -3821,7 +3821,7 @@ plot_cdf_all(df.all,
 plot_cdf_all(df.repressed, 
              tf = "repressed_GATA3_dTAGV1_NoE2_vs_control_NoE2",
              main="GATA3 ChIP peaks distance to down regulated genes (upon GATA3 degradation)",
-             col.lines = c("#00ffff", "grey60"), 
+             col.lines = c("blue", "grey60"), 
              line.type = c(1), 
              cex = 0.5)
 # activated
@@ -3831,6 +3831,8 @@ plot_cdf_all(df.activated,
              col.lines = c("#ff0000", "grey90"), 
              line.type = c(1), 
              cex = 0.5)
+
+save.image('231004_CDF_GATA3_degradation_effect.Rdata') 
 ```
 
 
@@ -3929,7 +3931,7 @@ plot_cdf_all(df.activated,
              line.type = c(1), 
              cex = 0.5)
 
-
+save.image('231004_CDF_ER_activity_effect.Rdata') 
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER directly regulate activated genes upon E2 treatment."}
