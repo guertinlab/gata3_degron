@@ -1322,6 +1322,31 @@ ma.plot.png.lattice <- function(ma.df, filename = 'file.name',
   dev.off()
 }
 
+bw.plot.lattice <- function(df.bw, filename = 'file.name', 
+         title.main = "Differential PRO-seq Expression",
+         fill.col = c("red",  "blue")){
+pdf(paste("BW_plot_", filename, "_response.pdf", sep=''),  width=2, height=4)
+print(bwplot(log2FoldChange~treatment,
+             data=df.bw,
+             par.settings = list(box.rectangle = list(
+                                                        # use these box fill colors
+                                                        fill = fill.col,
+                                                        # make box outlines black
+                                                        col = "black"),
+                                                        # make whiskers black
+                                                        box.umbrella = list(col = "black"),
+                                                        # make outlier symbols red stars
+                                                        plot.symbol = list(col = "red",pch = 8,cex=0.5),
+                                                        # make title text 18pt
+                                                        par.main.text = list(fontsize = 14)),
+             pch = "|",
+             ylab="log2FoldChange",
+             #auto.key=list(space="right", columns=4),
+             scales = list(x = list(rot = 45)),)
+      )
+dev.off()
+}
+
 bw.plot.png.lattice <- function(df.bw, filename = 'file.name', 
          title.main = "Differential PRO-seq Expression",
          fill.col = c("red",  "blue")){
@@ -1645,6 +1670,7 @@ knitr::include_graphics("./png_image/MA_plot_control_E2_vs_control_NoE2_response
 ## Interactions between ER activity and GATA3 perturbation
 
 ```{r engine='R', eval=F, echo=TRUE}
+load('231003_GATA3_pro_DEA_interaction.Rdata')
 # the effect of dTAG treatment in ER activated condition (main effect + interaction term)
 res3 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
 sum(res3$padj < 0.1 & !is.na(res3$padj))
@@ -1656,13 +1682,136 @@ res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.
 sum(res4$padj < 0.1 & !is.na(res4$padj))
 #552
 
-# The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---no   whether GATA3 depend on ER
+# The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---whether GATA3 depend on ER
 res5 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
 sum(res5$padj < 0.1 & !is.na(res5$padj))
 # 99
 ```
 
-### bw plot for different condition (priority)
+### bw plot for gene expression change under different condition
+**+/- E2 effects** \
+
+```{r engine='R', eval=F, echo=TRUE}
+#load('231003_GATA3_pro_DEA_interaction.Rdata')
+res_E2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res_E2$padj < 0.05 & !is.na(res_E2$padj))
+#302
+
+############################### activated
+activated = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange > 0,] #277
+activated$treatment = "Activated"
+
+############################### repressed
+repressed = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange < 0,] #25
+repressed$treatment = "Repressed"
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+# bw plot
+bw.df.E2=as.data.frame(rbind(activated, repressed))
+bw.df.E2$treatment=as.factor(bw.df.E2$treatment)
+
+
+bw.plot.lattice(bw.df.E2, filename = 'control_E2_vs_control_NoE2', 
+         title.main = "differentially expressed gene under E2 treatment (FDR=0.1)",
+         fill.col = c("red",  "blue"))
+```
+
+**+/-dTAG effects on ER-activated genes** \
+Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "+/- E2 genes + dTAG treatment". \
+
+```{r engine='R', eval=F, echo=TRUE}
+ER_activated =as.data.frame(activated)[,c(2,7)] #277
+res_E2_dTAG = as.data.frame(results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))) #13090
+
+ER_activated_dTAG = res_E2_dTAG[rownames(res_E2_dTAG) %in% rownames(ER_activated),] #277
+sum(ER_activated_dTAG$padj < 0.1 & !is.na(ER_activated_dTAG$padj)) # 165
+sum(ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj)) # 140
+
+############################### consider FDR (<0.05)
+activated = ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange > 0,] #139
+repressed= ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange < 0,] # 1 # PTGER1
+activated$treatment = "Activated*"
+repressed$treatment = "Repressed*"
+
+sig_ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #140
+
+############################### do not consider FDR
+
+activated = ER_activated_dTAG[!is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange > 0,] # 256
+repressed= ER_activated_dTAG[!is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange < 0,] # 21
+activated$treatment = "Activated"
+repressed$treatment = "Repressed"
+ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #277
+
+```
+
+1) ER-activated genes change expression status from active to repress upon GATA3 degradation
+
+```{r engine='R', eval=F, echo=TRUE}
+temp1=ER_dTAG_df[ER_dTAG_df$treatment=="Repressed", ][,c(2,7)] #21
+temp1$treatment="E2_plus_dTAG"
+temp2=ER_activated[rownames(ER_activated) %in% rownames(temp1),] #21
+temp2$treatment="E2_only"
+
+# bw plot
+shift_exp=as.data.frame(rbind(temp1,temp2))
+shift_exp$treatment=as.factor(shift_exp$treatment)
+
+
+bw.plot.lattice(shift_exp, filename = 'ER-activated_genes_upon_dTAG_change_status', 
+         title.main = "ER-activated genes shift expression status upon GATA3 degradation",
+         fill.col = c("pink",  "blue"))
+```
+
+
+2) ER-activated genes increase activation upon GATA3 degradation
+
+```{r engine='R', eval=F, echo=TRUE}
+temp3=ER_dTAG_df[ER_dTAG_df$treatment=="Activated", ][,c(2,7)] #256
+temp3$treatment="E2_plus_dTAG"
+temp4=ER_activated[rownames(ER_activated) %in% rownames(temp3),] #256
+temp4$treatment="E2_only"
+
+change_exp=merge(temp3, temp4, by='row.names', all=TRUE) #256
+change_exp$treatment = ifelse(change_exp$log2FoldChange.x > change_exp$log2FoldChange.y, "increase_activation" , "decrease_activation")
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+inc_exp=change_exp[change_exp$treatment=="increase_activation",] #72
+
+x=inc_exp[,2:3]
+colnames(x)=c("log2FoldChange","treatment")
+y=inc_exp[,4:5]
+colnames(y)=c("log2FoldChange","treatment")
+inc_exp2=as.data.frame(rbind(x,y))
+inc_exp2$treatment=as.factor(inc_exp2$treatment)
+# bw plot
+bw.plot.lattice(inc_exp2, filename = 'ER-activated_genes_upon_dTAG_inhcrease_activation', 
+         title.main = "ER-activated genes increase activation upon GATA3 degradation",
+         fill.col = c("pink",  "red"))
+```
+
+3) ER-activated genes decrease activation upon GATA3 degradation
+```{r engine='R', eval=F, echo=TRUE}
+dec_exp=change_exp[change_exp$treatment=="decrease_activation",] #184
+
+x=dec_exp[,2:3]
+colnames(x)=c("log2FoldChange","treatment")
+y=dec_exp[,4:5]
+colnames(y)=c("log2FoldChange","treatment")
+dec_exp2=as.data.frame(rbind(x,y))
+dec_exp2$treatment=as.factor(dec_exp2$treatment)
+# bw plot
+bw.plot.lattice(dec_exp2, filename = 'ER-activated_genes_upon_dTAG_decrease_activation', 
+         title.main = "ER-activated genes decrease activation upon GATA3 degradation",
+         fill.col = c("pink",  "red"))
+```
+
+```{r engine='R', eval=F, echo=F}
+save.image('231004_bw.Rdata')
+```
+
 <!--
 ### bw plot for different condition (priority)
 1) bw plot for +/- E2, activated vs. repressed
