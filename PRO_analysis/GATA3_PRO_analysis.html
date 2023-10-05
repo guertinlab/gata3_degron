@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-10-04" />
+<meta name="date" content="2023-10-05" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-10-04</h4>
+<h4 class="date">2023-10-05</h4>
 
 </div>
 
@@ -1983,7 +1983,7 @@ ma.plot.png.lattice &lt;- function(ma.df, filename = &#39;file.name&#39;,
 bw.plot.lattice &lt;- function(df.bw, filename = &#39;file.name&#39;, 
          title.main = &quot;Differential PRO-seq Expression&quot;,
          fill.col = c(&quot;red&quot;,  &quot;blue&quot;)){
-pdf(paste(&quot;BW_plot_&quot;, filename, &quot;_response.pdf&quot;, sep=&#39;&#39;),  width=2, height=4)
+pdf(paste(&quot;BW_plot_&quot;, filename, &quot;_response.pdf&quot;, sep=&#39;&#39;),  width=5, height=5)
 print(bwplot(log2FoldChange~treatment,
              data=df.bw,
              par.settings = list(box.rectangle = list(
@@ -2336,9 +2336,9 @@ bw.df.E2=as.data.frame(rbind(activated, repressed))
 bw.df.E2$treatment=as.factor(bw.df.E2$treatment)
 
 
-bw.plot.lattice(bw.df.E2, filename = &#39;control_E2_vs_control_NoE2&#39;, 
-         title.main = &quot;differentially expressed gene under E2 treatment (FDR=0.1)&quot;,
-         fill.col = c(&quot;red&quot;,  &quot;blue&quot;))</code></pre>
+bw.plot.lattice(bw.df.E2, filename = &#39;0.05_control_E2_vs_control_NoE2&#39;, 
+         title.main = &quot;differentially expressed gene under E2 treatment (FDR=0.05)&quot;,
+         fill.col = c(&quot;pink&quot;,  &quot;light grey&quot;))</code></pre>
 <p><strong>+/-dTAG effects on ER-activated genes</strong><br />
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes’ log2FoldChange value from DESeq2 results of “+/- E2 genes + dTAG treatment”.<br />
 </p>
