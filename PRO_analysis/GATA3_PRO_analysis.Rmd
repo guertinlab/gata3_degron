@@ -1325,7 +1325,7 @@ ma.plot.png.lattice <- function(ma.df, filename = 'file.name',
 bw.plot.lattice <- function(df.bw, filename = 'file.name', 
          title.main = "Differential PRO-seq Expression",
          fill.col = c("red",  "blue")){
-pdf(paste("BW_plot_", filename, "_response.pdf", sep=''),  width=2, height=4)
+pdf(paste("BW_plot_", filename, "_response.pdf", sep=''),  width=5, height=5)
 print(bwplot(log2FoldChange~treatment,
              data=df.bw,
              par.settings = list(box.rectangle = list(
@@ -1712,9 +1712,9 @@ bw.df.E2=as.data.frame(rbind(activated, repressed))
 bw.df.E2$treatment=as.factor(bw.df.E2$treatment)
 
 
-bw.plot.lattice(bw.df.E2, filename = 'control_E2_vs_control_NoE2', 
-         title.main = "differentially expressed gene under E2 treatment (FDR=0.1)",
-         fill.col = c("red",  "blue"))
+bw.plot.lattice(bw.df.E2, filename = '0.05_control_E2_vs_control_NoE2', 
+         title.main = "differentially expressed gene under E2 treatment (FDR=0.05)",
+         fill.col = c("pink",  "light grey"))
 ```
 
 **+/-dTAG effects on ER-activated genes** \
