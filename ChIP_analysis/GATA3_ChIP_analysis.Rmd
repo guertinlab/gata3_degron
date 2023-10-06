@@ -65,7 +65,6 @@ do
 done
 ```
 
-
 ## Cut off the adapter with `cutadapt`
 
 In our daily workflow in the lab we use `cutadapt` to remove adapter sequences. The options we use below are: \
@@ -1880,6 +1879,8 @@ meme -p 64 -oc GATA3_without_motif1234_top10000_output -nmotifs 3 -objfun classi
 
 #to confirm top motif won't be GATA3
 #meme -p 64 -oc GATA3_without_motif1234_top10000_output_testsingle -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234_top10000.fasta 
+
+# for finding only one motif, we are getting FOX again. 
 ```
 
 <!--
