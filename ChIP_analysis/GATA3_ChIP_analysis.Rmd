@@ -1700,7 +1700,7 @@ library(knitr)
 knitr::include_graphics("./GATA_ChIP_top2000_meme_test/logo1.png") 
 ```
 
-## Exhaustive MEME
+## Exhaustive MEME -MAST for GATA3
 In the previous steps when running MEME-classic, we employ `-markov_order 3` in the command, which generate the markov model from input file. Taking into consideration that our GATA binding motifs are short (can be 4mer GATA or 3mer GAT), we might want to generate the markov model from genome to avoid a lot of 3mers 4 mers being canceled out as background. \
 
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -1714,7 +1714,8 @@ sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt
 ```
 
-### MEME -MAST for GATA3
+**round 1** \
+load packages \
 ```{r, engine='R', eval=F, echo=TRUE}
 module load deeptools/3.5.0
 module load meme/5.4.1
@@ -1724,8 +1725,6 @@ genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/
 ```
-
-**round 1** \
 
 MEME -classic use the markov model from genome on top 10,000 peaks (ranked by peak intensities): \
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -1826,6 +1825,61 @@ MEME-classic
 # MEME-classic
 meme -p 64 -oc GATA3_without_motif123_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta 
 
+```
+
+Top motif in top 10,000 peak (exclude the first/second/third round GATA motifs) match to **FOX**. \
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 motif variants 3"}
+#library(knitr)
+knitr::include_graphics("./de_novo_motif_png/FOX_motif.png") 
+```
+
+repeat previous MEME-classic with `-nmotifs` set to 2. \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif123_top10000_output_1 -nmotifs 2 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123_top10000.fasta
+```
+
+Second motif in top 10,000 peak (exclude the first/second/third round GATA motifs) match to GATA3 (4 spaces between half sites) \
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 motif variants 3"}
+#library(knitr)
+knitr::include_graphics("./de_novo_motif_png/GATA3_motif4.png") 
+```
+
+MAST \
+First isolate individual memes from the MEME output meme.txt file, then MAST for only the GATA3 matched motif (its correlation matrix). \
+
+```{r, engine='R', eval=F, echo=TRUE}
+wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif123_top10000_output_1/meme.txt
+# AGATNDWNAGATARN_meme.txt_meme.txt   ---motif4 (match to GATA3)
+# TRTTTRCTYWD_meme.txt_meme.txt ---FOX
+
+mkdir individual_meme
+mv AGATNDWNAGATARN_meme.txt_meme.txt individual_meme/
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# Mast find peaks with motif4
+mast -hit_list -best individual_meme/AGATNDWNAGATARN_meme.txt_meme.txt without_motifs_123.fasta > mast_GATA3_PSWM_in_peaks_round4.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round4.txt
+wc -l mast_GATA3_PSWM_in_peaks_round4.bed #5665
+
+# From peaks (without motif1, 2, 3), exclude peaks with motif4
+intersectBed -v -a without_motifs_123.bed -b mast_GATA3_PSWM_in_peaks_round4.bed > without_motifs_1234.bed #64112
+fastaFromBed -fi $genome -bed without_motifs_1234.bed -fo without_motifs_1234.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_1234.bed | head -n 10000 > without_motifs_1234_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_1234_top10000.bed -fo without_motifs_1234_top10000.fasta
+```
+
+**round 5** \
+Since we are getting top enriched motif other than GATA3, we will search for more motifs (`-nmotifs`) with MEME. \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif1234_top10000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234_top10000.fasta 
+
+#to confirm top motif won't be GATA3
+#meme -p 64 -oc GATA3_without_motif1234_top10000_output_testsingle -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_1234_top10000.fasta 
 ```
 
 <!--
