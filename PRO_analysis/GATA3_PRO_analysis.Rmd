@@ -516,7 +516,7 @@ echo 'aligning' $name 'to rDNA and removing aligned reads'
         samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
 # removes PE2-aligned reads with a rDNA-aligned mate
 reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
-fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
+fastq_pair -t $reads ${name}_PE1.rDNA.fastqc ${name}_PE2_processed.fastq
 
 
 echo 'aligning' $name 'to the genome'
@@ -629,7 +629,7 @@ done
 ```{r engine='bash', eval=F, echo=TRUE}
 module load R/4.1.2
 
-cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt m,              
+cat *_QC_metrics.txt | awk '!x[$0]++' > project_QC_metrics.txt              
 plot_all_metrics.R project_QC_metrics.txt GATA3_degron_final_PRO # pdf output
 ```
 
@@ -2985,5 +2985,62 @@ cdf plot for condition 5
 
 
 -->
-# integrate with ChIP...
+# Integrate with ChIP...
 The above activated, repressed, and matched files in bed format are going to be integrated with our ChIP exp to determine functional ChIP peaks. \
+
+
+
+# Un-mapped reads in PRO-seq
+There are ~15% reads in this PRO-seq are not aligned to human genome. \
+
+**Are these un-mapped reads short sequences?** \
+We first use `samtools` to convert mapped (`-f 0x42`) and un-mapped(`-F 0X42`) reads to .fastq format, then use `fastqc` to get information about sequence length distribution. \
+
+```{r engine='R', eval=F, echo=TRUE}
+#cd /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam
+
+# get mapped/unmapped reads and convert to fastq 
+module load samtools/1.16.1
+for i in *.bam
+do
+  name=$(echo $i | awk -F".bam" '{print $1}')
+  echo $name
+  samtools fastq -f 0x42 $i > ${name}_mapped.fastq
+  echo "complete converting mapped reads to fastq"
+  samtools fastq -F 0x42 $i > ${name}_unmapped.fastq
+  echo "complete converting un-mapped reads to fastq"
+done
+
+# fastqc
+module load fastqc 
+for i in *_mapped.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+
+for i in *_unmapped.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+
+```
+
+**Blast un-mapped reads** \
+```{r engine='R', eval=F, echo=TRUE}
+
+```
+
+
+
+
+
+
+
+
+
+
+
