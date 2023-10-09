@@ -1883,7 +1883,167 @@ meme -p 64 -oc GATA3_without_motif1234_top10000_output -nmotifs 3 -objfun classi
 # for finding only one motif, we are getting FOX again. 
 ```
 
+MAST \
+Isolate individual memes from the MEME output meme.txt file, then MAST for only the GATA3 matched motif (its correlation matrix). \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif1234_top10000_output/meme.txt
+# BTTATCWGATB_meme.txt_meme.txt   ---motif5 (match to GATA3)
+
+mv BTTATCWGATB_meme.txt_meme.txt individual_meme/
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# Mast find peaks with motif4
+mast -hit_list -best individual_meme/BTTATCWGATB_meme.txt_meme.txt without_motifs_1234.fasta > mast_GATA3_PSWM_in_peaks_round5.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5.txt
+wc -l mast_GATA3_PSWM_in_peaks_round5.bed #3564
+
+# From peaks (without motif1, 2, 3,4), exclude peaks with motif5
+intersectBed -v -a without_motifs_1234.bed -b mast_GATA3_PSWM_in_peaks_round5.bed > without_motifs_12345.bed #60548
+fastaFromBed -fi $genome -bed without_motifs_12345.bed -fo without_motifs_12345.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_12345.bed | head -n 10000 > without_motifs_12345_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_12345_top10000.bed -fo without_motifs_12345_top10000.fasta
+```
+
+**round 6** \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif12345_top10000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_12345_top10000.fasta
+```
+
+MAST \
+Isolate individual memes from the MEME output meme.txt file, then MAST for only the GATA3 matched motif (its correlation matrix). \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#wget https://raw.githubusercontent.com/guertinlab/adipogenesis/master/motif_analysis/MEME_individual_from_db.py
+python2.7 MEME_individual_from_db.py -i GATA3_without_motif12345_top10000_output/meme.txt
+# WGATBDHRVAGATAA_meme.txt_meme.txt   ---motif6 (match to GATA3)
+
+mv WGATBDHRVAGATAA_meme.txt_meme.txt individual_meme/
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# Mast find peaks with motif4
+mast -hit_list -best individual_meme/WGATBDHRVAGATAA_meme.txt_meme.txt without_motifs_12345.fasta > mast_GATA3_PSWM_in_peaks_round6.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round6.txt
+wc -l mast_GATA3_PSWM_in_peaks_round6.bed #4510
+
+# From peaks (without motif1, 2, 3,4), exclude peaks with motif5
+intersectBed -v -a without_motifs_12345.bed -b mast_GATA3_PSWM_in_peaks_round6.bed > without_motifs_123456.bed #56038
+fastaFromBed -fi $genome -bed without_motifs_123456.bed -fo without_motifs_123456.fasta
+# select top 10000
+sort -nrk5,5 without_motifs_123456.bed | head -n 10000 > without_motifs_123456_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_top10000.bed -fo without_motifs_123456_top10000.fasta
+```
+
+**round 7** \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif123456_top10000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_top10000.fasta
+
+# make sure there are indeed no GATA3 matched motifs in this set...
+# meme -p 40 -oc GATA3_without_motif123456_top10000_output_test -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_top10000.fasta
+```
+
+At this point, we are not getting more GATA3 matched motifs out through MEME-classic. \
+
+**round 7-increase width** \
+To check if there are GATA3 motifs on the flanks near central summit region (exceeds the central 100bp window), we will increase the width of the summit file (from 100bp window to 300bp). We will also substitute the previously central 100bp window to "NNNNNN...", in this way we will make sure that MEME are searching for de novo motif only at the increased sequences. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#without_motifs_123456.bed #56038
+#without_motifs_123456.fasta
+
+#make wider window
+slopBed -b 100 -i without_motifs_123456.bed -g $sizes > without_motifs_123456_300bpwindow.bed
+
+# select top 10000
+sort -nrk5,5 without_motifs_123456_300bpwindow.bed | head -n 10000 > without_motifs_123456_300bpwindow_top10000.bed
+fastaFromBed -fi $genome -bed  without_motifs_123456_300bpwindow_top10000.bed -fo  without_motifs_123456_300bpwindow_top10000.fasta
+
+# replace the central 100bp with 50Ns (the number of N is not important, as long as it is greater than the max motif width)
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_300bpwindow_top10000.fasta > without_motifs_123456_300bpwindow_top10000_NNN.fasta
+
+cat  without_motifs_123456_300bpwindow_top10000.fasta | head -8
+cat  without_motifs_123456_300bpwindow_top10000_NNN.fasta | head -8
+```
+
+check to see if there are GATA motifs on the flanks. \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif123456_300bpwindow_top10000_NNN_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_300bpwindow_top10000_NNN.fasta
+```
+
 <!--
+```{r, engine='R', eval=F, echo=TRUE}
+#round 4
+intersectBed -v -a without_motifs_12.bed -b expanded_mast_ZNF143_PSWM_in_peaks_round3.bed > without_motifs_123.bed
+#make wider window
+slopBed -b 70 -i without_motifs_123.bed -g $sizes > without_motifs_123_wide.bed
+fastaFromBed -fi $genome -bed without_motifs_123_wide.bed -fo without_motifs_123_wide.fasta
+meme -oc ZNF143_no_123.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_123_wide.fasta
+#all the motifs are on the flanks, as expected.
+meme-get-motif -id RRACTACAWYTCCCA -rc ZNF143_no_123.meme_output/meme.txt > motif4_pswm.txt
+mast -mt 0.0005 -hit_list -best motif4_pswm.txt without_motifs_123_wide.fasta > mast_ZNF143_PSWM_in_peaks_round4.txt
+Rscript /Users/guertinlab/rscripts/parse_mast_to_coordinates.R mast_ZNF143_PSWM_in_peaks_round4.txt
+fastaFromBed -s -fi $genome -bed mast_ZNF143_PSWM_in_peaks_round4.bed -fo mast_ZNF143_PSWM_in_peaks_round4.fasta
+awk '{OFS="\t";} {if($6 == "+") print $1,$2-15,$3,$4,$5,$6; else print $1,$2-1,$3+14,$4,$5,$6}' mast_ZNF143_PSWM_in_peaks_round4.bed  > expanded_mast_ZNF143_PSWM_in_peaks_round4.bed
+fastaFromBed -s -fi $genome -bed expanded_mast_ZNF143_PSWM_in_peaks_round4.bed > expanded_mast_ZNF143_PSWM_in_peaks_round4.fasta
+
+#round 5
+intersectBed -wa -a without_motifs_123_wide.bed -b expanded_mast_ZNF143_PSWM_in_peaks_round4.bed > peaks_with_motif4.bed
+intersectBed -v -a without_motifs_123.bed -b peaks_with_motif4.bed > without_motifs_1234.bed
+
+slopBed -b 100 -i without_motifs_1234.bed -g $sizes > without_motifs_1234_wide.bed
+fastaFromBed -fi $genome -bed without_motifs_1234_wide.bed -fo without_motifs_1234_wide.fasta
+
+#this replaces the central 70 bases with 50 Ns. the number of N is not important, as long as it is greater than the max motif width
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 35) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 36); } 1' without_motifs_1234_wide.fasta > without_motifs_1234_wide_NNN.fasta
+meme -oc ZNF143_no_1234.meme_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 20 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_1234_wide_NNN.fasta
+meme-get-motif -id CRRDGCATTVTGGGWA ZNF143_no_1234.meme_output/meme.txt > motif5_pswm.txt
+ceqlogo -i motif5_pswm.txt -m CRRDGCATTVTGGGWA -o round5_motif.eps
+mast -mt 0.0005 -hit_list -best motif5_pswm.txt without_motifs_1234_wide.fasta > mast_ZNF143_PSWM_in_peaks_round5.txt
+Rscript /Users/guertinlab/rscripts/parse_mast_to_coordinates.R mast_ZNF143_PSWM_in_peaks_round5.txt
+fastaFromBed -s -fi $genome -bed mast_ZNF143_PSWM_in_peaks_round5.bed -fo mast_ZNF143_PSWM_in_peaks_round5.fasta
+awk '{OFS="\t";} {if($6 == "+") print $1,$2-5,$3+9,$4,$5,$6; else print $1,$2-10,$3+4,$4,$5,$6}' mast_ZNF143_PSWM_in_peaks_round5.bed  > expanded_mast_ZNF143_PSWM_in_peaks_round5.bed
+fastaFromBed -s -fi $genome -bed expanded_mast_ZNF143_PSWM_in_peaks_round5.bed > expanded_mast_ZNF143_PSWM_in_peaks_round5.fasta
+
+#round 6
+intersectBed -wa -a without_motifs_1234_wide.bed -b expanded_mast_ZNF143_PSWM_in_peaks_round5.bed > peaks_with_motif5.bed
+intersectBed -v -a without_motifs_1234.bed -b peaks_with_motif5.bed > without_motifs_12345.bed
+
+slopBed -b 50 -i without_motifs_12345.bed -g $sizes > without_motifs_12345_wide.bed
+fastaFromBed -fi $genome -bed without_motifs_12345_wide.bed -fo without_motifs_12345_wide.fasta
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 25) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 26); } 1' without_motifs_12345_wide.fasta > without_motifs_12345_wide_NNN.fasta
+meme -oc ZNF143_no_12345.meme_output -nmotifs 4 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 20 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_12345_wide_NNN.fasta
+streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
+
+
+#make note of who these are and we want to see if the queried composite motif scores are also really low or not central:
+without_motifs_12345.bed
+slopBed -b 100 -i without_motifs_12345.bed -g $sizes > without_motifs_12345_300wide.bed
+
+# next make the composite and query back
+cat expanded_mast_ZNF143_motif_in_peaks_round1.bed expanded_mast_ZNF143_motif_in_peaks_round2_RC.bed expanded_mast_ZNF143_PSWM_in_peaks_round3.bed expanded_mast_ZNF143_PSWM_in_peaks_round4.bed expanded_mast_ZNF143_PSWM_in_peaks_round5.bed > inferred_mast_ZNF143_PSWM_in_peaks_29mer.bed
+
+fastaFromBed -s -fi $genome -bed inferred_mast_ZNF143_PSWM_in_peaks_29mer.bed > inferred_mast_ZNF143_PSWM_in_peaks_29mer.fasta
+
+#go to R and HTML vignette
+slopBed -b 100 -i over40peakIntens_ZNF143peaksChIP_101window.bed -g $sizes > over40peakIntens_ZNF143peaksChIP_301window.bed
+fastaFromBed -s -fi $genome -bed over40peakIntens_ZNF143peaksChIP_301window.bed > over40peakIntens_ZNF143peaksChIP_301window.fasta
+
+mast -mt 0.1 -hit_list -best ZNF143.txt over40peakIntens_ZNF143peaksChIP_301window.fasta > inferred_ZNF143peaks_301window.txt
+Rscript /Users/guertinlab/rscripts/parse_mast_to_coordinates.R inferred_ZNF143peaks_301window.txt
+
+
+#back from R
+intersectBed -wa -wb -a over40peakIntens_ZNF143peaksChIP_301window.bed -b inferred_ZNF143peaks_301window.bed > peaks_motifs_final.txt
+```
+
+
 -->
 
 ## Motif occurence in GATA peaks
