@@ -3728,7 +3728,20 @@ cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
 There are also three other sequences that were duplicated a lot in the un-mapped reads: “CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT”; “GATCATGGTATCTCCCCTGCCAGGTAAGTAT’ and”TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT”. The three sequences has no hit for known adapters.<br />
 </p>
 <p><strong>Blast un-mapped reads</strong><br />
+having hard time install in linux, instead run on locally following instructions here: <a href="https://www.blaststation.com/intl/members/en/howtoblastmac.html" class="uri">https://www.blaststation.com/intl/members/en/howtoblastmac.html</a><br />
+NCBI database:<a href="https://ftp.ncbi.nlm.nih.gov/blast/db/" class="uri">https://ftp.ncbi.nlm.nih.gov/blast/db/</a><br />
+</p>
 <!--
+
+```r
+#https://www.ncbi.nlm.nih.gov/books/NBK52640/
+wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
+tar zxvpf ncbi-blast-2.14.1+-x64-linux.tar.gz
+mkdir $HOME/blastdb
+export PATH=$PATH:/home/FCAM/ssun/packages/ncbi-blast-2.14.1+/bin/://home/FCAM/ssun/blastdb
+```
+
+
 
 ```r
 #https://www.ncbi.nlm.nih.gov/books/NBK52640/
@@ -3759,7 +3772,7 @@ makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqi
 
 Questions: 1) for genes that are convert expression status, check their significance, and notice that some genes are just gonna randomly be below 0 ; 2) what are some mechanisms could explain how GATA3 contributes to ER regulated genes?
 
---></p>
+-->
 </div>
 
 
