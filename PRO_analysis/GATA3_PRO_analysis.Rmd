@@ -3174,7 +3174,22 @@ There are also three other sequences that were duplicated a lot in the un-mapped
 
 
 **Blast un-mapped reads** \
+having hard time install in linux, instead run on locally following instructions here: https://www.blaststation.com/intl/members/en/howtoblastmac.html \
+NCBI database:https://ftp.ncbi.nlm.nih.gov/blast/db/ \
+
+
+
 <!--
+```{r engine='R', eval=F, echo=TRUE}
+#https://www.ncbi.nlm.nih.gov/books/NBK52640/
+wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
+tar zxvpf ncbi-blast-2.14.1+-x64-linux.tar.gz
+mkdir $HOME/blastdb
+export PATH=$PATH:/home/FCAM/ssun/packages/ncbi-blast-2.14.1+/bin/://home/FCAM/ssun/blastdb
+
+```
+
+
 ```{r engine='R', eval=F, echo=TRUE}
 #https://www.ncbi.nlm.nih.gov/books/NBK52640/
 wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
