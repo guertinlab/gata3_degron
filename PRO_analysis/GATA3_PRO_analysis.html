@@ -3698,6 +3698,8 @@ Sequence Length Distribution: for mapped reads: sequence length mostly enriched 
 This module will raise a warning if all sequences are not the same length.<br />
 Adapter Content: for mapped reads: no adapter found; for unmapped reads: Illumina Small RNA 3’ Adapter found ~10% of reads.<br />
 </p>
+<p>**Take <code>MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped</code> sample as an example to do some deep dignosis:<br />
+</p>
 <pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #144134
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
 <p>Un-mapped reads are mostly just duplicated adapter sequences? why these are not been trimed off on the first place (different sequences than the adapter?)<br />
@@ -3724,12 +3726,56 @@ cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG test.fastq -o test_noadap.fastq --t
 
 cat test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
 cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
-<p>There are ~10% reads in the unmapped reads are short sequences that contains 3’ adapter that were not been trimmed by <code>cutadapt</code>.<br />
-There are also three other sequences that were duplicated a lot in the un-mapped reads: “CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT”; “GATCATGGTATCTCCCCTGCCAGGTAAGTAT’ and”TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT”. The three sequences has no hit for known adapters.<br />
+<p>There are ~0.5% reads in the unmapped reads are short sequences that contains 3’ adapter “TGGAATTCTCGGGTGCCAAGG” that were not been trimmed by <code>cutadapt</code>, as well as three other sequences that were duplicated a lot in the un-mapped reads: “CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT”; “GATCATGGTATCTCCCCTGCCAGGTAAGTAT’ and”TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT”. The three sequences has no hit for known adapters.<br />
 </p>
+<pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | wc -l
+22071592
+
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep GATCATGGTATCTCCCCTGCCAGGTAAGTAT | wc -l
+9223
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TTTTTTTTTTTTTTTTTTTTTTT | wc -l
+19479
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT | wc -l
+10792
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l
+144134</code></pre>
 <p><strong>Blast un-mapped reads</strong><br />
 having hard time install in linux, instead run on locally following instructions here: <a href="https://www.blaststation.com/intl/members/en/howtoblastmac.html" class="uri">https://www.blaststation.com/intl/members/en/howtoblastmac.html</a><br />
 NCBI database:<a href="https://ftp.ncbi.nlm.nih.gov/blast/db/" class="uri">https://ftp.ncbi.nlm.nih.gov/blast/db/</a><br />
+</p>
+<ol style="list-style-type: decimal">
+<li>Blast to env_nt.00<br />
+</li>
+</ol>
+<pre class="r"><code>tar xfz env_nt.tar
+blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db env_nt.00 -out MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html
+
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html | grep subunit &gt; MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapp_blast_env_nt.00.summary.txt</code></pre>
+<p>~13% (707856/5517898) are “subunit ribosomal RNA gene, partial sequence”.<br />
+</p>
+<ol start="2" style="list-style-type: decimal">
+<li>Blast to mito.tar.gz<br />
+</li>
+</ol>
+<pre class="r"><code>tar xfz mito.tar.gz
+blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db mito -out mito_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html</code></pre>
+<p>no hit for mitochondrial DNA.<br />
+</p>
+<ol start="3" style="list-style-type: decimal">
+<li>Blast to nt_prok.00.tar.gz<br />
+</li>
+</ol>
+<pre class="r"><code>tar xfz nt_prok.00.tar.gz
+blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db nt_prok.00 -out nt_prok.00_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html</code></pre>
+<p>Beta proteobacterium<br />
+</p>
+<ol start="4" style="list-style-type: decimal">
+<li>Blast to nt_viruses.00.tar<br />
+</li>
+</ol>
+<pre class="r"><code>tar xfz nt_viruses.00.tar
+blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db nt_viruses.00 -out nt_viruses.00_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html</code></pre>
+<p>No hit<br />
 </p>
 <!--
 
