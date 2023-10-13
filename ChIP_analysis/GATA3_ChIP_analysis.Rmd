@@ -1944,14 +1944,16 @@ fastaFromBed -fi $genome -bed without_motifs_123456_top10000.bed -fo without_mot
 # MEME-classic
 meme -p 40 -oc GATA3_without_motif123456_top10000_output -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_top10000.fasta
 
-# make sure there are indeed no GATA3 matched motifs in this set...
+# make sure there are indeed no GATA3 matched motifs in this round...
 # meme -p 40 -oc GATA3_without_motif123456_top10000_output_test -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_top10000.fasta
+
+# top 5 motifs do not match with GATA
 ```
 
-At this point, we are not getting more GATA3 matched motifs out through MEME-classic. \
+At this point, we are not getting more GATA3 matched motifs out through MEME-classic using the 100bp window spanned the ChIP peak summit. \
 
 **round 7-increase width** \
-To check if there are GATA3 motifs on the flanks near central summit region (exceeds the central 100bp window), we will increase the width of the summit file (from 100bp window to 300bp). We will also substitute the previously central 100bp window to "NNNNNN...", in this way we will make sure that MEME are searching for de novo motif only at the increased sequences. \
+To check if there are GATA3 motifs on the flanks near central summit region (exceeds the central 100bp window), we will increase the width of the summit file (from 100bp window to **300bp**). We will also substitute the previously central 100bp window to "NNNNNN...", in this way we will make sure that MEME are discovering de novo motifs only at the increased sequences. \
 
 ```{r, engine='R', eval=F, echo=TRUE}
 #without_motifs_123456.bed #56038
@@ -1976,6 +1978,39 @@ check to see if there are GATA motifs on the flanks. \
 # MEME-classic
 meme -p 40 -oc GATA3_without_motif123456_300bpwindow_top10000_NNN_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_300bpwindow_top10000_NNN.fasta
 ```
+
+
+The top motif do not match with GATA-motif, I will try two things: 1) try increase the number of motifs we ask MEME to find; 2) try different window size; \
+
+1) increase number of motifs
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif123456_300bpwindow_top10000_NNN_output1 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_300bpwindow_top10000_NNN.fasta
+```
+
+2) try 500bp window size
+```{r, engine='R', eval=F, echo=TRUE}
+#make wider window
+slopBed -b 200 -i without_motifs_123456.bed -g $sizes > without_motifs_123456_500bpwindow.bed
+
+# select top 10000
+sort -nrk5,5 without_motifs_123456_500bpwindow.bed | head -n 10000 > without_motifs_123456_500bpwindow_top10000.bed
+fastaFromBed -fi $genome -bed  without_motifs_123456_500bpwindow_top10000.bed -fo  without_motifs_123456_500bpwindow_top10000.fasta
+
+# replace the central 100bp with 50Ns (the number of N is not important, as long as it is greater than the max motif width)
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_500bpwindow_top10000.fasta > without_motifs_123456_500bpwindow_top10000_NNN.fasta
+
+cat  without_motifs_123456_500bpwindow_top10000.fasta | head -8
+cat  without_motifs_123456_500bpwindow_top10000_NNN.fasta | head -8
+```
+
+check to see if there are GATA motifs on the flanks. \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_500bpwindow_top10000_NNN.fasta
+```
+
+
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
