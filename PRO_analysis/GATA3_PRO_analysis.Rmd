@@ -3112,23 +3112,69 @@ do
 done
 ```
 
+coherence check \
+```{r engine='R', eval=F, echo=TRUE}
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
+module load samtools/1.16.1
+samtools fastq MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam > MCF7_dTAGGATAClone522_30min_control_E2_rep1.fastq
+#[M::bam2fq_mainloop] discarded 0 singletons
+#[M::bam2fq_mainloop] processed 41668696 reads
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1.fastq #166674784
+
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq #61265800
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq #22071592
+
+# (61265800 + 22071592) * 2 = 166674784
+
+```
+
+
 **fatsqc results** \
 Sequence Length Distribution: for mapped reads: sequence length mostly enriched for 39bp (warninbg by fastqc); for unmapped reads: sequence length mostly enriched for 31bp (warning by fastqc). \
 This module will raise a warning if all sequences are not the same length. \
 Adapter Content: for mapped reads: no adapter found; for unmapped reads: Illumina Small RNA 3' Adapter found ~10% of reads. \
-
-Un-mapped reads are mostly just duplicated adapter sequences? why these are not been trimed off on the first place (different sequences than the adapter?) \
-
-I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`. \
-
-There are ~10% reads in the unmapped reads are short sequences that contains 3' adapter that were not been trimmed by cutadapt. there are also three other sequences that were duplicated a lot in the un-mapped reads: "CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT"; "GATCATGGTATCTCCCCTGCCAGGTAAGTAT' and "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT". \
 ```{r engine='R', eval=F, echo=TRUE}
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #144134
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+```
+
+Un-mapped reads are mostly just duplicated adapter sequences? why these are not been trimed off on the first place (different sequences than the adapter?) \
+I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`, and trimmed after `cutadapt`. However, **PE1 sequences somehow has some sequences with the reverse-compliment of PE2 adapter**. We did not trim these off and these sequences are carried on to next steps. \
+```{r engine='R', eval=F, echo=TRUE}
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 17974170
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #2720
+
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 10695291
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep ACCTTAAGAGCCCACGGTTCC | wc -l #0
 ```
 
 
+```{r engine='R', eval=F, echo=TRUE}
+cat ../../final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | head -n 20000000 > test.fastq
+cat test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l
+#1987892
+
+# we have used  -m $((UMI_length+2)) to filter any sequences that are shorter than 10
+module load cutadapt/3.5
+cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG test.fastq -o test_noadap.fastq --too-short-output test_PE1_short.fastq
+
+# 20000000 test.fastq
+#  12608584 test_noadap.fastq
+#   7391416 test_PE1_short.fastq
+
+cat test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+```
+
+
+There are ~10% reads in the unmapped reads are short sequences that contains 3' adapter that were not been trimmed by `cutadapt`. \
+There are also three other sequences that were duplicated a lot in the un-mapped reads: "CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT"; "GATCATGGTATCTCCCCTGCCAGGTAAGTAT' and "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT". The three sequences has no hit for known adapters. \
+
 
 **Blast un-mapped reads** \
+<!--
 ```{r engine='R', eval=F, echo=TRUE}
 #https://www.ncbi.nlm.nih.gov/books/NBK52640/
 wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
@@ -3158,7 +3204,7 @@ makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqi
 
 Questions: 1) for genes that are convert expression status, check their significance, and notice that some genes are just gonna randomly be below 0 ; 2) what are some mechanisms could explain how GATA3 contributes to ER regulated genes?
 
-
+-->
 
 
 
