@@ -477,7 +477,7 @@ table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
 
 echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
 cutadapt --cores=$cores -m $((UMI_length+2)) -O 1 -a TGGAATTCTCGGGTGCCAAGG ${name}_PE1_final.fastq \
-        -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt
+        -o ${name}_PE1_noadap.fastq --too-short-output ${name}_PE1_short.fastq > ${name}_PE1_cutadapt.txt # --too-short-output is a filter option, and output the filterred reads to an output file
 cutadapt --cores=$cores -m $((UMI_length+10)) -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC ${name}_PE2_final.fastq \
         -o ${name}_PE2_noadap.fastq --too-short-output ${name}_PE2_short.fastq > ${name}_PE2_cutadapt.txt
 
@@ -1477,7 +1477,44 @@ knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png")
 
 ## Differential Expression Analysis with `DESeq2` 
 
-**Call DESeq2** \
+**Call DESeq2 (without interactions)** \
+Now lets track down the gene expression changes by extracting the 2-factor effects first: \
+```{r engine='R', eval=F, echo=TRUE}
+inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
+
+sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
+                           levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  data.frame(sample.conditions), 
+                                  ~ sample.conditions)
+
+dds = DESeq(deseq.df)
+#save.image('230828_GATA3_pro_DEA_norep.Rdata')
+
+
+#resultsNames(dds)
+#[1] "Intercept"                            
+#[2] "supp.condition1_E2_vs_noE2"            
+#[3] "supp.condition2_dTAG_vs_ctrl"     
+#[4] "supp.condition1E2.supp.condition2dTAG"
+
+#save.image('231003_GATA3_pro_DEA_interaction.Rdata')
+```
+
+Two results we want to extract from the dds results: 1) control_E2 vs. control_NoE2   2)  dTAGV1_E2 vs. control_E2 \
+Make bw plot, and also notice the p-value. \
+
+
+
+
+
+**Call DESeq2 (with interaction)** \
+
+The concern that I am having when calling interation is that I actually don't know if there are actual interactions between ER and GATA3, if there is not, then did we decreased out effective size by calling the interations? \
+plan: comparing the results extracted from "control_E2" vs. "dTAGV1_E2", TO (when you change the reference level in interation DESeq2, then extract what I think should be the same results):\
+
 ```{r engine='R', eval=F, echo=TRUE}
 inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
@@ -1717,7 +1754,41 @@ bw.plot.lattice(bw.df.E2, filename = '0.05_control_E2_vs_control_NoE2',
          fill.col = c("pink",  "light grey"))
 ```
 
-**+/-dTAG effects on ER-activated genes** \
+**+dTAG effects on ER-activated genes** \
+Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "E2_control vs. E2_dTAG". \
+Need to first re-call DEseq2 to shift the reference level for ER. make the reference level from noE2 to E2. \
+
+```{r engine='R', eval=F, echo=TRUE}
+#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
+
+#supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) # **Here we will put E2 on the front so that DESeq2 will treat E2 as the reference level
+#supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))  
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+#[1] "Intercept"                            
+#[2] "supp.condition1_E2_vs_noE2"            
+#[3] "supp.condition2_dTAG_vs_ctrl"     
+#[4] "supp.condition1E2.supp.condition2dTAG"
+
+#save.image('231003_GATA3_pro_DEA_interaction.Rdata')
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+res3 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+#1965
+
+```
+
+
+
+**+/-E2 and +/-dTAG (4-factor) effects on ER-activated genes** \
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "+/- E2 genes + dTAG treatment". \
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -2995,6 +3066,7 @@ There are ~15% reads in this PRO-seq are not aligned to human genome. \
 
 **Are these un-mapped reads short sequences?** \
 We first use `samtools` to convert mapped (`-f 0x42`) and un-mapped(`-F 0X42`) reads to .fastq format, then use `fastqc` to get information about sequence length distribution. \
+other useful command: `samtools flagstat` \
 
 ```{r engine='R', eval=F, echo=TRUE}
 #cd /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam
@@ -3011,6 +3083,18 @@ do
   echo "complete converting un-mapped reads to fastq"
 done
 
+module load samtools/1.16.1
+for i in *.bam
+do
+  name=$(echo $i | awk -F".bam" '{print $1}')
+  echo $name
+  samtools fasta -F 0x42 $i > ${name}_unmapped.fasta
+  echo "complete converting un-mapped reads to fasta"
+done
+
+# I think samtools flag 0x42 (first in pair) are only reporting half of the reads (only PE1 or only PE2);
+# it is half of the reads compared to using flag 0X3 (reads in pair)
+
 # fastqc
 module load fastqc 
 for i in *_mapped.fastq
@@ -3026,15 +3110,53 @@ do
   fastqc $i
   echo "fastqc complete"
 done
-
 ```
+
+**fatsqc results** \
+Sequence Length Distribution: for mapped reads: sequence length mostly enriched for 39bp (warninbg by fastqc); for unmapped reads: sequence length mostly enriched for 31bp (warning by fastqc). \
+This module will raise a warning if all sequences are not the same length. \
+Adapter Content: for mapped reads: no adapter found; for unmapped reads: Illumina Small RNA 3' Adapter found ~10% of reads. \
+
+Un-mapped reads are mostly just duplicated adapter sequences? why these are not been trimed off on the first place (different sequences than the adapter?) \
+
+I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`. \
+
+There are ~10% reads in the unmapped reads are short sequences that contains 3' adapter that were not been trimmed by cutadapt. there are also three other sequences that were duplicated a lot in the un-mapped reads: "CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT"; "GATCATGGTATCTCCCCTGCCAGGTAAGTAT' and "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT". \
+```{r engine='R', eval=F, echo=TRUE}
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #144134
+```
+
+
 
 **Blast un-mapped reads** \
 ```{r engine='R', eval=F, echo=TRUE}
+#https://www.ncbi.nlm.nih.gov/books/NBK52640/
+wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
+tar zxvpf ncbi-blast-2.14.1+-x64-linux.tar.gz
+export PATH=$PATH:$HOME/ncbi-blast-2.14.1+/bin
+# database
+mkdir $HOME/blastdb
+export BLASTDB=$HOME/blastdb
+cd $HOME/blastdb
 
+perl ../bin/update_blastdb.pl --passive --decompress bacteria
+
+#https://www.biostars.org/p/97829/
+tar xvfz all.fna.tar.gz
+
+#make_db.sh
+
+#!/bin/bash
+
+files=$(find . -name "*.fna")
+create="cat $files > all.fna"
+eval $create
+
+makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqids -max_file_sz='20GB'
 ```
 
 
+Questions: 1) for genes that are convert expression status, check their significance, and notice that some genes are just gonna randomly be below 0 ; 2) what are some mechanisms could explain how GATA3 contributes to ER regulated genes?
 
 
 
