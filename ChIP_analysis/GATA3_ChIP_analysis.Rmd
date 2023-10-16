@@ -1895,7 +1895,7 @@ mv BTTATCWGATB_meme.txt_meme.txt individual_meme/
 ```
 
 ```{r, engine='R', eval=F, echo=TRUE}
-# Mast find peaks with motif4
+# Mast find peaks with motif5
 mast -hit_list -best individual_meme/BTTATCWGATB_meme.txt_meme.txt without_motifs_1234.fasta > mast_GATA3_PSWM_in_peaks_round5.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round5.txt
 wc -l mast_GATA3_PSWM_in_peaks_round5.bed #3564
@@ -1926,12 +1926,12 @@ mv WGATBDHRVAGATAA_meme.txt_meme.txt individual_meme/
 ```
 
 ```{r, engine='R', eval=F, echo=TRUE}
-# Mast find peaks with motif4
+# Mast find peaks with motif6
 mast -hit_list -best individual_meme/WGATBDHRVAGATAA_meme.txt_meme.txt without_motifs_12345.fasta > mast_GATA3_PSWM_in_peaks_round6.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round6.txt
 wc -l mast_GATA3_PSWM_in_peaks_round6.bed #4510
 
-# From peaks (without motif1, 2, 3,4), exclude peaks with motif5
+# From peaks (without motif1, 2, 3, 4, 5), exclude peaks with motif6
 intersectBed -v -a without_motifs_12345.bed -b mast_GATA3_PSWM_in_peaks_round6.bed > without_motifs_123456.bed #56038
 fastaFromBed -fi $genome -bed without_motifs_123456.bed -fo without_motifs_123456.fasta
 # select top 10000
@@ -1988,7 +1988,9 @@ The top motif do not match with GATA-motif, I will try two things: 1) try increa
 meme -p 40 -oc GATA3_without_motif123456_300bpwindow_top10000_NNN_output1 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_300bpwindow_top10000_NNN.fasta
 ```
 
-2) try 500bp window size
+5 motifs in the 300bp window flanks (exclude the central 100bp) do not match to GATA3. \
+
+2) try 500bp window size \
 ```{r, engine='R', eval=F, echo=TRUE}
 #make wider window
 slopBed -b 200 -i without_motifs_123456.bed -g $sizes > without_motifs_123456_500bpwindow.bed
@@ -2004,12 +2006,33 @@ cat  without_motifs_123456_500bpwindow_top10000.fasta | head -8
 cat  without_motifs_123456_500bpwindow_top10000_NNN.fasta | head -8
 ```
 
-check to see if there are GATA motifs on the flanks. \
+check to see if there are GATA motifs on the 500bp window flanks. \
 ```{r, engine='R', eval=F, echo=TRUE}
 # MEME-classic
 meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_500bpwindow_top10000_NNN.fasta
 ```
 
+No GATA-matched motif seen for the top motif \
+
+increase number of motifs MEME discover: \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output1 -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_500bpwindow_top10000_NNN.fasta
+```
+
+
+**43.56% peaks do not contain GATA3 binding motifs reported by MEME-classic de novo motif analysis**
+
+## STREME for remained GATA3 peaks 
+
+**STREME** (Simple, Thorough, Rapid, Enriched Motif Elicitation): Percent peaks with or without GATA3 motif variant 1,2,3,4,5,6: \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+#streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
+# perform STREME on peaks (without motif 1,2,3,4,5,6) (100bp window)
+streme --o GATA3_without_123456_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456.fasta
+
+```
 
 
 <!--
@@ -2750,7 +2773,6 @@ Percent peaks with or without GATA3 motif variant 1,2,3,4,5,6: \
 STREME (Simple, Thorough, Rapid, Enriched Motif Elicitation) \
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
-
 # perform STREME on peaks (without motif1,2,3,4,5,6 and motif FOX, FOSJUN, SP)
 # streme --o streme_output --nmotifs 1 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456FOX_FOSJUN_SP_top10000.fasta
 ```
