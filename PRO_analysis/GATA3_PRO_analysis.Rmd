@@ -1253,6 +1253,7 @@ plotPCAlattice_png <- function(df, file = 'PCA_lattice.pdf') {
                col = colpal))
   dev.off()
 }
+
 #run.deseq.list <- function(mat, untreated = 4, treated=4) {
 # sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
   
@@ -1406,9 +1407,11 @@ MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 0.9959829
 In this PRO-seq exp, we have 4 levels. Here we define the sample conditions based on our experimental treatment and set the levels, then plot a PCA plot to see similarity within conditions and differences across conditions. \
 
 **Making inputs with DESeq2**
+
 ```{r engine='R', eval=F, echo=TRUE}
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
                            levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
+
 deseq.counts.table = DESeqDataSetFromMatrix(counts.df, DataFrame(sample.conditions), ~ sample.conditions)
 colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
 dds = DESeq(deseq.counts.table)
@@ -1477,50 +1480,173 @@ knitr::include_graphics("./png_image/PCA_GATA3_PRO_dTAG_sub.png")
 
 ## Differential Expression Analysis with `DESeq2` 
 
+<!--
 **Call DESeq2 (without interactions)** \
 Now lets track down the gene expression changes by extracting the 2-factor effects first: \
 ```{r engine='R', eval=F, echo=TRUE}
 inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
+#str(counts.df)
+#'data.frame':	13090 obs. of  12 variables:
+# $ MCF7_dTAGGATAClone522_30min_control_E2_rep1  : num  1000 183 374 51 445 ...
+# $ MCF7_dTAGGATAClone522_30min_control_E2_rep2  : num  993 206 397 30 492 ...
+# $ MCF7_dTAGGATAClone522_30min_control_E2_rep3  : num  898 190 299 28 452 ...
+# $ MCF7_dTAGGATAClone522_30min_control_NoE2_rep1: num  932 209 342 40 551 ...
+# $ MCF7_dTAGGATAClone522_30min_control_NoE2_rep2: num  1451 261 511 70 756 ...
+# $ MCF7_dTAGGATAClone522_30min_control_NoE2_rep3: num  843 196 356 45 479 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1   : num  960 171 366 45 245 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2   : num  920 181 340 53 234 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3   : num  823 164 364 62 322 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 : num  1130 186 396 59 251 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 : num  953 173 350 52 246 ...
+# $ MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 : num  1057 168 355 41 221 ...
+```
+
+```{r engine='R', eval=F, echo=TRUE}
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
                            levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
-
 deseq.df = DESeqDataSetFromMatrix(counts.df, 
                                   data.frame(sample.conditions), 
                                   ~ sample.conditions)
-
 dds = DESeq(deseq.df)
-#save.image('230828_GATA3_pro_DEA_norep.Rdata')
 
 
 #resultsNames(dds)
-#[1] "Intercept"                            
-#[2] "supp.condition1_E2_vs_noE2"            
-#[3] "supp.condition2_dTAG_vs_ctrl"     
-#[4] "supp.condition1E2.supp.condition2dTAG"
+#[1] "Intercept"                                   
+#[2] "sample.conditions_control_NoE2_vs_control_E2"
+#[3] "sample.conditions_dTAGV1_E2_vs_control_E2"   
+#[4] "sample.conditions_dTAGV1_NoE2_vs_control_E2" 
 
 #save.image('231003_GATA3_pro_DEA_interaction.Rdata')
 ```
 
 Two results we want to extract from the dds results: 1) control_E2 vs. control_NoE2   2)  dTAGV1_E2 vs. control_E2 \
 Make bw plot, and also notice the p-value. \
+```{r engine='R', eval=F, echo=TRUE}
+res1 = results(dds, contrast=c("sample.conditions","control_E2","control_NoE2"))
+#compare res1 with res2 (called by DESeq2 with interaction: res2 = results(dds, contrast=c("supp.condition1","E2","noE2")))
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+res2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+
+temp=as.data.frame(cbind(res1, res2)[,c(2,8)])
+colnames(temp)=c("twofactor","interaction")
+
+library(lattice)
+png("comparing DESeq2 results between 2-factor and interaction.png")
+print(
+  xyplot(twofactor ~ interaction,data=temp,
+       main="comparing DESeq2 results between 2-factor and interaction")
+)
+dev.off()
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+res2 = results(dds, contrast=c("sample.conditions","dTAGV1_E2","control_E2"))
+#compare res2 with res1 (called by DESeq2 with interaction with my reference level set to E2:
+
+#supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) # Levels: E2 noE2, E2 is the reference level
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+#[1] "Intercept"                              
+#[2] "supp.condition1_noE2_vs_E2"             
+#[3] "supp.condition2_dTAG_vs_ctrl"           
+#[4] "supp.condition1noE2.supp.condition2dTAG"
+
+res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl")) #comparing between dTAG vs ctrl under E2 treated reference
+
+temp=as.data.frame(cbind(res1, res2)[,c(2,8)])
+colnames(temp)=c("interaction","twofactor")
+
+library(lattice)
+png("comparing DESeq2 results between 2-factor and interaction2.png")
+print(
+  xyplot(twofactor ~ interaction,data=temp,
+       main="comparing DESeq2 results between 2-factor and interaction")
+)
+dev.off()
+
+########## coherence check
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
+#supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) # Levels: E2 noE2, E2 is the reference level
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl")) #comparing between dTAG vs ctrl under E2 treated reference
+temp=as.data.frame(cbind(res1, res2)[,c(2,8)])
+colnames(temp)=c("interaction","twofactor")
+library(lattice)
+png("comparing DESeq2 results between 2-factor and interaction3.png")
+print(
+  xyplot(twofactor ~ interaction,data=temp,
+       main="comparing DESeq2 results between 2-factor and interaction")
+)
+dev.off()
+```
+
+conclusion: DESeq2 interaction can be used to extract comparison between dTAGV1_E2 vs. control_E2, as long as we set the reference level to E2. \
 
 
 
+2) subset the comparisons
+```{r engine='R', eval=F, echo=TRUE}
+counts.df1=counts.df[,1:6] #+/- E2 under ctrl
+#counts.df2=counts.df[, c(1:3, 7:9)] #+/- dTAG under E2
+#counts.df3=counts.df[,c(4:6, 10:12)] # +/- dTAG under control
+
+sample.conditions1 = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2"), 
+                           levels=c("control_NoE2","control_E2"))
+deseq.df1 = DESeqDataSetFromMatrix(counts.df1, 
+                                  data.frame(sample.conditions1), 
+                                  ~ sample.conditions1)
+
+dds1 = DESeq(deseq.df1)
+res1 = results(dds1)
+
+#compare res1 with res (= results(dds, contrast=c("sample.conditions","control_E2","control_NoE2")))
+#draw a scatter plot
+temp=as.data.frame(cbind(res, res1)[,c(2,8)])
+colnames(temp)=c("extract","subset")
+
+library(lattice)
+png("comparing DESeq2 results between subsetting data and extract results.png")
+print(
+  xyplot(extract ~ subset,data=temp,
+       main="comparing DESeq2 results between subsetting data and extract results")
+)
+dev.off()
+
+```
+
+conclusion: subsetting data first, then call DESeq2 has similar results as: first call the entire data then followed by extracting results via `contrast`. \
+-->
 
 
 **Call DESeq2 (with interaction)** \
 
-The concern that I am having when calling interation is that I actually don't know if there are actual interactions between ER and GATA3, if there is not, then did we decreased out effective size by calling the interations? \
-plan: comparing the results extracted from "control_E2" vs. "dTAGV1_E2", TO (when you change the reference level in interation DESeq2, then extract what I think should be the same results):\
+(The concern that I am having when calling interaction is that I actually don't know if there are actual interactions between ER and GATA3, if there is not, then did we decreased our effective size by calling the interactions?) \
 
 ```{r engine='R', eval=F, echo=TRUE}
 inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
-supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
-supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) #noE2 is reference
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG")) #ctrl is reference
 
 
 deseq.df = DESeqDataSetFromMatrix(counts.df, 
@@ -1725,12 +1851,14 @@ sum(res5$padj < 0.1 & !is.na(res5$padj))
 # 99
 ```
 
-### bw plot for gene expression change under different condition
+## bw plot for gene expression change under different condition
 **+/- E2 effects** \
 
 ```{r engine='R', eval=F, echo=TRUE}
 #load('231003_GATA3_pro_DEA_interaction.Rdata')
 res_E2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
+sum(res_E2$padj < 0.1 & !is.na(res_E2$padj))
+#393
 sum(res_E2$padj < 0.05 & !is.na(res_E2$padj))
 #302
 
@@ -1754,16 +1882,16 @@ bw.plot.lattice(bw.df.E2, filename = '0.05_control_E2_vs_control_NoE2',
          fill.col = c("pink",  "light grey"))
 ```
 
-**+dTAG effects on ER-activated genes** \
-Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "E2_control vs. E2_dTAG". \
-Need to first re-call DEseq2 to shift the reference level for ER. make the reference level from noE2 to E2. \
+**+/- dTAG effects on ER-activated genes** \
+Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "dTAGV1_E2" vs. "control_E2". \
+Need to first re-call DEseq2 to shift the reference level for ER. Make the reference level from noE2 to E2. \
 
 ```{r engine='R', eval=F, echo=TRUE}
 #inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
-#supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) # **Here we will put E2 on the front so that DESeq2 will treat E2 as the reference level
-#supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))  
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) # **E2 is the reference level
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG"))  
 
 
 deseq.df = DESeqDataSetFromMatrix(counts.df, 
@@ -1771,23 +1899,117 @@ deseq.df = DESeqDataSetFromMatrix(counts.df,
                                   ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
 dds = DESeq(deseq.df)
 resultsNames(dds)
-#[1] "Intercept"                            
-#[2] "supp.condition1_E2_vs_noE2"            
-#[3] "supp.condition2_dTAG_vs_ctrl"     
-#[4] "supp.condition1E2.supp.condition2dTAG"
+#[1] "Intercept"                              
+#[2] "supp.condition1_noE2_vs_E2"             
+#[3] "supp.condition2_dTAG_vs_ctrl"           
+#[4] "supp.condition1noE2.supp.condition2dTAG"
 
-#save.image('231003_GATA3_pro_DEA_interaction.Rdata')
+res_dTAG_E2 = results(dds, contrast=c("supp.condition2","dTAG","ctrl")) #comparing between dTAG vs ctrl under E2 treated reference
+sum(res_dTAG_E2$padj < 0.1 & !is.na(res_dTAG_E2$padj))
+#1965
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-res3 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
-sum(res3$padj < 0.1 & !is.na(res3$padj))
-#1965
+ER_activated =as.data.frame(activated)[,c(2,7)] #277
+res_dTAG_E2=as.data.frame(results(dds, contrast=c("supp.condition2","dTAG","ctrl"))) #13090
 
+ER_activated_dTAG = res_dTAG_E2[rownames(res_dTAG_E2) %in% rownames(ER_activated),] #277
+sum(ER_activated_dTAG$padj < 0.1 & !is.na(ER_activated_dTAG$padj)) # 185
+sum(ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj)) # 174
+
+############################### consider FDR (<0.05)
+activated = ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange > 0,] #107
+repressed= ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange < 0,] # 67
+
+activated$treatment = "Activated*"
+repressed$treatment = "Repressed*"
+
+sig_ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #174
 ```
 
+1) ER-activated genes change expression status from active to repress upon GATA3 degradation
+
+```{r engine='R', eval=F, echo=TRUE}
+temp1=sig_ER_dTAG_df[sig_ER_dTAG_df$treatment=="Repressed*", ][,c(2,7)] #67
+temp1$treatment="E2_plus_dTAG"
+temp2=ER_activated[rownames(ER_activated) %in% rownames(temp1),] #67
+temp2$treatment="E2_only"
+
+# bw plot
+shift_exp=as.data.frame(rbind(temp1,temp2))
+shift_exp$treatment=as.factor(shift_exp$treatment)
 
 
+bw.plot.lattice(shift_exp, filename = 'ER-activated_genes_upon_dTAG_change_status', 
+         title.main = "ER-activated genes shift expression status upon GATA3 degradation",
+         fill.col = c("pink",  "blue"))
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER-regulated/activated genes convert expression status upon dTAG treatment (FDR <0.05)"}
+#library(knitr)
+knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_change_status_response.png") 
+```
+
+2) ER-activated genes increase activation upon GATA3 degradation
+
+```{r engine='R', eval=F, echo=TRUE}
+temp3=sig_ER_dTAG_df[sig_ER_dTAG_df$treatment=="Activated*", ][,c(2,7)] #107
+temp3$treatment="E2_plus_dTAG"
+temp4=ER_activated[rownames(ER_activated) %in% rownames(temp3),] #107
+temp4$treatment="E2_only"
+
+change_exp=merge(temp3, temp4, by='row.names', all=TRUE) #107
+change_exp$treatment = ifelse(change_exp$log2FoldChange.x > change_exp$log2FoldChange.y, "increase_activation" , "decrease_activation")
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+inc_exp=change_exp[change_exp$treatment=="increase_activation",] #70
+
+x=inc_exp[,2:3]
+colnames(x)=c("log2FoldChange","treatment")
+y=inc_exp[,4:5]
+colnames(y)=c("log2FoldChange","treatment")
+inc_exp2=as.data.frame(rbind(x,y))
+inc_exp2$treatment=as.factor(inc_exp2$treatment)
+# bw plot
+bw.plot.lattice(inc_exp2, filename = 'ER-activated_genes_upon_dTAG_increase_activation', 
+         title.main = "ER-activated genes increase activation upon GATA3 degradation",
+         fill.col = c("pink",  "red"))
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER-regulated/activated genes increase activation upon dTAG treatment (FDR <0.05)"}
+#library(knitr)
+knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_increase_activation_response.png") 
+```
+
+3) ER-activated genes decrease activation upon GATA3 degradation
+```{r engine='R', eval=F, echo=TRUE}
+dec_exp=change_exp[change_exp$treatment=="decrease_activation",] #37
+
+x=dec_exp[,2:3]
+colnames(x)=c("log2FoldChange","treatment")
+y=dec_exp[,4:5]
+colnames(y)=c("log2FoldChange","treatment")
+dec_exp2=as.data.frame(rbind(x,y))
+dec_exp2$treatment=as.factor(dec_exp2$treatment)
+# bw plot
+bw.plot.lattice(dec_exp2, filename = 'ER-activated_genes_upon_dTAG_decrease_activation', 
+         title.main = "ER-activated genes decrease activation upon GATA3 degradation",
+         fill.col = c("pink",  "red"))
+```
+
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER-regulated/activated genes increase activation upon dTAG treatment (FDR <0.05)"}
+#library(knitr)
+knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_decrease_activation_response.png") 
+```
+
+```{r engine='R', eval=F, echo=F}
+save.image('231017_bw.Rdata')
+```
+
+Questions: how GATA3 contributes to ER regulated genes? \
+
+<!--
 **+/-E2 and +/-dTAG (4-factor) effects on ER-activated genes** \
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "+/- E2 genes + dTAG treatment". \
 
@@ -1882,6 +2104,8 @@ bw.plot.lattice(dec_exp2, filename = 'ER-activated_genes_upon_dTAG_decrease_acti
 ```{r engine='R', eval=F, echo=F}
 save.image('231004_bw.Rdata')
 ```
+-->
+
 
 <!--
 ### bw plot for different condition (priority)
@@ -3262,8 +3486,6 @@ eval $create
 makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqids -max_file_sz='20GB'
 ```
 
-
-Questions: 1) for genes that are convert expression status, check their significance, and notice that some genes are just gonna randomly be below 0 ; 2) what are some mechanisms could explain how GATA3 contributes to ER regulated genes?
 
 -->
 
