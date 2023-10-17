@@ -2014,18 +2014,20 @@ meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output -nmotif
 
 No GATA-matched motif seen for the top motif \
 
-increase number of motifs MEME discover: \
+**[RUNNING]** increase number of motifs MEME discover: \
 ```{r, engine='R', eval=F, echo=TRUE}
 # MEME-classic
 meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output1 -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_500bpwindow_top10000_NNN.fasta
 ```
 
 
-**43.56% peaks do not contain GATA3 binding motifs reported by MEME-classic de novo motif analysis**
+**57.85% peaks do not contain GATA3 binding motifs reported by MEME-classic de novo motif analysis**
 
 ## STREME for remained GATA3 peaks 
 
 **STREME** (Simple, Thorough, Rapid, Enriched Motif Elicitation): Percent peaks with or without GATA3 motif variant 1,2,3,4,5,6: \
+
+1) central 100bp window \
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
 #streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
@@ -2033,7 +2035,53 @@ module load meme/5.4.1
 streme --o GATA3_without_123456_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456.fasta
 
 ```
+STREME found 1 motif (out of 10) that matches to GATA3 \
 
+2) increase width \
+Also use STREME to find motifs on increased 300bp/500bp flank exclude the central 100bp region: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#300window flank with central 100bp substituted with 50 Ns. 
+fastaFromBed -fi $genome -bed  without_motifs_123456_300bpwindow.bed -fo  without_motifs_123456_300bpwindow.fasta
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_300bpwindow.fasta > without_motifs_123456_300bpwindow_NNN.fasta
+
+#500window flank with central 100bp substituted with 50 Ns. 
+fastaFromBed -fi $genome -bed  without_motifs_123456_500bpwindow.bed -fo  without_motifs_123456_500bpwindow.fasta
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_500bpwindow.fasta > without_motifs_123456_500bpwindow_NNN.fasta
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# perform STREME on peaks (without motif 1,2,3,4,5,6) (300bp window without central)
+streme --o GATA3_without_123456_300bp_NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_300bpwindow_NNN.fasta
+
+# perform STREME on peaks (without motif 1,2,3,4,5,6) (500bp window without central)
+streme --o GATA3_without_123456_500bp_NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_500bpwindow_NNN.fasta
+```
+
+did not find GATA3 matched motif on the spanned sequences. \
+
+**STREME-MAST** \
+use MAST to find peaks with the STREME-found GATA3 matched motif. \
+```{r, engine='R', eval=F, echo=TRUE}
+#save the streme motif file as AGATAAM_streme.txt in individual_meme folder
+# Mast find peaks with motif7 (Streme)
+mast -hit_list -best individual_meme/AGATAAM_streme.txt without_motifs_123456.fasta > mast_GATA3_PSWM_in_peaks_round7.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round7.txt
+wc -l mast_GATA3_PSWM_in_peaks_round7.bed #3386
+
+# From peaks (without motif1, 2, 3, 4, 5, 6), exclude peaks with motif7 (STREME)
+intersectBed -v -a without_motifs_123456.bed -b mast_GATA3_PSWM_in_peaks_round7.bed > without_motifs_123456_7.bed #52652
+fastaFromBed -fi $genome -bed without_motifs_123456_7.bed -fo without_motifs_123456_7.fasta
+
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7) (100bp central window)
+streme --o GATA3_without_123456_7_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_7.fasta
+
+```
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
