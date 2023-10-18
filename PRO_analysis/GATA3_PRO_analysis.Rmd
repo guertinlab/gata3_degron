@@ -1113,7 +1113,7 @@ sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 # removed this single line when uploading TSS.bed to genome browser.
 ```
 
-A trackhub link to visualize (merged)plus/minus PE1/PE2 PRO-data and the inferred TSSs: http://guertinlab.cam.uchc.edu/GATA3_pro_test/hub.txt \
+A trackhub link to visualize (merged)plus/minus PE1/PE2 PRO-data and the inferred TSSs (need to upload "MCF7_GATA3_gene_annotations.bed" separately): http://guertinlab.cam.uchc.edu/GATA3_pro_test/hub.txt \
 
 # Differential expression analysis with DESeq2
 
@@ -1256,8 +1256,8 @@ plotPCAlattice_png <- function(df, file = 'PCA_lattice.pdf') {
 
 #run.deseq.list <- function(mat, untreated = 4, treated=4) {
 # sample.conditions = factor(c(rep("untreated",untreated), rep("treated", treated)), levels=c("untreated","treated"))        
-  
-  
+#  
+#  
 #  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
 #  colData(deseq.counts.table)$condition<-factor(colData(deseq.counts.table)$sample.conditions, levels=c('untreated','treated'));
 #  dds = DESeq(deseq.counts.table);
@@ -1265,7 +1265,7 @@ plotPCAlattice_png <- function(df, file = 'PCA_lattice.pdf') {
   #res = res[order(res$padj),];
 #  return(res)
 #}
-
+#
 #run.deseq.list.dds <- function(mat) {
 #  sample.conditions = factor(c("untreated","untreated","untreated","untreated","treated","treated","treated","treated"), levels=c("untreated","treated"))        
 #  deseq.counts.table = DESeqDataSetFromMatrix(mat, DataFrame(sample.conditions), ~ sample.conditions);
@@ -1658,8 +1658,6 @@ resultsNames(dds)
 #[2] "supp.condition1_E2_vs_noE2"            
 #[3] "supp.condition2_dTAG_vs_ctrl"     
 #[4] "supp.condition1E2.supp.condition2dTAG"
-
-save.image('231003_GATA3_pro_DEA_interaction.Rdata')
 ```
 
 ## GATA3 degradtaion induces changes of gene expression level 
@@ -1697,8 +1695,8 @@ out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "o
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-unchanged$treatment = "Matched to Activated"
-activated$treatment = "Activated"
+unchanged$treatment = "Matched to Up"
+activated$treatment = "Up"
 df.x = rbind(activated, unchanged)
 
 
@@ -1719,8 +1717,8 @@ out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "o
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(unchanged.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-unchanged$treatment = "Matched to Repressed"
-repressed$treatment = "Repressed"
+unchanged$treatment = "Matched to Down"
+repressed$treatment = "Down"
 df.x = rbind(df.x, unchanged)
 df.x = rbind(df.x, repressed)
 ```
@@ -1730,25 +1728,29 @@ df.x = rbind(df.x, repressed)
 # padj: 0.01 activated:893 repressed:726
 # Unchanged is the combine matched genes.
 ma.df=df.x
-ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
-ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Up",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Down",]$treatment = "Unchanged"
 # all.other genes
 all.other=res1[!(rownames(res1) %in% rownames(ma.df)),]
 all.other$treatment="all.other"
 ma.df= rbind(ma.df, all.other)
-ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Up", "Down"))
 
 
 ma.plot.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="GATA3 degradation effects (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
 ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="GATA3 degradation effects (FDR <0.01)", col=c("grey90","grey60", "red", "blue"))
 
-#save.image('231003_GATA3_pro_DEA_dTAGV1_NoE2_vs_control_NoE2.Rdata')
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+save.image('231018_GATA3_pro_DEA_interaction1.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 degradation effects (FDR <0.01)"}
 #library(knitr)
 knitr::include_graphics("./png_image/MA_plot_dTAGV1_NoE2_vs_control_NoE2_response.png") 
 ```
+
 
 ## E2 treatment induces changes of gene expression level
 
@@ -1758,6 +1760,8 @@ Extract **E2 effects** under no-dTAG reference level: \
 res2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res2$padj < 0.1 & !is.na(res2$padj))
 #393
+sum(res2$padj < 0.05 & !is.na(res2$padj))
+#302
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1777,8 +1781,8 @@ out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "o
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_activated_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-unchanged$treatment = "Matched to Activated"
-activated$treatment = "Activated"
+unchanged$treatment = "Matched to Up"
+activated$treatment = "Up"
 df.x = rbind(activated, unchanged)
 
 
@@ -1798,64 +1802,107 @@ out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "o
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(unchanged.strand, file = 'control_E2_vs_control_NoE2_repressed_matched_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
-unchanged$treatment = "Matched to Repressed"
-repressed$treatment = "Repressed"
+unchanged$treatment = "Matched to Down"
+repressed$treatment = "Down"
 df.x = rbind(df.x, unchanged)
 df.x = rbind(df.x, repressed)
 ```
 
 
-**MA plot** \
+**MA plot ((FDR <0.1)** \
 ```{r engine='R', eval=F, echo=TRUE}
 ma.df=df.x
-ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
-ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Up",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Down",]$treatment = "Unchanged"
 # all.other genes
 all.other=res2[!(rownames(res2) %in% rownames(ma.df)),]
 all.other$treatment="all.other"
 ma.df= rbind(ma.df, all.other)
-ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Activated", "Repressed"))
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Up", "Down"))
 
 # repressed: 57; activated: 336
 
 
 ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
 ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
-
-#save.image('231003_GATA3_pro_DEA_control_E2_vs_control_NoE2.Rdata')
 ```
+
+```{r engine='R', eval=F, echo=TRUE}
+save.image('231018_GATA3_pro_DEA_interaction1.1.Rdata')
+```
+
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Effect of E2 treatment (FDR <0.1)"}
 #library(knitr)
 knitr::include_graphics("./png_image/MA_plot_control_E2_vs_control_NoE2_response.png") 
 ```
 
-## Interactions between ER activity and GATA3 perturbation
+
+
+**MA plot ((FDR <0.05)** \
+```{r engine='R', eval=F, echo=TRUE}
+# activated (use FDR 0.05)
+activated = res2[res2$padj < 0.05 & !is.na(res2$padj) & res2$log2FoldChange > 0,]
+unchanged = res1[!is.na(res1$padj) & res1$padj > 0.05 & abs(res1$log2FoldChange) < 0.01,]
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged$treatment = "Matched to Up"
+activated$treatment = "Up"
+df.x = rbind(activated, unchanged)
+
+
+# repressed  (use FDR 0.05)
+repressed = res2[res2$padj < 0.05 & !is.na(res2$padj) & res2$log2FoldChange < 0,]
+unchanged = res2[!is.na(res2$padj) & res2$padj > 0.05 & abs(res2$log2FoldChange) < 0.01,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged$treatment = "Matched to Down"
+repressed$treatment = "Down"
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)
+
+#draw MA plot:
+ma.df=df.x
+ma.df[ma.df$treatment == "Matched to Up",]$treatment = "Unchanged"
+ma.df[ma.df$treatment == "Matched to Down",]$treatment = "Unchanged"
+# all.other genes
+all.other=res2[!(rownames(res2) %in% rownames(ma.df)),]
+all.other$treatment="all.other"
+ma.df= rbind(ma.df, all.other)
+ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Up", "Down"))
+
+# repressed: 25; activated: 277
+
+
+ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
+```
 
 ```{r engine='R', eval=F, echo=TRUE}
-load('231003_GATA3_pro_DEA_interaction.Rdata')
-# the effect of dTAG treatment in ER activated condition (main effect + interaction term)
-res3 = results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
-sum(res3$padj < 0.1 & !is.na(res3$padj))
-#1965
-
-
-# With dTAG treatment, what is the difference between E2 treated and noE2?
-res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
-sum(res4$padj < 0.1 & !is.na(res4$padj))
-#552
-
-# The different response in different ER activity (Is the effect of dTAG treatment different across ER activity on/off? This is the interaction term.) ---whether GATA3 depend on ER
-res5 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
-sum(res5$padj < 0.1 & !is.na(res5$padj))
-# 99
+save.image('231018_GATA3_pro_DEA_interaction1.2.Rdata')
 ```
+
 
 ## bw plot for gene expression change under different condition
 **+/- E2 effects** \
 
 ```{r engine='R', eval=F, echo=TRUE}
-#load('231003_GATA3_pro_DEA_interaction.Rdata')
+#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
+
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) #noE2 is reference
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG")) #ctrl is reference
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+
 res_E2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res_E2$padj < 0.1 & !is.na(res_E2$padj))
 #393
@@ -1881,6 +1928,8 @@ bw.plot.lattice(bw.df.E2, filename = '0.05_control_E2_vs_control_NoE2',
          title.main = "differentially expressed gene under E2 treatment (FDR=0.05)",
          fill.col = c("pink",  "light grey"))
 ```
+
+
 
 **+/- dTAG effects on ER-activated genes** \
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "dTAGV1_E2" vs. "control_E2". \
@@ -2007,7 +2056,107 @@ knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_decrea
 save.image('231017_bw.Rdata')
 ```
 
-Questions: how GATA3 contributes to ER regulated genes? \
+
+## Call the interaction term directly from DESeq2 results (play around)
+By changing the reference level in setting up conditions, or utilize the interaction term implied inside, one can easily call different DESeq2 results to address different questions  \
+
+```{r engine='R', eval=F, echo=TRUE}
+#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
+
+supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) #noE2 is reference
+supp.condition1.1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) #E2 is reference
+supp.condition2=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("ctrl","dTAG")) #ctrl is reference
+supp.condition2.1=factor(rep(c("ctrl", "dTAG"), each = 6), levels=c("dTAG","ctrl")) #dTAG is reference
+
+#noE2, nodTAG as reference
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+
+#E2 as reference 
+deseq.df1 = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1.1, supp.condition2), 
+                                  ~ supp.condition1.1 + supp.condition2 + supp.condition1.1:supp.condition2)
+dds1 = DESeq(deseq.df1)
+
+#+dTAG as reference 
+deseq.df2 = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2.1), 
+                                  ~ supp.condition1 + supp.condition2.1 + supp.condition1:supp.condition2.1)
+dds2 = DESeq(deseq.df2)
+```
+
+**the effect of dTAG treatment in ER activated condition**
+
+```{r engine='R', eval=F, echo=TRUE}
+# the effect of dTAG treatment in ER activated condition
+res1=results(dds, list(c("supp.condition2_dTAG_vs_ctrl", "supp.condition1E2.supp.condition2dTAG")))
+#vs.
+res1.1=results(dds1, contrast=c("supp.condition2","dTAG","ctrl")) 
+sum(res1$padj < 0.1 & !is.na(res1$padj)) #1965
+sum(res1.1$padj < 0.1 & !is.na(res1.1$padj)) #1965
+
+#this two call should be the same 
+
+temp=as.data.frame(cbind(res1, res1.1)[,c(2,8)])
+colnames(temp)=c("interaction","E2_ref")
+library(lattice)
+png("comparing DESeq2 with interaction with different reference 1.png")
+print(
+  xyplot(E2_ref ~ interaction,data=temp,
+       main="comparing DESeq2 with interaction with different reference")
+)
+dev.off()
+
+```
+
+**the effect of E2 treatment in GATA3-degraded (+dTAG) condition**
+
+```{r engine='R', eval=F, echo=TRUE}
+# the effect of E2 treatment in GATA3-degraded (+dTAG) condition. 
+res2 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
+sum(res2$padj < 0.1 & !is.na(res2$padj)) #552
+
+
+res2.1=results(dds2, contrast=c("supp.condition1","E2","noE2")) 
+sum(res2.1$padj < 0.1 & !is.na(res2.1$padj)) #552
+
+#this two call should be the same 
+
+temp1=as.data.frame(cbind(res2, res2.1)[,c(2,8)])
+colnames(temp1)=c("interaction","dTAG_ref")
+library(lattice)
+png("comparing DESeq2 with interaction with different reference 2.png")
+print(
+  xyplot(dTAG_ref ~ interaction,data=temp1,
+       main="comparing DESeq2 with interaction with different reference")
+)
+dev.off()
+```
+
+**Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status?**
+```{r engine='R', eval=F, echo=TRUE}
+# Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status? This is the interaction term. ---whether GATA3 depend on ER -- not much
+
+res3 = results(dds, name="supp.condition1E2.supp.condition2dTAG")
+sum(res3$padj < 0.1 & !is.na(res3$padj))
+#99
+sum(res3$padj < 0.05 & !is.na(res3$padj))
+#55
+sum(res3$padj < 0.01 & !is.na(res3$padj))
+#18
+```
+
+```{r engine='R', eval=F, echo=F}
+save.image('231018_GATA3_pro_DEA_interaction2.Rdata')
+```
+
+## Questions: how GATA3 contributes to ER regulated genes?
+
+
+
 
 <!--
 **+/-E2 and +/-dTAG (4-factor) effects on ER-activated genes** \
