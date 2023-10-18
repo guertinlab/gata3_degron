@@ -2068,12 +2068,14 @@ use MAST to find peaks with the STREME-found GATA3 matched motif. \
 ```{r, engine='R', eval=F, echo=TRUE}
 #save the streme motif file as AGATAAM_streme.txt in individual_meme folder
 # Mast find peaks with motif7 (Streme)
-mast -hit_list -best individual_meme/AGATAAM_streme.txt without_motifs_123456.fasta > mast_GATA3_PSWM_in_peaks_round7.txt
+# mast -hit_list -best individual_meme/AGATAAM_streme.txt without_motifs_123456.fasta > mast_GATA3_PSWM_in_peaks_round7.txt #3389
+# increase the p-value stringency to 0.0005 (default is p<0.0001)
+mast -mt 0.0005 -hit_list -best individual_meme/AGATAAM_streme.txt without_motifs_123456.fasta > mast_GATA3_PSWM_in_peaks_round7.txt #8736
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round7.txt
-wc -l mast_GATA3_PSWM_in_peaks_round7.bed #3386
+wc -l mast_GATA3_PSWM_in_peaks_round7.bed #8733
 
 # From peaks (without motif1, 2, 3, 4, 5, 6), exclude peaks with motif7 (STREME)
-intersectBed -v -a without_motifs_123456.bed -b mast_GATA3_PSWM_in_peaks_round7.bed > without_motifs_123456_7.bed #52652
+intersectBed -v -a without_motifs_123456.bed -b mast_GATA3_PSWM_in_peaks_round7.bed > without_motifs_123456_7.bed #47305
 fastaFromBed -fi $genome -bed without_motifs_123456_7.bed -fo without_motifs_123456_7.fasta
 
 ```
@@ -2081,33 +2083,56 @@ fastaFromBed -fi $genome -bed without_motifs_123456_7.bed -fo without_motifs_123
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
 # perform STREME on peaks (without motif 1,2,3,4,5,6, 7) (100bp central window)
-streme --o GATA3_without_123456_7_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_7.fasta
-
+streme --oc GATA3_without_123456_7_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_7.fasta
 ```
 
 **round 8--streme**
 
 ```{r, engine='R', eval=F, echo=TRUE}
-#save the streme motif file as AGATAAM_streme.txt in individual_meme folder
-# Mast find peaks with motif7 (Streme)
-mast -hit_list -best individual_meme/AGATAACA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8.txt
+#save the streme motif file as TGATAA_streme.txt in individual_meme folder
+# Mast find peaks with motif8 (Streme)
+mast -mt 0.0005 -hit_list -best individual_meme/TGATAA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8.txt
 Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round8.txt
-wc -l mast_GATA3_PSWM_in_peaks_round8.bed #1657
+wc -l mast_GATA3_PSWM_in_peaks_round8.bed #4452
 
 # From peaks (without motif1, 2, 3, 4, 5, 6, 7), exclude peaks with motif8 (STREME)
-intersectBed -v -a without_motifs_123456_7.bed -b mast_GATA3_PSWM_in_peaks_round8.bed > without_motifs_123456_78.bed #50995
+intersectBed -v -a without_motifs_123456_7.bed -b mast_GATA3_PSWM_in_peaks_round8.bed > without_motifs_123456_78.bed #42853
 fastaFromBed -fi $genome -bed without_motifs_123456_78.bed -fo without_motifs_123456_78.fasta
 
 ```
 
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
-# perform STREME on peaks (without motif 1,2,3,4,5,6, 7) (100bp central window)
-streme --o GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78.fasta
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7, 8) (100bp central window)
+streme --oc GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78.fasta
 
 ```
 
+At this point, STREME also did not find any more GATA3 matched motif. \
 
+**43.2% peaks do not contain GATA3 binding motifs reported by both MEME-classic and STREME** \
+
+I also looked top ranked sequences (1000) trying to eye-spot some `GATA`. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+sort -nrk5,5 without_motifs_123456_78.bed | head -n 1000 > without_motifs_123456_78_top1000.bed
+fastaFromBed -fi $genome -bed  without_motifs_123456_78_top1000.bed -fo  without_motifs_123456_78_top1000.fasta
+```
+
+Change mast p-value: \
+```{r, engine='R', eval=F, echo=TRUE}
+# mast -mt 0.0005 -hit_list -best individual_meme/TGATAA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8.txt #4455
+mast -mt 0.001 -hit_list -best individual_meme/TGATAA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8_0.001.txt #4455 
+mast -mt 0.01 -hit_list -best individual_meme/TGATAA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8_0.01.txt #25653
+mast -mt 0.1 -hit_list -best individual_meme/TGATAA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8_0.1.txt #45149
+
+# change mast p-value to 0.1, I can get almost 97.8% peaks contain a GATA3 motif
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round8_0.1.txt
+wc -l mast_GATA3_PSWM_in_peaks_round8_0.1.bed #45146
+intersectBed -v -a without_motifs_123456_7.bed -b mast_GATA3_PSWM_in_peaks_round8_0.1.bed > without_motifs_123456_78_0.1.bed #2159
+```
+
+**~98% peaks contain GATA3 binding motifs (require loosen MAST q-value stringency)** \
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -2178,8 +2203,18 @@ intersectBed -wa -wb -a over40peakIntens_ZNF143peaksChIP_301window.bed -b inferr
 
 -->
 
-## Motif occurence in GATA peaks
 
+## Summary of Exhaustive MEME/STREM/MAST analysis: 
+
+**MEME (classic)** found **six** GATA3 motifs within the GATA3 ChIP peak set, then further MEME report **no more** GATA3 matched motif in peaks without the 6 found motifs; \
+**STREME** found **two** GATA3 motifs in peaks without the 6 MEME found motifs. \
+**MAST** was performed using the **p-value <0.05**. However, in the last round, MAST p-value at 0.05 output **~43%** peak without GATA3 motif; loosen the p-value stringency to 0.1 report **~98%** peaks contains at least one GATA3 binding motif. \
+
+In my GATA3 peak set, GATA3 motifs are located in the central (100bp window) peak region. Increasing width, substitute the central with 50 Ns, MEME did not find GATA3 matched motif on the spanned region. \
+
+There are FOX, FOS::JUN, ZNF-like, TEAD-like, KLF-like... profiles enriched in peaks with no (not have significant MAST P-value) GATA3 motifs. \
+
+## Motif occurence in GATA peaks
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
