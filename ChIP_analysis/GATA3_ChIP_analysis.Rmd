@@ -2063,6 +2063,8 @@ did not find GATA3 matched motif on the spanned sequences. \
 
 **STREME-MAST** \
 use MAST to find peaks with the STREME-found GATA3 matched motif. \
+
+**round 7--streme**
 ```{r, engine='R', eval=F, echo=TRUE}
 #save the streme motif file as AGATAAM_streme.txt in individual_meme folder
 # Mast find peaks with motif7 (Streme)
@@ -2082,6 +2084,30 @@ module load meme/5.4.1
 streme --o GATA3_without_123456_7_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_7.fasta
 
 ```
+
+**round 8--streme**
+
+```{r, engine='R', eval=F, echo=TRUE}
+#save the streme motif file as AGATAAM_streme.txt in individual_meme folder
+# Mast find peaks with motif7 (Streme)
+mast -hit_list -best individual_meme/AGATAACA_streme.txt without_motifs_123456_7.fasta > mast_GATA3_PSWM_in_peaks_round8.txt
+Rscript /home/FCAM/ssun/scripts/parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round8.txt
+wc -l mast_GATA3_PSWM_in_peaks_round8.bed #1657
+
+# From peaks (without motif1, 2, 3, 4, 5, 6, 7), exclude peaks with motif8 (STREME)
+intersectBed -v -a without_motifs_123456_7.bed -b mast_GATA3_PSWM_in_peaks_round8.bed > without_motifs_123456_78.bed #50995
+fastaFromBed -fi $genome -bed without_motifs_123456_78.bed -fo without_motifs_123456_78.fasta
+
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7) (100bp central window)
+streme --o GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78.fasta
+
+```
+
+
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
