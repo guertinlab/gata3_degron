@@ -3432,7 +3432,7 @@ cdf plot for condition 5
 # Integrate with ChIP...
 The above activated, repressed, and matched files in bed format are going to be integrated with our ChIP exp to draw CDF plots and determine functional ChIP peaks. \
 
-
+thought: use unchanged, increased, decreased category define peaks and choose the intensity threshold for ChIP peak? \
 
 # Un-mapped reads in PRO-seq
 There are ~15% reads in this PRO-seq are not aligned to human genome. \
