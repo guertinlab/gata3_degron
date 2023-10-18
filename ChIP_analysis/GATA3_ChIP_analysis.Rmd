@@ -2214,7 +2214,9 @@ In my GATA3 peak set, GATA3 motifs are located in the central (100bp window) pea
 
 There are FOX, FOS::JUN, ZNF-like, TEAD-like, KLF-like... profiles enriched in peaks with no (not have significant MAST P-value) GATA3 motifs. \
 
-## Motif occurence in GATA peaks
+## Motif occurence in GATA peaks (keep the MAST stringency at 0.005)
+
+
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
