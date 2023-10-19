@@ -2214,9 +2214,119 @@ In my GATA3 peak set, GATA3 motifs are located in the central (100bp window) pea
 
 There are FOX, FOS::JUN, ZNF-like, TEAD-like, KLF-like... profiles enriched in peaks with no (not have significant MAST P-value) GATA3 motifs. \
 
-## Motif occurence in GATA peaks (keep the MAST stringency at 0.005)
+## Motif Occurence in GATA peaks (keep the MAST stringency at 0.005)
+**stack bar plot** \
+a bar plot showing peaks contain GATA-like motifs, and other peaks
+```{r, engine='R', eval=F, echo=TRUE}
+wc -l  *round*.bed
+   #11427 mast_GATA3_PSWM_in_peaks_round1.bed
+   #10460 mast_GATA3_PSWM_in_peaks_round2.bed
+   #5202 mast_GATA3_PSWM_in_peaks_round3.bed
+   #5665 mast_GATA3_PSWM_in_peaks_round4.bed
+   #3564 mast_GATA3_PSWM_in_peaks_round5.bed
+   #4510 mast_GATA3_PSWM_in_peaks_round6.bed
+   #8733 mast_GATA3_PSWM_in_peaks_round7.bed
+   #4452 mast_GATA3_PSWM_in_peaks_round8.bed
+#54013 total
+   
+wc -l without_motifs_123456_78.bed #42853
+wc -l /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/GATA_ChIP_summit_100window.bed #96868
+
+#"bar2.csv"
+module load R/4.1.2 
+R 
+
+library("lattice") 
+bar2=read.csv('bar2.csv')
+bar2$dum.x="peak number"
+bar2$enriched_motif<- factor(bar2$enriched_motif, levels = c("GATA3-like","others"))
+
+pdf('1019_peak_number_with_or_without_GATA3_motif_variant.pdf', width=5,height=6)
+my.settings <- list(
+  #superpose.polygon=list(col=c(colorRampPalette(c("red","pink"))(6),colorRampPalette(c("blue","light blue"))(3), "light grey"), border="transparent"),
+  superpose.polygon=list(col=c("red","light grey"), border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(peak_numbers ~ dum.x,         
+         data = bar2,
+         groups = enriched_motif,
+         stack = TRUE,
+         auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylab = "peak set within intensity quantile",
+         xlab = "number of peaks with/without GATA3 motif variant",
+         par.settings = my.settings)
+)
+dev.off()
+
+```
+
+**bar plot (group by peak intensity)**
+The fraction of peaks with MEME-found-motif 123456, as well as STREME-found motif78, in each quantile:
+```{r, engine='R', eval=F, echo=TRUE}
+module load bedtools
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_Intensity/GATA_Deseq2/"
+
+# quantile file is 1bp summit file, expanded to 100window
+
+# quantile peaks with individual motif
+for i in ${dir}*quantile*100window.bed
+do
+  nm=$(echo $i | awk -F $dir '{print $2}' | awk -F "_summits_100window.bed" '{print $1}')
+  intersectBed -wa -a $i -b ../without_motifs_123456_78.bed | sort -k1,1 -k2,2n | uniq >${nm}_without_motifs_123456_78.bed
+done
 
 
+touch quantile.1019.sum.100window.txt
+for i in *quantile*_without_motifs*.bed
+do
+ nm=$(echo $i | awk -F"_without_motifs_123456_78.bed" '{print $1}')
+ p=$(wc -l $i | awk '{OFS="\t";} {print $1}')
+ totalp=$(wc -l ${dir}${nm}_summits.bed | awk '{OFS="\t";} {print $1}')
+ withoutMotif=$(bc <<< "scale=4 ; $p / $totalp")
+ withMotif=$(bc <<< "scale=4 ; ($totalp- $p) / $totalp")
+ echo $nm "" $withoutMotif "" $withMotif>> quantile.1019.sum.100window.txt
+done
+
+module load R/4.1.2 
+R 
+
+library("lattice") 
+library("reshape2")
+
+
+df_sum=read.table('quantile.1019.sum.100window.txt', sep = "", header=FALSE)
+colnames(df_sum)=c("quantile","without_Motif","with_Motif")
+df_sum_long <- df_sum
+# row: with motif stack --10 
+# column: quantiles --20
+df_sum_long <- melt(df_sum_long, id = "quantile")
+df_sum_long$variable<- factor(df_sum_long$variable, levels = c("with_Motif", "without_Motif"))
+
+pdf('1019_percent_peaks_withorwithout_GATA3_motif_variant.pdf',width=8,height=5)
+my.settings <- list(
+  superpose.polygon=list(col=c("black", "grey"), border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(value ~ quantile,         
+         data = df_sum_long,
+         groups = variable,
+         stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylab = "peak set within intensity quantile",
+         xlab = "fraction of peaks with/without GATA3 motif variant",
+         par.settings = my.settings)
+)
+dev.off()
+```
+percent peaks with or without GATA3 motif variant 1,2,3:
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="percent peaks with or without GATA3 motif variants"}
+#library(knitr)
+knitr::include_graphics("./png_images/1019 percent peaks with or without GATA3 motif variant.png") 
+```
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
