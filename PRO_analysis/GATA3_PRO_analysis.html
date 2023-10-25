@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-10-19" />
+<meta name="date" content="2023-10-25" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-10-19</h4>
+<h4 class="date">2023-10-25</h4>
 
 </div>
 
@@ -750,8 +750,9 @@ function toggle_visibility(id1) {
 <li><a href="#gata3-degradtaion-induces-changes-of-gene-expression-level" id="toc-gata3-degradtaion-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.5</span> GATA3 degradtaion induces changes of gene expression level</a></li>
 <li><a href="#e2-treatment-induces-changes-of-gene-expression-level" id="toc-e2-treatment-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.6</span> E2 treatment induces changes of gene expression level</a></li>
 <li><a href="#bw-plot-for-gene-expression-change-under-different-condition" id="toc-bw-plot-for-gene-expression-change-under-different-condition"><span class="toc-section-number">3.7</span> bw plot for gene expression change under different condition</a></li>
-<li><a href="#call-the-interaction-term-directly-from-deseq2-results-play-around" id="toc-call-the-interaction-term-directly-from-deseq2-results-play-around"><span class="toc-section-number">3.8</span> Call the interaction term directly from DESeq2 results (play around)</a></li>
-<li><a href="#questions-how-gata3-contributes-to-er-regulated-genes" id="toc-questions-how-gata3-contributes-to-er-regulated-genes"><span class="toc-section-number">3.9</span> Questions: how GATA3 contributes to ER regulated genes?</a></li>
+<li><a href="#cdf" id="toc-cdf"><span class="toc-section-number">3.8</span> CDF</a></li>
+<li><a href="#call-the-interaction-term-directly-from-deseq2-results-play-around" id="toc-call-the-interaction-term-directly-from-deseq2-results-play-around"><span class="toc-section-number">3.9</span> Call the interaction term directly from DESeq2 results (play around)</a></li>
+<li><a href="#questions-how-gata3-contributes-to-er-regulated-genes" id="toc-questions-how-gata3-contributes-to-er-regulated-genes"><span class="toc-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes?</a></li>
 </ul></li>
 <li><a href="#integrate-with-chip-see-chip_analysis" id="toc-integrate-with-chip-see-chip_analysis"><span class="toc-section-number">4</span> Integrate with ChIP [SEE ChIP_analysis]</a></li>
 <li><a href="#un-mapped-reads-in-pro-seq" id="toc-un-mapped-reads-in-pro-seq"><span class="toc-section-number">5</span> Un-mapped reads in PRO-seq</a></li>
@@ -2648,8 +2649,101 @@ Figure 10: <span class="caption-title">ER-regulated/activated genes increase act
 </p>
 </div>
 </div>
-<div id="call-the-interaction-term-directly-from-deseq2-results-play-around" class="section level2" number="3.8">
-<h2><span class="header-section-number">3.8</span> Call the interaction term directly from DESeq2 results (play around)</h2>
+<div id="cdf" class="section level2" number="3.8">
+<h2><span class="header-section-number">3.8</span> CDF</h2>
+<p><strong>Determine if GATA3 directly regulate these ER-regulated/activated genes</strong>
+(match to reverse…)</p>
+<pre class="r"><code>load(&#39;231017_bw.Rdata&#39;)
+rev_exp=temp1
+rev_exp$treatment=&quot;reverse_expression&quot;
+rbind(rev_exp, change_exp)</code></pre>
+<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+#counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
+
+supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;E2&quot;,&quot;noE2&quot;)) # **E2 is the reference level
+supp.condition2=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;ctrl&quot;,&quot;dTAG&quot;))  
+
+
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+resultsNames(dds)
+#[1] &quot;Intercept&quot;                              
+#[2] &quot;supp.condition1_noE2_vs_E2&quot;             
+#[3] &quot;supp.condition2_dTAG_vs_ctrl&quot;           
+#[4] &quot;supp.condition1noE2.supp.condition2dTAG&quot;
+
+res_dTAG_E2 = results(dds, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;)) #comparing between dTAG vs ctrl under E2 treated reference
+sum(res_dTAG_E2$padj &lt; 0.1 &amp; !is.na(res_dTAG_E2$padj))
+#1965</code></pre>
+<pre class="r"><code>ER_activated =as.data.frame(activated)[,c(2,7)] #277
+res_dTAG_E2=as.data.frame(results(dds, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;))) #13090
+
+ER_activated_dTAG = res_dTAG_E2[rownames(res_dTAG_E2) %in% rownames(ER_activated),] #277
+sum(ER_activated_dTAG$padj &lt; 0.1 &amp; !is.na(ER_activated_dTAG$padj)) # 185
+sum(ER_activated_dTAG$padj &lt; 0.05 &amp; !is.na(ER_activated_dTAG$padj)) # 174
+
+############################### consider FDR (&lt;0.05)
+activated = ER_activated_dTAG[ER_activated_dTAG$padj &lt; 0.05 &amp; !is.na(ER_activated_dTAG$padj) &amp; ER_activated_dTAG$log2FoldChange &gt; 0,] #107
+
+unchanged
+
+
+repressed= ER_activated_dTAG[ER_activated_dTAG$padj &lt; 0.05 &amp; !is.na(ER_activated_dTAG$padj) &amp; ER_activated_dTAG$log2FoldChange &lt; 0,] # 67
+
+activated$treatment = &quot;Activated*&quot;
+repressed$treatment = &quot;Repressed*&quot;
+
+sig_ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #174</code></pre>
+<pre class="r"><code># activated
+activated = res1[res1$padj &lt; 0.01 &amp; !is.na(res1$padj) &amp; res1$log2FoldChange &gt; 0,]
+activated.strand = merge(cbind(tighten_summit_window(activated), &quot;Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  # &quot;chr&quot; &quot;start&quot; &quot;end&quot; &quot;gene&quot; &quot;Activated&quot; &quot;strand&quot;
+write.table(activated.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_activated_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+  
+# unchanged Matched to Activated
+unchanged = res1[!is.na(res1$padj) &amp; res1$padj &gt; 0.1 &amp; abs(res1$log2FoldChange) &lt; 0.015,]
+
+unchanged$treatment = 0
+activated$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, activated)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+        #Warning message:
+        #Fewer control units than treated units; not all treated units will get a match.
+        #unchanged has 655 genes, activated has 893 genes. Change log2FoldChange cutoff for unchanged gene (from 0.01) to 0.015, which increase the number of unchanged genes to 960. Now we have enough unchanged to match with the activated genes.
+
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Activated&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_activated_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Up&quot;
+activated$treatment = &quot;Up&quot;
+df.x = rbind(activated, unchanged)
+
+
+# repressed
+repressed = res1[res1$padj &lt; 0.01 &amp; !is.na(res1$padj) &amp; res1$log2FoldChange &lt; 0,] #726
+repressed.strand = merge(cbind(tighten_summit_window(repressed), &quot;Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]  
+write.table(repressed.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+ 
+
+# unchanged Matched to repressed 
+unchanged = res1[!is.na(res1$padj) &amp; res1$padj &gt; 0.1 &amp; abs(res1$log2FoldChange) &lt; 0.015,]
+unchanged$treatment = 0
+repressed$treatment = 1
+df.deseq.effects.lattice = rbind(unchanged, repressed)
+out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = &quot;optimal&quot;, ratio = 1)
+        
+        
+unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+unchanged.strand = merge(cbind(tighten_summit_window(unchanged), &quot;Matched to Repressed&quot;), inferred.coords, by.x = &quot;gene&quot;, by.y = &quot;V4&quot;)[,c(2, 3, 4, 1, 5, 10)]   
+write.table(unchanged.strand, file = &#39;dTAGV1_NoE2_vs_control_NoE2_repressed_matched_genes.bed&#39;, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = &#39;\t&#39;)
+unchanged$treatment = &quot;Matched to Down&quot;
+repressed$treatment = &quot;Down&quot;
+df.x = rbind(df.x, unchanged)
+df.x = rbind(df.x, repressed)</code></pre>
+</div>
+<div id="call-the-interaction-term-directly-from-deseq2-results-play-around" class="section level2" number="3.9">
+<h2><span class="header-section-number">3.9</span> Call the interaction term directly from DESeq2 results (play around)</h2>
 <p>By changing the reference level in setting up conditions, or utilize the interaction term implied inside, one can easily call different DESeq2 results to address different questions<br />
 </p>
 <pre class="r"><code>#inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
@@ -2727,8 +2821,12 @@ sum(res3$padj &lt; 0.05 &amp; !is.na(res3$padj))
 sum(res3$padj &lt; 0.01 &amp; !is.na(res3$padj))
 #18</code></pre>
 </div>
-<div id="questions-how-gata3-contributes-to-er-regulated-genes" class="section level2" number="3.9">
-<h2><span class="header-section-number">3.9</span> Questions: how GATA3 contributes to ER regulated genes?</h2>
+<div id="questions-how-gata3-contributes-to-er-regulated-genes" class="section level2" number="3.10">
+<h2><span class="header-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes?</h2>
+<p>Some possibilities:<br />
+If GATA3 directly regulate ER-activated genes:</p>
+<p>GATA3 it self or its co-activator is activating some genes, so lose GATA3 will cause gene decrease activation/lose activation(become repress); GATA3 is able to recruit some co-activator</p>
+<p>GATA3 indirectly regulate ER-activated genes:</p>
 <!--
 **+/-E2 and +/-dTAG (4-factor) effects on ER-activated genes** \
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "+/- E2 genes + dTAG treatment". \
@@ -3989,7 +4087,7 @@ cdf plot for condition 5
 <p>There are ~15% reads in this PRO-seq are not aligned to human genome.<br />
 </p>
 <p><strong>Are these un-mapped reads short sequences?</strong><br />
-We first use <code>samtools</code> to convert mapped (<code>-f 0x42</code>) and un-mapped(<code>-F 0X42</code>) reads to .fastq format, then use <code>fastqc</code> to get information about sequence length distribution.<br />
+We first use <code>samtools</code> to convert mapped (<code>-f 0x42</code>) and un-mapped(<code>-F 0X82</code>) reads to .fastq format, then use <code>fastqc</code> to get information about sequence length distribution.<br />
 other useful command: <code>samtools flagstat</code><br />
 </p>
 <pre class="r"><code>#cd /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam
@@ -4000,9 +4098,9 @@ for i in *.bam
 do
   name=$(echo $i | awk -F&quot;.bam&quot; &#39;{print $1}&#39;)
   echo $name
-  samtools fastq -f 0x42 $i &gt; ${name}_mapped.fastq
+  samtools fastq -f 0x42 $i &gt; ${name}_mapped.fastq # read mapped in proper pair;  first in pair
   echo &quot;complete converting mapped reads to fastq&quot;
-  samtools fastq -F 0x42 $i &gt; ${name}_unmapped.fastq
+  samtools fastq -F 0x82 $i &gt; ${name}_unmapped.fastq # the opposite of (read mapped in proper pair;  second in pair)
   echo &quot;complete converting un-mapped reads to fastq&quot;
 done
 
@@ -4011,11 +4109,11 @@ for i in *.bam
 do
   name=$(echo $i | awk -F&quot;.bam&quot; &#39;{print $1}&#39;)
   echo $name
-  samtools fasta -F 0x42 $i &gt; ${name}_unmapped.fasta
+  samtools fasta -F 0x82 $i &gt; ${name}_unmapped.fasta
   echo &quot;complete converting un-mapped reads to fasta&quot;
 done
 
-# I think samtools flag 0x42 (first in pair) are only reporting half of the reads (only PE1 or only PE2);
+# samtools flag 0x42 (first in pair) are only reporting half of the reads (only PE1);
 # it is half of the reads compared to using flag 0X3 (reads in pair)
 
 # fastqc
@@ -4033,6 +4131,11 @@ do
   fastqc $i
   echo &quot;fastqc complete&quot;
 done</code></pre>
+<p>A HEK cell PRO-seq control:<br />
+</p>
+<pre class="r"><code>#HEK_CloneZD29_30min_control_rep2.bam
+#HEK_CloneZD29_30min_control_rep2_mapped.fasta
+#HEK_CloneZD29_30min_control_rep2_unmapped.fasta</code></pre>
 <p>coherence check<br />
 </p>
 <pre class="r"><code>#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
@@ -4046,17 +4149,20 @@ wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq #61265800
 wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq #22071592
 
 # (61265800 + 22071592) * 2 = 166674784</code></pre>
-<p><strong>fatsqc results</strong><br />
-Sequence Length Distribution: for mapped reads: sequence length mostly enriched for 39bp (warninbg by fastqc); for unmapped reads: sequence length mostly enriched for 31bp (warning by fastqc).<br />
+<p><strong>fastqc results</strong><br />
+Sequence Length Distribution: for mapped reads (PE1): sequence length mostly enriched for 39bp (warning by fastqc); for unmapped reads: sequence length mostly enriched for 39bp (warning by fastqc).<br />
 This module will raise a warning if all sequences are not the same length.<br />
-Adapter Content: for mapped reads: no adapter found; for unmapped reads: Illumina Small RNA 3’ Adapter found ~10% of reads.<br />
 </p>
-<p>**Take <code>MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped</code> sample as an example to do some deep dignosis:<br />
+<p>**Take <code>MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta</code> sample as an example to do some deep dignosis:<br />
 </p>
-<pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #144134
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
-<p>Un-mapped reads are mostly just duplicated adapter sequences? why these are not been trimed off on the first place (different sequences than the adapter?)<br />
-I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before <code>cutadapt</code>, and trimmed after <code>cutadapt</code>. However, <strong>PE1 sequences somehow has some sequences with the reverse-compliment of PE2 adapter</strong>. We did not trim these off and these sequences are carried on to next steps.<br />
+<pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+#cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l # 0 #reverse complement
+
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 1418
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0</code></pre>
+<p>I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before <code>cutadapt</code>, and trimmed after <code>cutadapt</code>. However, <strong>PE1 sequences somehow has some sequences with the reverse-compliment of PE adapter</strong>. We did not trim these off and these sequences are carried on to next steps.<br />
 </p>
 <pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 17974170
 #cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0
@@ -4079,24 +4185,43 @@ cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG test.fastq -o test_noadap.fastq --t
 
 cat test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
 cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
-<p>There are ~0.5% reads in the unmapped reads are short sequences that contains 3’ adapter “TGGAATTCTCGGGTGCCAAGG” that were not been trimmed by <code>cutadapt</code>, as well as three other sequences that were duplicated a lot in the un-mapped reads: “CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT”; “GATCATGGTATCTCCCCTGCCAGGTAAGTAT’ and”TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT”. The three sequences has no hit for known adapters.<br />
+<p>There are ~6% reads in the unmapped reads contains “CGAGAATTCCA” short sequences that are part of the reverse complement of PE1 adapter.<br />
 </p>
-<pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | wc -l
-22071592
+<pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CGAGAATTCCA | wc -l  #417849
+# wc -l MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq # 29163380 /4 =7290845
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGA | wc -l  #177776</code></pre>
+<p><strong>Parse file and BLAST on web</strong></p>
+<pre class="r"><code>awk -v size=25000 -v pre=30min_control_NoE2_rep1_unmapped -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta
 
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep GATCATGGTATCTCCCCTGCCAGGTAAGTAT | wc -l
-9223
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TTTTTTTTTTTTTTTTTTTTTTT | wc -l
-19479
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep CTTGATCTTAGCCAAAAGGCCGAGAAGCGAT | wc -l
-10792
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l
-144134</code></pre>
-<p><strong>Blast un-mapped reads</strong><br />
-having hard time install in linux, instead run on locally following instructions here: <a href="https://www.blaststation.com/intl/members/en/howtoblastmac.html" class="uri">https://www.blaststation.com/intl/members/en/howtoblastmac.html</a><br />
+awk -v size=2000 -v pre=test1 -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; 30min_control_NoE2_rep1_unmapped.00001</code></pre>
+<p><strong>Standalone BLAST Setup</strong>
+Install BLAST+ locally following instructions here: <a href="https://www.ncbi.nlm.nih.gov/books/NBK52640/" class="uri">https://www.ncbi.nlm.nih.gov/books/NBK52640/</a><br />
 NCBI database:<a href="https://ftp.ncbi.nlm.nih.gov/blast/db/" class="uri">https://ftp.ncbi.nlm.nih.gov/blast/db/</a><br />
 </p>
-<ol style="list-style-type: decimal">
+<pre class="r"><code># https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/
+# ncbi-blast-2.14.1+-x64-macosx.tar
+export PATH=$PATH:$HOME/ncbi-blast-2.14.1+/bin
+echo $PATH
+mkdir blastdb
+cd blastdb 
+#cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+perl ../bin/update_blastdb.pl --passive --decompress nt #nt.gz nucleotide sequence database</code></pre>
+<p><strong>Blast un-mapped reads</strong><br />
+1) Blast to full nt database<br />
+</p>
+<pre class="r"><code>num=( {000..114} )
+for i in $num
+do
+ db=&quot;nt.&quot;$i
+ blastn -query /Users/ssun/Desktop/unmapped_fasta/MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta -db $db -out /Users/ssun/Desktop/unmapped_fasta/blast/Blast_nt.${i}_MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.html -html
+done</code></pre>
+<ol start="2" style="list-style-type: decimal">
 <li>Blast to env_nt.00<br />
 </li>
 </ol>
@@ -4106,7 +4231,7 @@ blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db env
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html | grep subunit &gt; MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapp_blast_env_nt.00.summary.txt</code></pre>
 <p>~13% (707856/5517898) are “subunit ribosomal RNA gene, partial sequence”.<br />
 </p>
-<ol start="2" style="list-style-type: decimal">
+<ol start="3" style="list-style-type: decimal">
 <li>Blast to mito.tar.gz<br />
 </li>
 </ol>
@@ -4114,7 +4239,7 @@ cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html | grep subunit &gt
 blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db mito -out mito_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html</code></pre>
 <p>no hit for mitochondrial DNA.<br />
 </p>
-<ol start="3" style="list-style-type: decimal">
+<ol start="4" style="list-style-type: decimal">
 <li>Blast to nt_prok.00.tar.gz<br />
 </li>
 </ol>
@@ -4122,7 +4247,7 @@ blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db mit
 blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db nt_prok.00 -out nt_prok.00_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html</code></pre>
 <p>Beta proteobacterium<br />
 </p>
-<ol start="4" style="list-style-type: decimal">
+<ol start="5" style="list-style-type: decimal">
 <li>Blast to nt_viruses.00.tar<br />
 </li>
 </ol>
