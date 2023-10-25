@@ -570,6 +570,7 @@ We use `Macs3 callpeaks` to identify TF binding sites. It takes the treatment fi
 `-g/--gsize` is the mappable genome size or effective genome size. The actual mappable genome size is ~70% to 90% of the genome size due to the repetitive features on the chromosomes. Here we use the default hs --2.7e9 (for human genome). \
 `-q/--qvalue` is the FDR cutoff to call signidicant regions. \
 
+**GATA peaks**
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 #SBATCH --job-name=GATA_chip_peak_calling.sh    
@@ -594,6 +595,64 @@ macs3 callpeak --call-summits -t ${directory}*_GATA_CC*sorted.bam -c ${directory
 
 #wc -l GATA_ChIP_summits.bed
 #99289 
+```
+
+**CTCF peaks**
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=CTCF_chip_peak_calling.sh    
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=68G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o CTCFchip_peak_calling.sh_%j.out
+#SBATCH -e CTCFchip_peak_calling.sh_%j.err
+
+hostname
+module load macs3
+
+mkdir temp_macs
+directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/sorted.bam_final/
+# CTCF_CC against IgG
+macs3 callpeak --call-summits -t ${directory}*_CTCF_CC*sorted.bam -c ${directory}*IgG*sorted.bam -n CTCF_ChIP -g hs -q 0.01 --keep-dup all -f BAMPE --nomodel --tempdir temp_macs
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=remove_peak.sh     
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o remove_peak.sh_%j.out
+#SBATCH -e remove_peak.sh_%j.err
+module load deeptools/3.5.0
+module load bedtools
+wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+gunzip hg38-blacklist.v2.bed.gz
+blacklist=hg38-blacklist.v2.bed
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+
+for i in *_summits.bed
+do
+	name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_summits.bed" '{print $1}')
+	echo $name
+	grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a - -b $blacklist > ${name}_summits_final.bed
+	slopBed -b 50 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_100window.bed
+  slopBed -b 200 -i ${name}_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > ${name}_summit_400window.bed
+done
+
+#wc -l CTCF_ChIP_summit_100window.bed
+#94738
 ```
 <!--
 ```{r engine='bash', eval=F, echo=TRUE}
@@ -1699,6 +1758,28 @@ library(knitr)
 knitr::include_graphics("./GATA_ChIP_top2000_meme_test/logo1.png") 
 ```
 
+**CTCF peaks**
+```{r engine='bash', eval=F, echo=TRUE}
+module load deeptools/3.5.0
+module load meme/5.4.1
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/CTCF_peak/
+
+#CTCF_ChIP_summit_100window.bed
+name=CTCF_ChIP
+
+# Just did the top 2000 GATA peaks to make it faster
+sort -nrk5,5 ${dir}${name}_summit_100window.bed | head -n 2000 > ${name}_top2000_summit_100window.bed
+name=${name}_top2000
+fastaFromBed -fi $genome -bed ${name}_summit_100window.bed -fo ${name}_summit_100window.fasta
+# MEME
+meme -p 32 -oc ${name}_meme_test -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 25 -revcomp -dna -markov_order 3 -maxsize 100000000 ${name}_summit_100window.fasta 
+```
+
+The top enriched motif for top 2000 CTCF peaks match to CTCF. \
+
 ## Exhaustive MEME -MAST for GATA3
 In the previous steps when running MEME-classic, we employ `-markov_order 3` in the command, which generate the markov model from input file. Taking into consideration that our GATA binding motifs are short (can be 4mer GATA or 3mer GAT), we might want to generate the markov model from genome to avoid a lot of 3mers 4 mers being canceled out as background. \
 
@@ -2014,12 +2095,40 @@ meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output -nmotif
 
 No GATA-matched motif seen for the top motif \
 
-**[RUNNING]** increase number of motifs MEME discover: \
+Increase number of motifs MEME discover no GATA3-like motifs: \
 ```{r, engine='R', eval=F, echo=TRUE}
 # MEME-classic
 meme -p 40 -oc GATA3_without_motif123456_500bpwindow_top10000_NNN_output1 -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_500bpwindow_top10000_NNN.fasta
 ```
 
+3) try 200bp window size
+```{r, engine='R', eval=F, echo=TRUE}
+#make wider window
+slopBed -b 50 -i without_motifs_123456.bed -g $sizes > without_motifs_123456_200bpwindow.bed
+
+# select top 10000
+sort -nrk5,5 without_motifs_123456_200bpwindow.bed | head -n 10000 > without_motifs_123456_200bpwindow_top10000.bed
+fastaFromBed -fi $genome -bed  without_motifs_123456_200bpwindow_top10000.bed -fo  without_motifs_123456_200bpwindow_top10000.fasta
+
+# replace the central 100bp with 50Ns (the number of N is not important, as long as it is greater than the max motif width)
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_200bpwindow_top10000.fasta > without_motifs_123456_200bpwindow_top10000_NNN.fasta
+
+cat  without_motifs_123456_200bpwindow_top10000.fasta | head -8
+cat  without_motifs_123456_200bpwindow_top10000_NNN.fasta | head -8
+```
+
+check to see if there are GATA motifs on the 100bp window flanks. \
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif123456_200bpwindow_top10000_NNN_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_200bpwindow_top10000_NNN.fasta
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# MEME-classic
+meme -p 64 -oc GATA3_without_motif123456_200bpwindow_top10000_NNN_output1 -nmotifs 3 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 100000000 without_motifs_123456_200bpwindow_top10000_NNN.fasta
+```
+
+did not find GATA3-like motif on the flank. \
 
 **57.85% peaks do not contain GATA3 binding motifs reported by MEME-classic de novo motif analysis**
 
@@ -2048,6 +2157,10 @@ awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNN
 #500window flank with central 100bp substituted with 50 Ns. 
 fastaFromBed -fi $genome -bed  without_motifs_123456_500bpwindow.bed -fo  without_motifs_123456_500bpwindow.fasta
 awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_500bpwindow.fasta > without_motifs_123456_500bpwindow_NNN.fasta
+
+#200window flank with central 100bp substituted with 50 Ns. 
+fastaFromBed -fi $genome -bed  without_motifs_123456_200bpwindow.bed -fo  without_motifs_123456_200bpwindow.fasta
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_200bpwindow.fasta > without_motifs_123456_200bpwindow_NNN.fasta
 ```
 
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -2057,9 +2170,12 @@ streme --o GATA3_without_123456_300bp_NNN_streme_output --nmotifs 10 --objfun de
 
 # perform STREME on peaks (without motif 1,2,3,4,5,6) (500bp window without central)
 streme --o GATA3_without_123456_500bp_NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_500bpwindow_NNN.fasta
+
+# perform STREME on peaks (without motif 1,2,3,4,5,6) (200bp window without central)
+streme --o GATA3_without_123456_200bp_NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p l
 ```
 
-did not find GATA3 matched motif on the spanned sequences. \
+For 300bp nd 500bp, did not find GATA3 matched motif on the spanned sequences. For 200bp, found GATA3 liked motif. \
 
 **STREME-MAST** \
 use MAST to find peaks with the STREME-found GATA3 matched motif. \
@@ -2110,7 +2226,22 @@ streme --oc GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfi
 
 At this point, STREME also did not find any more GATA3 matched motif. \
 
-**43.2% peaks do not contain GATA3 binding motifs reported by both MEME-classic and STREME** \
+**round 8--streme-increase width** \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#200window flank with central 100bp substituted with 50 Ns. 
+slopBed -b 50 -i without_motifs_123456_78.bed -g $sizes > without_motifs_123456_78_200bpwindow.bed
+fastaFromBed -fi $genome -bed  without_motifs_123456_78_200bpwindow.bed -fo  without_motifs_123456_78_200bpwindow.fasta
+awk '!/^>/ { mid = int(length($0) / 2); $0 = substr($0, 1, mid - 50) "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN" substr($0, mid + 51); } 1' without_motifs_123456_78_200bpwindow.fasta > without_motifs_123456_78_200bpwindow_NNN.fasta
+
+module load meme/5.4.1
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7) (100bp central window)
+streme --oc GATA3_without_123456_78_200bp_NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78_200bpwindow_NNN.fasta
+```
+
+The spanned region do not have GATA3-like motifs. \
+
+**44.2% peaks do not contain GATA3 binding motifs reported by both MEME-classic and STREME** \
 
 I also looked top ranked sequences (1000) trying to eye-spot some `GATA`. \
 
