@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-10-25" />
+<meta name="date" content="2023-10-27" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-10-25</h4>
+<h4 class="date">2023-10-27</h4>
 
 </div>
 
@@ -755,7 +755,12 @@ function toggle_visibility(id1) {
 <li><a href="#questions-how-gata3-contributes-to-er-regulated-genes" id="toc-questions-how-gata3-contributes-to-er-regulated-genes"><span class="toc-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes?</a></li>
 </ul></li>
 <li><a href="#integrate-with-chip-see-chip_analysis" id="toc-integrate-with-chip-see-chip_analysis"><span class="toc-section-number">4</span> Integrate with ChIP [SEE ChIP_analysis]</a></li>
-<li><a href="#un-mapped-reads-in-pro-seq" id="toc-un-mapped-reads-in-pro-seq"><span class="toc-section-number">5</span> Un-mapped reads in PRO-seq</a></li>
+<li><a href="#un-mapped-reads-in-pro-seq" id="toc-un-mapped-reads-in-pro-seq"><span class="toc-section-number">5</span> Un-mapped reads in PRO-seq</a>
+<ul>
+<li><a href="#blast-to-nt" id="toc-blast-to-nt"><span class="toc-section-number">5.1</span> BLAST to nt</a></li>
+<li><a href="#summarize-blast-results-by-parsing-output-file" id="toc-summarize-blast-results-by-parsing-output-file"><span class="toc-section-number">5.2</span> Summarize BLAST results by parsing output file</a></li>
+<li><a href="#blast-other-databases" id="toc-blast-other-databases"><span class="toc-section-number">5.3</span> BLAST other databases</a></li>
+</ul></li>
 </ul>
 </div>
 
@@ -4131,11 +4136,6 @@ do
   fastqc $i
   echo &quot;fastqc complete&quot;
 done</code></pre>
-<p>A HEK cell PRO-seq control:<br />
-</p>
-<pre class="r"><code>#HEK_CloneZD29_30min_control_rep2.bam
-#HEK_CloneZD29_30min_control_rep2_mapped.fasta
-#HEK_CloneZD29_30min_control_rep2_unmapped.fasta</code></pre>
 <p>coherence check<br />
 </p>
 <pre class="r"><code>#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
@@ -4190,6 +4190,8 @@ cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0</code></pre>
 <pre class="r"><code>cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CGAGAATTCCA | wc -l  #417849
 # wc -l MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq # 29163380 /4 =7290845
 cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGA | wc -l  #177776</code></pre>
+<div id="blast-to-nt" class="section level2" number="5.1">
+<h2><span class="header-section-number">5.1</span> BLAST to nt</h2>
 <p><strong>Parse file and BLAST on web</strong></p>
 <pre class="r"><code>awk -v size=25000 -v pre=30min_control_NoE2_rep1_unmapped -v pad=5 &#39;
    /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
@@ -4215,12 +4217,103 @@ perl ../bin/update_blastdb.pl --passive --decompress nt #nt.gz nucleotide sequen
 <p><strong>Blast un-mapped reads</strong><br />
 1) Blast to full nt database<br />
 </p>
-<pre class="r"><code>num=( {000..114} )
+<pre class="r"><code>#num=( {000..114} )
+#for i in $num
+#do
+# db=&quot;nt.&quot;$i
+# blastn -query /Users/ssun/Desktop/unmapped_fasta/MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta -db $db -out /Users/ssun/Desktop/unmapped_fasta/blast/Blast_nt.${i}_MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.html -html
+#done
+
+# blast to individual nt db (114) saves some time
+num=( {000..114} )
 for i in $num
 do
  db=&quot;nt.&quot;$i
- blastn -query /Users/ssun/Desktop/unmapped_fasta/MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta -db $db -out /Users/ssun/Desktop/unmapped_fasta/blast/Blast_nt.${i}_MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.html -html
-done</code></pre>
+ blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.00001 -db $db -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_1/Blast_nt.${i}_test2.00001.html -html
+ echo $db &quot; complete&quot; 
+done
+
+num=( {000..114} )
+for i in $num
+do
+ db=&quot;nt.&quot;$i
+ blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1.16001 -db $db -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_2/Blast_nt.${i}_test1.16001.html -html
+ echo $db &quot; complete&quot; 
+done
+
+#try blast the entire nt database with 2000 random peaks (around 4 hrs) per file
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.00001.txt #1901 no hit
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.02001.txt # -outfmt 18 # outfmt 18 gives Organism Report
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.04001.txt #-outfmt 18
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.06001.txt #-outfmt 18
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.08001.txt #-outfmt 18
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.10001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.10001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.12001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.12001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.14001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.14001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.16001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.16001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.18001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.18001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.20001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.20001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.22001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.22001.txt
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.24001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.24001.txt</code></pre>
+<p>A HEK cell PRO-seq control:<br />
+</p>
+<pre class="r"><code>#HEK_CloneZD29_30min_control_rep2.bam
+#HEK_CloneZD29_30min_control_rep2_mapped.fasta
+#HEK_CloneZD29_30min_control_rep2_unmapped.fasta
+
+awk -v size=2000 -v pre=HEK -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; HEK_CloneZD29_30min_control_rep2_unmapped.fasta
+
+#use HEK.16001 as a sample (2000 sequences)
+#cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+num=( {000..114} )
+for i in $num
+do
+ db=&quot;nt.&quot;$i
+ blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.16001 -db $db -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK/Blast_nt.${i}_HEK.16001.html -html
+ echo $db &quot; complete&quot; 
+done
+
+
+num=( {000..114} )
+for i in $num
+do
+ db=&quot;nt.&quot;$i
+ blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.138001 -db $db -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_2/Blast_nt.${i}_HEK.138001.html -html
+ echo $db &quot; complete&quot; 
+done
+
+#try blast the entire nt database with 2000 random peaks (around 4 hrs) per file 
+cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt 
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.02001.txt 
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.04001.txt 
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.06001.txt 
+
+blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.08001.txt </code></pre>
+</div>
+<div id="summarize-blast-results-by-parsing-output-file" class="section level2" number="5.2">
+<h2><span class="header-section-number">5.2</span> Summarize BLAST results by parsing output file</h2>
+</div>
+<div id="blast-other-databases" class="section level2" number="5.3">
+<h2><span class="header-section-number">5.3</span> BLAST other databases</h2>
 <ol start="2" style="list-style-type: decimal">
 <li>Blast to env_nt.00<br />
 </li>
@@ -4229,7 +4322,7 @@ done</code></pre>
 blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db env_nt.00 -out MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html -html
 
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.html | grep subunit &gt; MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapp_blast_env_nt.00.summary.txt</code></pre>
-<p>~13% (707856/5517898) are “subunit ribosomal RNA gene, partial sequence”.<br />
+<p>“subunit ribosomal RNA gene, partial sequence”.<br />
 </p>
 <ol start="3" style="list-style-type: decimal">
 <li>Blast to mito.tar.gz<br />
@@ -4295,6 +4388,7 @@ makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqi
 
 
 -->
+</div>
 </div>
 
 
