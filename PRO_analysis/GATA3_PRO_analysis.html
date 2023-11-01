@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-10-27" />
+<meta name="date" content="2023-11-01" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-10-27</h4>
+<h4 class="date">2023-11-01</h4>
 
 </div>
 
@@ -4242,31 +4242,126 @@ do
 done
 
 #try blast the entire nt database with 2000 random peaks (around 4 hrs) per file
+#if not specify -task blasn then the default will run megablast
 blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.00001.txt #1901 no hit
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.02001.txt # -outfmt 18 # outfmt 18 gives Organism Report
+#2000 blastn
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.04001.txt #-outfmt 18
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.24001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.24001.txt
+#BLAST Database error: Cannot memory map /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb/nt.048.nhr. Number of files opened: 251
+#Critical: Failed to initialize SSL provider MBEDTLS: Unknown
+#Critical: (318.10) Failed to initialize SSL: Unknown
+#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.24001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.24001_OR.txt -outfmt 18 #Organism Report
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.06001.txt #-outfmt 18
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.08001.txt #-outfmt 18
+#500 blastn set1 (test2.00001)
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00001.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.10001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.10001.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.12001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.12001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00501.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.14001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.14001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.test2-500.01001.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.16001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.16001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.01501.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.18001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.18001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00001_OR.txt -outfmt 18 #Organism Report
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.20001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.20001.txt
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.22001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.22001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00501_OR.txt -outfmt 18 #Organism Report
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2.24001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.24001.txt</code></pre>
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.test2-500.01001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.01501_OR.txt -outfmt 18 #Organism Report
+
+
+#500 blastn set2 (test2.10001)
+awk -v size=500 -v pre=test2_10001 -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; test2.10001
+
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.00001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.00501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.01001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.01501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.00001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.00501_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.01001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2_10001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2_10001.01501_OR.txt -outfmt 18 #Organism Report
+
+#500 blastn set3 (test1.00001)
+awk -v size=500 -v pre=test1_00001 -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; test1.00001
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.00001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.00501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.01001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.01501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.00001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.00501_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.01001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_00001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_00001.01501_OR.txt -outfmt 18 #Organism Report
+
+#500 blastn set4 (test1.06001)
+awk -v size=500 -v pre=test1_06001 -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; test1.06001
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.00001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.00501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.01001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.01501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.00001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.00501_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.01001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_06001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_06001.01501_OR.txt -outfmt 18 #Organism Report
+
+#500 blastn set5 (test1.08001)
+awk -v size=500 -v pre=test1_08001 -v pad=5 &#39;
+   /^&gt;/ { n++; if (n % size == 1) { close(fname); fname = sprintf(&quot;%s.%0&quot; pad &quot;d&quot;, pre, n ) } }
+   { print &gt;&gt; fname }
+&#39; test1.08001
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.00001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.00501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.01001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.01501.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.00001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.00501_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.01001_OR.txt -outfmt 18 #Organism Report
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1_08001.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test1_08001.01501_OR.txt -outfmt 18 #Organism Report</code></pre>
 <p>A HEK cell PRO-seq control:<br />
 </p>
 <pre class="r"><code>#HEK_CloneZD29_30min_control_rep2.bam
@@ -4297,20 +4392,98 @@ do
  echo $db &quot; complete&quot; 
 done
 
-#try blast the entire nt database with 2000 random peaks (around 4 hrs) per file 
+#try blast the entire nt database with 2000 random peaks (around 4 hrs for megablast) per file 
 cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt 
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt 
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.02001.txt 
+#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.02001.txt 
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.04001.txt 
+#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.04001.txt 
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.06001.txt 
+#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.06001.txt 
 
-blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.08001.txt </code></pre>
+#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.08001.txt </code></pre>
 </div>
 <div id="summarize-blast-results-by-parsing-output-file" class="section level2" number="5.2">
 <h2><span class="header-section-number">5.2</span> Summarize BLAST results by parsing output file</h2>
+<pre class="r"><code># megablast
+for i in *.txt
+do
+cat $i | grep &quot;No hits found&quot; | wc -l
+echo $i
+for&gt; done
+    1901
+Blast_nt.all_test2.00001.txt
+    1896
+Blast_nt.all_test2.02001.txt
+    1892
+Blast_nt.all_test2.04001.txt
+    1903
+Blast_nt.all_test2.06001.txt
+    1923
+Blast_nt.all_test2.08001.txt
+    1875
+Blast_nt.all_test2.10001.txt
+    1898
+Blast_nt.all_test2.12001.txt
+    1905
+Blast_nt.all_test2.14001.txt
+    1899
+Blast_nt.all_test2.16001.txt
+    1903
+Blast_nt.all_test2.18001.txt
+    1887
+Blast_nt.all_test2.20001.txt
+    1896
+Blast_nt.all_test2.22001.txt
+     946
+Blast_nt.all_test2.24001.txt
+
+#blastn
+for i in *500*
+do
+cat $i | grep &quot;No hits found&quot; | wc -l
+echo $i
+done
+
+Blast_nt.all_test2-500.00001.txt #60
+Blast_nt.all_test2-500.00501.txt #50
+Blast_nt.all_test2-500.01501.txt #43
+Blast_nt.all_test2.test2-500.01001.txt #52</code></pre>
+<pre class="r"><code>#cat Blast_nt.all_test2-500.00001.txt Blast_nt.all_test2-500.00501.txt Blast_nt.all_test2-500.01501.txt Blast_nt.all_test2.test2-500.01001.txt &gt; Blast_MCF7_nt.all_test2.00001_2000.txt
+
+#cat Blast_MCF7_nt.all_test2.00001_2000.txt| grep &quot;No hits found&quot; | wc -l
+     #205
+
+#sed -n &quot;/\s${line}/w target_${line}.txt&quot; targets.txt
+#awk &#39;/keyword/&#39; RS=&quot;\n\n&quot; ORS=&quot;\n\n&quot; input.txt
+#awk &#39;/homo sapiens/&#39; RS=&quot;Query=&quot; ORS=&quot;&quot; Blast_MCF7_nt.all_test2.00001_2000.txt &gt; Blast_MCF7_nt.all_test2.00001_2000_human.txt #[took too long to run--terminate]
+#cat Blast_MCF7_nt.all_test2.00001_2000_human.txt | grep &quot;Effective search space used&quot; | wc -l 
+
+#awk &#39;/bacteri/&#39; RS=&quot;Query=&quot; ORS=&quot;&quot; Blast_MCF7_nt.all_test2.00001_2000.txt &gt; Blast_MCF7_nt.all_test2.00001_2000_bacteri.txt
+#cat Blast_MCF7_nt.all_test2.00001_2000_bacteri.txt | grep &quot;Effective search space used&quot; | wc -l
+
+#coherence check
+cat *OR.txt | grep &quot;Tax BLAST report&quot; | wc -l #10000</code></pre>
+<pre class="r"><code>#Split the file into multiple files at every occurrence of the pattern &quot;Tax BLAST report&quot; .
+awk &#39;/Tax BLAST report/{x=&quot;F&quot;++i;}{print &gt; x;}&#39; file2
+grep -rl &quot;Homo sapiens&quot; &quot;/usr/share&quot;
+
+
+
+# print the file with
+cat *Blast_nt.all*.txt &gt; blastn_MCF7_10k.txt
+cat blastn_MCF7_10k.txt | grep &quot;Query=&quot; | wc -l
+cat blastn_MCF7_10k.txt | grep &quot;No hit found&quot; | wc -l
+
+
+cat *OR.txt &gt; blastn_MCF7_10k_OR.txt
+cat blastn_MCF7_10k_OR.txt | grep &quot;Query=&quot; | wc -l #10000
+awk &#39;/homo sapiens/&#39; RS=&quot;Tax BLAST report&quot; ORS=&quot;&quot; blastn_MCF7_10k_OR.txt &gt; blastn_MCF7_10k_OR_human.txt
+cat blastn_MCF7_10k_OR_human.txt | grep &quot;Query=&quot; | wc -l #389
+
+awk &#39;/homo sapiens/&#39; RS=&quot;Tax BLAST report&quot; ORS=&quot;&quot; blastn_MCF7_10k_OR.txt &gt; blastn_MCF7_10k_OR_human.txt
+cat blastn_MCF7_10k_OR_human.txt | grep &quot;Query=&quot; | wc -l</code></pre>
 </div>
 <div id="blast-other-databases" class="section level2" number="5.3">
 <h2><span class="header-section-number">5.3</span> BLAST other databases</h2>
