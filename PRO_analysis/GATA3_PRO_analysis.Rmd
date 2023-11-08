@@ -3548,9 +3548,10 @@ The above activated, repressed, and matched files in bed format are going to be 
 There are ~15% reads in this PRO-seq are not aligned to human genome. \
 
 **Are these un-mapped reads short sequences?** \
-We first use `samtools` to convert mapped (`-f 0x42`) and un-mapped(`-F 0X82`) reads to .fastq format, then use `fastqc` to get information about sequence length distribution. \
+We first use `samtools` to convert concordantly mapped reads (`-f 0x2`) and un-mapped(`-F 0X2`) reads to .fastq format, then use `fastqc` to get information about sequence length distribution. \
 other useful command: `samtools flagstat` \
 
+**PE1**
 ```{r engine='R', eval=F, echo=TRUE}
 #cd /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam
 
@@ -3611,60 +3612,119 @@ wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq #22071592
 
 ```
 
+**PE2**
+```{r engine='R', eval=F, echo=TRUE}
+#cd /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam
 
-**fastqc results** \
+# get mapped/unmapped reads and convert to fastq 
+module load samtools/1.16.1
+module load fastqc 
+for i in ../*.bam
+do
+  name=$(echo $i | awk -F"/" '{print $2}'| awk -F".bam" '{print $1}')
+  echo $name
+  samtools fastq -f 0x82 $i > ${name}_mapped_PE2.fastq # read mapped in proper pair;  second in pair
+  echo "complete converting mapped reads to fastq"
+  samtools fastq -F 0x42 $i > ${name}_unmapped_PE2.fastq # the opposite of (read mapped in proper pair;  first in pair)
+  echo "complete converting un-mapped reads to fastq"
+done
+
+# fastqc
+for i in *_mapped_PE2.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+
+for i in *_unmapped_PE2.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+
+
+
+
+module load samtools/1.16.1
+for i in ../*.bam
+do
+  name=$(echo $i | awk -F"/" '{print $2}'| awk -F".bam" '{print $1}')
+  echo $name
+  samtools fasta -F 0x42 $i > ${name}_unmapped_PE2.fasta
+  echo "complete converting un-mapped reads to fasta"
+done
+
+```
+
+coherence check \
+```{r engine='R', eval=F, echo=TRUE}
+#MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam
+module load samtools/1.16.1
+samtools fastq MCF7_dTAGGATAClone522_30min_control_E2_rep1.bam > MCF7_dTAGGATAClone522_30min_control_E2_rep1.fastq
+#[M::bam2fq_mainloop] discarded 0 singletons
+#[M::bam2fq_mainloop] processed 41668696 reads
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1.fastq #166674784
+
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_mapped.fastq #61265800
+wc -l MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fastq #22071592
+
+# (61265800 + 22071592) * 2 = 166674784
+
+```
+
+**fastqc results** shows that most sequences length are expected. There are short sequences exists but not dominant.\
+
 Sequence Length Distribution: for mapped reads (PE1): sequence length mostly enriched for 39bp (warning by fastqc); for unmapped reads: sequence length mostly enriched for 39bp (warning by fastqc). \
 This module will raise a warning if all sequences are not the same length. \
 
+**fastqc results** also show many overrepresented sequences in the unmapped sequences to be RPI4 and Illumina small RNA adapter 2. \ 
 
-
-**Take `MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fasta` sample as an example to do some deep dignosis: \
 ```{r engine='R', eval=F, echo=TRUE}
+# mapped reads:
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0
+
+#unmapped reads: 
 cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
 #cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l # 0 #reverse complement
 
-cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
-
 cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 1418
-cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_mapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0
+
 ```
 
-I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`, and trimmed after `cutadapt`. However, **PE1 sequences somehow has some sequences with the reverse-compliment of PE adapter**. We did not trim these off and these sequences are carried on to next steps. \
-```{r engine='R', eval=F, echo=TRUE}
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 17974170
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 0
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #2720
-
-cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 10695291
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | grep ACCTTAAGAGCCCACGGTTCC | wc -l #0
-```
-
+I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`, and trimmed after `cutadapt`. However, **PE1 sequences somehow has some sequences with reverse compliment of PE2 adapter**. We did not trim these off and these sequences are carried on to next steps. \
 
 ```{r engine='R', eval=F, echo=TRUE}
-cat ../../final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | head -n 20000000 > test.fastq
-cat test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l
-#1987892
+cat /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | head -n 20000000 > MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq
+#PE1 adapter
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #1987892
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #0. rv PE1_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #0 PE2_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #143 rv PE2_adp
 
-# we have used  -m $((UMI_length+2)) to filter any sequences that are shorter than 10
+cat /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | head -n 20000000 > MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq
+#PE2 adapter
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #1260034
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #0 rv PE2_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0 PE1_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73980. rv PE1_adp
+
+
+# we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10
 module load cutadapt/3.5
-cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG test.fastq -o test_noadap.fastq --too-short-output test_PE1_short.fastq
+cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq -o MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq --too-short-output test_PE1_short.fastq
+cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq -o MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq --too-short-output test_PE2_short.fastq
 
-# 20000000 test.fastq
-#  12608584 test_noadap.fastq
-#   7391416 test_PE1_short.fastq
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #86 rv PE2_adp
+cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73979 rv PE1_adp
 
-cat test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
-cat test_PE1_short.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l # 0
+#conclusion: cutadapt trims off the PE1 adapter from PE1.fastq, PE2 adapter from PE2.fastq, but the reverse compliment of the opposite adapter is carried on to next step
 ```
 
-
-There are ~6% reads in the unmapped reads contains "CGAGAATTCCA" short sequences that are part of the reverse complement of PE1 adapter. \
-```{r engine='R', eval=F, echo=TRUE}
-cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CGAGAATTCCA | wc -l  #417849
-# wc -l MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq # 29163380 /4 =7290845
-cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGA | wc -l  #177776
-```
 
 ## BLAST to nt
 **Parse file and BLAST on web**
@@ -3678,9 +3738,7 @@ awk -v size=2000 -v pre=test1 -v pad=5 '
    /^>/ { n++; if (n % size == 1) { close(fname); fname = sprintf("%s.%0" pad "d", pre, n ) } }
    { print >> fname }
 ' 30min_control_NoE2_rep1_unmapped.00001
-
 ```
-
 
 **Standalone BLAST Setup**
 Install BLAST+ locally following instructions here: https://www.ncbi.nlm.nih.gov/books/NBK52640/ \
@@ -3739,9 +3797,7 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2
 #500 blastn set1 (test2.00001)
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00001.txt
 
-
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00501.txt
-
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2.test2-500.01001.txt
 
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.01501 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.01501.txt
@@ -3880,15 +3936,9 @@ done
 
 #try blast the entire nt database with 2000 random peaks (around 4 hrs for megablast) per file 
 cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
-blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt 
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt
 
-#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.02001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.02001.txt 
-
-#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.04001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.04001.txt 
-
-#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.06001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.06001.txt 
-
-#blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.08001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.08001.txt 
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt -outfmt 18
 ```
 
 ## Summarize BLAST results by parsing output file
@@ -4057,9 +4107,398 @@ makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqi
 
 -->
 
+## reads with unmapped mate?
+I have some suspicions on Sam flag: Does calling "unmapped reads" use Sam Flag -F 0x82 contain some mapped reads? \
+
+```{r engine='R', eval=F, echo=TRUE}
+#bowtie2 alignment report for MCF7_dTAGGATAClone522_30min_control_NoE2_rep1
+23110803 reads; of these:
+  23110803 (100.00%) were paired; of these:
+    7290845 (31.55%) aligned concordantly 0 times.              
+    10029068 (43.40%) aligned concordantly exactly 1 time       # aligned concordantly
+    5790890 (25.06%) aligned concordantly >1 times              # aligned concordantly
+    ----
+    7290845 pairs aligned concordantly 0 times; of these:
+      293772 (4.03%) aligned discordantly 1 time                 # aligned discordantly
+    ----
+    6997073 pairs aligned 0 times concordantly or discordantly; of these:
+      13994146 mates make up the pairs; of these:
+        8518974 (60.88%) aligned 0 times                          # not aligned at all
+        2762655 (19.74%) aligned exactly 1 time.   # aligned 0 times concordantly or discordantly
+        2712517 (19.38%) aligned >1 times          # aligned 0 times concordantly or discordantly
+81.57% overall alignment rate
+
+overall alignment rate (81.57%): (10029068*2+5790890*2+293772*2+(2762655+2712517))/(23110803*2)
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+samtools view -c MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam 
+46221606 # double of 23110803, make sense because these 46221606 are single reads, but 23110803 are paired.
+
+samtools view -c -f 0x42 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam 
+15819958 # = 10029068+5790890 (concordantly aligned as pairs)
+
+samtools view -c -F 0x82 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam  # not concordantly aligned (PE1)
+7290845 # contains all reads that are 1) discordantly aligned and 2) not aligned
+samtools view -c -F 0x42 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam # not concordantly aligned (PE2)
+7290845
+samtools view -c -F 2 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam  # not concordantly aligned
+14581690
+```
+
+unmapped reads (use -F 0X2) is actually All non-concordantly aligned reads: (total - concordantly aligned) : 23110803*2-(10029068*2+5790890*2 == 7290845*2, these reads include:
+1) read 1 in one locus & read2 in completely different locus
+2) one mate aligned, the other mate not aligned 
+3) some reverse strand in one of the mate or both of the mate
+4) some combinations
+5) not align at all 
+
+```{r engine='R', eval=F, echo=TRUE}
+samtools view -b -F 2 ../MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam >MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam
+
+# 1) discordantly aligned as pairs (1061107*2)
+samtools view -f 161 -F 28 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2                #220179     
+samtools view -c -f 81 -F 44 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 reverse strand  #220179 
+
+samtools view -c -f 145  -F 44 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 reverse strand. #456826  
+samtools view -c -f 97  -F 28 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1                  #456826
+
+samtools view -c -f 177 -F 12 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 reverse strand   # 384102
+samtools view -c -f 113 -F 12 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 reverse strand
+
+# 2) read 1 in one locus & read2 in completely different locus (161935*2) --split reads
+samtools view -f 129 -F 60 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2.        #161935
+samtools view -c -f 65 -F 60 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1.         #161935
+
+
+# 3) one mate aligned, the other mate not aligned (3616632*2)
+samtools view -c -f 165 -F 24 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 un-map               # 1424033
+samtools view -c -f 89 -F 36 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 reverse but map.      # 1424033
+
+samtools view -c -f 153 -F 36 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 reverse but map.    # 489522
+samtools view -c -f 101 -F 24 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 un-map              # 489522
+
+samtools view -c -f 137 -F 52 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 map non-reverse           #207603
+samtools view -c -f 69 -F 56 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 un-map.                    #207603      
+
+samtools view -c -f 133 -F 56 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 un-map              #1495474     
+samtools view -c -f 73 -F 52 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1. map non-reverse     #1495474   
+
+#these I did not found
+#samtools view -c -F 0x2 -f 157 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE2 un-map reverse
+#samtools view -c -F 0x2 -f  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE1 un-map
+
+#samtools view -c -F 0x2 -f  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE2 un-map 
+#samtools view -c -F 0x2 -f 93 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE1 un-map reverse
+
+#samtools view -c -F 0x2 -f  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE2 un-map reverse
+#samtools view -c -F 0x2 -f  MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam #PE1 un-map reverse
+
+
+# 4) not align at all
+samtools view -c -f 141 -F 48 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE2 un-map            #2451171
+samtools view -c -f 77 -F 48 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #PE1 un-map             #2451171
+
+
+#samtools view -c -f 4 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam #don't know why, but these reads has no mate
+#8518974 #(18.43% overall not aligned reads) 
+```
+
+
+```{r engine='R', eval=F, echo=TRUE}
+samtools view -c /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam #51883566/2=25941783
+samtools view -b -F 2 /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam >HEK_CloneZD29_30min_control_rep2_nca.bam
+
+# 1) discordantly aligned as pairs (1019772*2)
+samtools view -c -f 161 -F 28 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2                #194307     
+samtools view -c -f 81 -F 44 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 reverse strand   
+
+samtools view -c -f 145  -F 44 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 reverse strand. #390244  
+samtools view -c -f 97  -F 28 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1                  
+
+samtools view -c -f 177 -F 12 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 reverse strand   # 315598
+samtools view -c -f 113 -F 12 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 reverse strand
+
+# 2) read 1 in one locus & read2 in completely different locus (119623*2) --split reads
+samtools view -c -f 129 -F 60 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2.        #119623
+samtools view -c -f 65 -F 60 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1.         
+
+
+# 3) one mate aligned, the other mate not aligned (2889566*2)
+samtools view -c -f 165 -F 24 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 un-map               # 1231697
+samtools view -c -f 89 -F 36 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 reverse but map.      
+
+samtools view -c -f 153 -F 36 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 reverse but map.    # 253886
+samtools view -c -f 101 -F 24 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 un-map              
+
+samtools view -c -f 137 -F 52 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 map non-reverse           #144496
+samtools view -c -f 69 -F 56 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 un-map.                    
+
+samtools view -c -f 133 -F 56 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 un-map              # 1259487    
+samtools view -c -f 73 -F 52 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1. map non-reverse     
+
+
+# 4) not align at all
+samtools view -c -f 141 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam #PE2 un-map            #727664
+samtools view -c -f 77 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam #PE1 un-map             
+
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+module load R/4.1.2 
+R 
+
+library("lattice") 
+bar=read.csv('unmapped_reads_bar.csv')
+bar$supp<- factor(bar$supp, levels = c("concordantly_aligned", "discordant_orientation", "split_reads"          , "only_one_mate_align", "not_align_at_all"))
+
+pdf('bar_MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.pdf', width=5,height=6)
+print(barchart(percentage ~ supp,         
+         data = bar,
+         #groups = enriched_motif,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "percentage of reads",
+         xlab = "reads categories",
+         #par.settings = my.settings)
+))
+dev.off()
+
+bar2=read.csv('HEK_unmapped_reads_bar.csv')
+bar2$supp<- factor(bar2$supp, levels = c("concordantly_aligned", "discordant_orientation", "split_reads"          , "only_one_mate_align", "not_align_at_all"))
+
+pdf('bar_HEK_CloneZD29_30min_control_rep2_unmapped.pdf', width=5,height=6)
+print(barchart(percentage ~ supp,         
+         data = bar2,
+         #groups = enriched_motif,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "percentage of reads",
+         xlab = "reads categories",
+         #par.settings = my.settings)
+))
+dev.off()
+```
+
+
+## 1106
+coherence check
+```{r engine='R', eval=F, echo=TRUE}
+module load samtools/1.16.1
+dir=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/Analysis/
+# PE1 unmap, but PE2 map (MCF7_setA)
+samtools fastq -f 153 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test1.fastq #PE2 reverse but map.# 489522
+samtools fastq -f 101 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test1.fastq #PE1 un-map  # 489522
+
+samtools fastq -f 137 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test2.fastq #PE2 map non-reverse     #207603
+samtools fastq -f 69 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq > MCF7_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq > MCF7_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (MCF7_setB)
+samtools fastq -f 165 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test3.fastq #PE2 un-map               # 1424033
+samtools fastq -f 89 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test4.fastq #PE2 un-map              #1495474     
+samtools fastq -f 73 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq > MCF7_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq > MCF7_setB_unmap_PE2.fastq
+
+# PE1 unmap, and PE2 unmap (MCF7_setC)
+samtools fastq -f 141 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE2.fastq #PE2 un-map            #2451171
+samtools fastq -f 77 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE1.fastq #PE1 un-map  
+```
+
+Now we have three sets of reads: PE1 unmap but PE2 map (MCF7_setA); PE1 map, but PE2 unmap (MCF7_setB); and PE1 unmap, and PE2 unmap (MCF7_setC). \
+We align them to genome with single-end mode. \
+
+```{r engine='R', eval=F, echo=TRUE}
+# Bowtie2 alignment -U
+# Comma-separated list of files containing unpaired reads to be aligned
+module load samtools/1.16.1
+module load bowtie2/2.5.0
+cores=32
+genome_index=/home/FCAM/ssun/Genome_pro/hg38_bt2/hg38
+
+for i in *set*.fastq
+do
+#bowtie2 -p 10 --sensitive --no-mixed -t -x my_genome -U my_File.fq.gz -S my_output.sam
+  name=$(echo $i | awk -F".fastq" '{print $1}')
+  bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index -U $i 2>${name}_bowtie2.log | samtools view -b - | \
+        samtools sort - -o ${name}.bam
+done
+
+# check if there are duplicated sequences in each set -- no
+for i in *set*.fastq
+do
+  grep "@" $i| sort | uniq -d
+  echo $i
+done
+```
+
+
+fastqc on reads that not aligned at all (MCF7_setC); fastqc on reads that one mate align but its pair not (MCF7_setA and MCF7_setB).
+
+```{r engine='R', eval=F, echo=TRUE}
+module load fastqc 
+for i in *set*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+blastn reads that not aligned at all (e-value 0.001)
+```{r engine='R', eval=F, echo=TRUE}
+#module load samtools/1.16.1
+#dir=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/Analysis/
+#samtools fasta -f 141 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE2.fasta #PE2 un-map
+#samtools fasta -f 77 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE1.fasta
+awk -v size=500 -v pre=MCF7_setC_unmap_PE1 -v pad=5 '
+   /^>/ { n++; if (n % size == 1) { close(fname); fname = sprintf("%s.%0" pad "d", pre, n ) } }
+   { print >> fname }
+' MCF7_setC_unmap_PE1.fasta
+
+cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/MCF7_setC_unmap_PE1.00001 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_MCF7_setC_unmap_PE1.00001_OR.txt -outfmt 18 -evalue 0.01
+# Blast hits with E-value smaller than 0.01 can still be considered as good hit for homology matches.
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/MCF7_setC_unmap_PE1.00501 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_MCF7_setC_unmap_PE1.00501_OR.txt -outfmt 18 -evalue 0.01
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/MCF7_setC_unmap_PE1.01001 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_MCF7_setC_unmap_PE1.01001_OR.txt -outfmt 18 -evalue 0.01
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/MCF7_setC_unmap_PE1.01501 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_MCF7_setC_unmap_PE1.01501_OR.txt -outfmt 18 -evalue 0.01
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+# HEK control for blastn
+# module load samtools/1.16.1
+# samtools view -b -F 2 /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam >HEK_CloneZD29_30min_control_rep2_nca.bam
+# PE1 unmap, and PE2 unmap (HEK_notalignatall)
+samtools fasta -f 141 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam > HEK_setC_unmap_PE2.fasta #PE2 un-map       
+samtools fasta -f 77 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam > HEK_setC_unmap_PE1.fasta #PE1 un-map
+
+awk -v size=500 -v pre=HEK_setC_unmap_PE1 -v pad=5 '
+   /^>/ { n++; if (n % size == 1) { close(fname); fname = sprintf("%s.%0" pad "d", pre, n ) } }
+   { print >> fname }
+' HEK_setC_unmap_PE1.fasta 
+
+cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/HEK_setC_unmap_PE1.00001 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_HEK_setC_unmap_PE1.00001_OR.txt -outfmt 18 -evalue 0.01
+# Blast hits with E-value smaller than 0.01 can still be considered as good hit for homology matches.
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/HEK_setC_unmap_PE1.00501 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_HEK_setC_unmap_PE1.00501_OR.txt -outfmt 18 -evalue 0.01
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/HEK_setC_unmap_PE1.01001 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_HEK_setC_unmap_PE1.01001_OR.txt -outfmt 18 -evalue 0.01
+
+blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/HEK_setC_unmap_PE1.01501 -db nt -out /Users/ssun/Desktop/not_aligned_atall/blastn_ntall_e0.01/Blast_nt.all_HEK_setC_unmap_PE1.01501_OR.txt -outfmt 18 -evalue 0.01
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+# T47D control
+fasterq-dump SRR15944159
+mv SRR15944159_1.fastq T47D_DMSO_rep1_PE1.fastq
+mv SRR15944159_2.fastq T47D_DMSO_rep1_PE2.fastq
+
+# following Nascent RNA pipeline to process and align the raw fastq
+
+module load samtools/1.16.1
+dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/SRR15944159/
+# PE1 unmap, but PE2 map (MCF7_setA)
+samtools fastq -f 153 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test1.fastq #PE2 reverse but map.# 489522
+samtools fastq -f 101 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test1.fastq #PE1 un-map  # 489522
+
+samtools fastq -f 137 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test2.fastq #PE2 map non-reverse     #207603
+samtools fastq -f 69 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq > MCF7_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq > MCF7_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (MCF7_setB)
+samtools fastq -f 165 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test3.fastq #PE2 un-map               # 1424033
+samtools fastq -f 89 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test4.fastq #PE2 un-map              #1495474     
+samtools fastq -f 73 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq > MCF7_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq > MCF7_setB_unmap_PE2.fastq
+
+# PE1 unmap, and PE2 unmap (MCF7_setC)
+samtools fastq -f 141 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE2.fastq #PE2 un-map            #2451171
+samtools fastq -f 77 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE1.fastq #PE1 un-map
+```
+
+
+bowtie2 align to vectors
+```{r engine='R', eval=F, echo=TRUE}
+#get ADDGENE vector sequences (pSpCas9(BB)-2A-GFP) & (pCRIS-PITChv2-dTAG-Puro) in fasta format
+#bowtie2-build [options]* <reference_in> <bt2_base>
+module load bowtie2/2.5.0
+bowtie2-build ../addgene-plasmid-48138-sequence-402622.fa cas9
+bowtie2-build ../addgene-plasmid-91796-sequence-334366.fa dTAG_puro
+
+#align unmapped reads (-F 0x82 PE1, -F 0x42 PE2) to two vectors
+#PE1: /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/PE1/*unmapped.fastq
+#PE2: /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/PE2/*unmapped_PE2.fastq
+
+module load samtools/1.16.1
+module load bowtie2/2.5.0
+cores=32
+vector_index1=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/cas9_index/cas9
+vector_index2=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/dtag_index/dTAG_puro
+dir1=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/PE1/
+dir2=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/PE2/
+  
+for i in /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/*.bam
+do
+  name=$(echo $i | awk -F"/" '{print $NF}' | awk -F".bam" '{print $1}')
+  echo 'aligning' $name 'to the CAS9 vector'
+  bowtie2 -p $((cores-2)) --maxins 1000 -x $vector_index1 --rf -1 ${dir1}${name}_unmapped.fastq \
+        -2 ${dir2}${name}_unmapped_PE2.fastq 2>${name}_unmapped_CAS9_bowtie2.log | samtools view -b - | \
+        samtools sort - -o ${name}_unmapped_CAS9.bam
+  echo 'aligning' $name 'to the CAS9 vector'
+  bowtie2 -p $((cores-2)) --maxins 1000 -x $vector_index2 --rf -1 ${dir1}${name}_unmapped.fastq \
+        -2 ${dir2}${name}_unmapped_PE2.fastq 2>${name}_unmapped_dTAG_puro_bowtie2.log | samtools view -b - | \
+        samtools sort - -o ${name}_unmapped_dTAG_puro.bam
+done
+
+```
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# HEK control
+module load samtools/1.16.1
+# PE1:
+samtools fastq -F 0x82 HEK_CloneZD29_30min_control_rep2.bam > HEK_CloneZD29_30min_control_rep2_unmapped_PE1.fastq 
+# PE2:
+samtools fastq -F 0x42 HEK_CloneZD29_30min_control_rep2.bam > HEK_CloneZD29_30min_control_rep2_unmapped_PE2.fastq 
 
 
 
+module load samtools/1.16.1
+module load bowtie2/2.5.0
+cores=32
+vector_index1=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/cas9_index/cas9
+vector_index2=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/dtag_index/dTAG_puro
+
+echo 'aligning to the CAS9 vector'
+  bowtie2 -p $((cores-2)) --maxins 1000 -x $vector_index1 --rf -1 HEK_CloneZD29_30min_control_rep2_unmapped_PE1.fastq \
+        -2 HEK_CloneZD29_30min_control_rep2_unmapped_PE2.fastq 2>HEK_CloneZD29_30min_control_rep2_unmapped_CAS9_bowtie2.log | samtools view -b - | \
+        samtools sort - -o HEK_CloneZD29_30min_control_rep2_unmapped_CAS9.bam
+echo 'aligning to the dtag_puro vector'
+  bowtie2 -p $((cores-2)) --maxins 1000 -x $vector_index2 --rf -1 HEK_CloneZD29_30min_control_rep2_unmapped_PE1.fastq \
+        -2 HEK_CloneZD29_30min_control_rep2_unmapped_PE2.fastq 2>HEK_CloneZD29_30min_control_rep2_unmapped_dTAG_puro_bowtie2.log | samtools view -b - | \
+        samtools sort - -o HEK_CloneZD29_30min_control_rep2_unmapped_dTAG_puro.bam
+
+```
 
 
 
