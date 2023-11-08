@@ -4402,40 +4402,54 @@ blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/HEK_setC_unmap_
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-# T47D control
-fasterq-dump SRR15944159
-mv SRR15944159_1.fastq T47D_DMSO_rep1_PE1.fastq
-mv SRR15944159_2.fastq T47D_DMSO_rep1_PE2.fastq
-
-# following Nascent RNA pipeline to process and align the raw fastq
-
-module load samtools/1.16.1
-dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/SRR15944159/
-# PE1 unmap, but PE2 map (MCF7_setA)
-samtools fastq -f 153 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test1.fastq #PE2 reverse but map.# 489522
-samtools fastq -f 101 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test1.fastq #PE1 un-map  # 489522
-
-samtools fastq -f 137 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test2.fastq #PE2 map non-reverse     #207603
-samtools fastq -f 69 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test2.fastq #PE1 un-map.   
-
-cat PE1_test1.fastq PE1_test2.fastq > MCF7_setA_unmap_PE1.fastq
-cat PE2_test1.fastq PE2_test2.fastq > MCF7_setA_map_PE2.fastq
-
-# PE1 map, but PE2 unmap (MCF7_setB)
-samtools fastq -f 165 -F 24 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test3.fastq #PE2 un-map               # 1424033
-samtools fastq -f 89 -F 36 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
-
-samtools fastq -f 133 -F 56 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE2_test4.fastq #PE2 un-map              #1495474     
-samtools fastq -f 73 -F 52 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > PE1_test4.fastq #PE1. map non-reverse
-
-cat PE1_test3.fastq PE1_test4.fastq > MCF7_setB_map_PE1.fastq
-cat PE2_test3.fastq PE2_test4.fastq > MCF7_setB_unmap_PE2.fastq
-
-# PE1 unmap, and PE2 unmap (MCF7_setC)
-samtools fastq -f 141 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE2.fastq #PE2 un-map            #2451171
-samtools fastq -f 77 -F 48 ${dir}MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam > MCF7_setC_unmap_PE1.fastq #PE1 un-map
+cat *HEK*_OR.txt >HEK_setC_unmap_PE1_2k_OR.txt
+cat *MCF*_OR.txt >MCF_setC_unmap_PE1_2k_OR.txt
+cat *HEK*01.txt >HEK_setC_unmap_PE1_2k.txt
+cat *MCF*01.txt >MCF_setC_unmap_PE1_2k.txt
+#coherence check
+cat HEK_setC_unmap_PE1_2k_OR.txt | grep "Tax BLAST report" | wc -l #2000
+cat MCF_setC_unmap_PE1_2k_OR.txt | grep "Tax BLAST report" | wc -l #2000
+cat HEK_setC_unmap_PE1_2k.txt | grep "Query=" | wc -l
+cat MCF_setC_unmap_PE1_2k.txt | grep "Query=" | wc -l
 ```
 
+```{r engine='R', eval=F, echo=TRUE}
+cat MCF_setC_unmap_PE1_2k.txt | grep "No hits found" | wc -l #1498
+cat HEK_setC_unmap_PE1_2k.txt | grep "No hits found" | wc -l #1358
+
+# MCF_setC_unmap_PE1_2k.txt
+awk '/homo sapiens/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_human.txt
+cat blastn_MCF7_2k_OR_human.txt | grep "Query=" | wc -l #10
+# HEK_setC_unmap_PE1_2k.txt
+awk '/homo sapiens/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_human.txt
+cat blastn_HEK_2k_OR_human.txt | grep "Query=" | wc -l #13
+
+#MCF7
+awk '/eukaryotes/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_eukaryotes.txt
+cat blastn_MCF7_2k_OR_eukaryotes.txt | grep "Query=" | wc -l #16
+awk '/phage/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_phage.txt
+cat blastn_MCF7_2k_OR_phage.txt | grep "Query=" | wc -l #8
+awk '/bacteria/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_bacteria.txt
+cat blastn_MCF7_2k_OR_bacteria.txt | grep "Query=" | wc -l #18
+awk '/fish/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_fish.txt
+cat blastn_MCF7_2k_OR_fish.txt | grep "Query=" | wc -l #169
+awk '/moth/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_moth.txt
+cat blastn_MCF7_2k_OR_moth.txt | grep "Query=" | wc -l #165
+
+#hek
+awk '/eukaryotes/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_eukaryotes.txt
+cat blastn_HEK_2k_OR_eukaryotes.txt | grep "Query=" | wc -l #16
+awk '/phage/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_phage.txt
+cat blastn_HEK_2k_OR_phage.txt | grep "Query=" | wc -l #45
+awk '/bacteria/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_bacteria.txt
+cat blastn_HEK_2k_OR_bacteria.txt | grep "Query=" | wc -l #57
+awk '/fish/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_fish.txt
+cat blastn_HEK_2k_OR_fish.txt | grep "Query=" | wc -l #140
+awk '/moth/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_moth.txt
+cat blastn_HEK_2k_OR_moth.txt | grep "Query=" | wc -l #133
+```
+
+The blastn results for reads not aligned at all are comparable between MCF7 PRO-seq library and HEK PRO-seq library. \
 
 bowtie2 align to vectors
 ```{r engine='R', eval=F, echo=TRUE}
@@ -4499,6 +4513,69 @@ echo 'aligning to the dtag_puro vector'
         samtools sort - -o HEK_CloneZD29_30min_control_rep2_unmapped_dTAG_puro.bam
 
 ```
+
+## The T47D PRO-seq library control
+
+```{r engine='R', eval=F, echo=TRUE}
+# T47D control
+fasterq-dump SRR15944159
+mv SRR15944159_1.fastq T47D_DMSO_rep1_PE1.fastq # 79871492/4= 19967873
+mv SRR15944159_2.fastq T47D_DMSO_rep1_PE2.fastq
+#PE1 adapter
+cat T47D_DMSO_rep1_PE1.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #7997400
+#cat T47D_DMSO_rep1_PE1.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #1. rv PE1_adp
+#cat T47D_DMSO_rep1_PE1.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #0 PE2_adp
+#cat T47D_DMSO_rep1_PE1.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #21955 rv PE2_adp
+
+#PE2 adapter
+cat T47D_DMSO_rep1_PE2.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #6132086
+#cat T47D_DMSO_rep1_PE2.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #0 rv PE2_adp
+#cat T47D_DMSO_rep1_PE2.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #1 PE1_adp
+#cat T47D_DMSO_rep1_PE2.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #339442. rv PE1_adp
+
+
+# following Nascent RNA pipeline to process and align the raw fastq
+# 85% concordantly aligned reads
+module load samtools/1.16.1
+# dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/SRR15944159/
+#T47D_DMSO_rep1.bam  
+samtools view -b -F 2 T47D_DMSO_rep1.bam> T47D_DMSO_rep1_nca.bam #4016436 (2008218*2)
+
+# PE1 unmap, but PE2 map (T47D_setA)
+samtools fastq -f 153 -F 36 T47D_DMSO_rep1_nca.bam > PE2_test1.fastq #PE2 reverse but map.# 489522
+samtools fastq -f 101 -F 24 T47D_DMSO_rep1_nca.bam > PE1_test1.fastq #PE1 un-map  # 489522
+
+samtools fastq -f 137 -F 52 T47D_DMSO_rep1_nca.bam > PE2_test2.fastq #PE2 map non-reverse     #207603
+samtools fastq -f 69 -F 56 T47D_DMSO_rep1_nca.bam > PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq > T47D_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq > T47D_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (T47D_setB)
+samtools fastq -f 165 -F 24 T47D_DMSO_rep1_nca.bam > PE2_test3.fastq #PE2 un-map               # 1424033
+samtools fastq -f 89 -F 36 T47D_DMSO_rep1_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 T47D_DMSO_rep1_nca.bam > PE2_test4.fastq #PE2 un-map              #1495474     
+samtools fastq -f 73 -F 52 T47D_DMSO_rep1_nca.bam > PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq > T47D_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq > T47D_setB_unmap_PE2.fastq
+
+# PE1 unmap, and PE2 unmap (T47D_setC)
+samtools fastq -f 141 -F 48 T47D_DMSO_rep1_nca.bam > T47D_setC_unmap_PE2.fastq #PE2 un-map            #2451171
+samtools fastq -f 77 -F 48 T47D_DMSO_rep1_nca.bam > T47D_setC_unmap_PE1.fastq #PE1 un-map
+
+module load fastqc 
+for i in *set*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+
+
 
 
 
