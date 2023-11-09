@@ -819,15 +819,16 @@ rm tmpMinus${pair}.bg
 
 **TSS Annotations**
 ```{r engine='R', eval=F, echo=TRUE}
-# download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
-# content: Basic gene annotation; region: Chr; Download: GTF
+# download the gencode.v44.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/
+# content: Basic gene annotation; region: CHR; Download: GTF
 
-#mkdir Annotation_v42
-#cd Annotation_v42
-wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.basic.annotation.gtf.gz
-gunzip gencode.v42.basic.annotation.gtf.gz
 
-grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
+#mkdir Annotation_v44
+#cd Annotation_v44
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.basic.annotation.gtf.gz
+gunzip gencode.v44.basic.annotation.gtf.gz
+
+grep 'transcript_type "protein_coding"' gencode.v44.basic.annotation.gtf | \
     grep -v 'tag "readthrough_transcript"' | \
     grep -v 'tag "RNA_Seq_supported_only"' | \
     grep -v 'tag "RNA_Seq_supported_partial"' | \
@@ -836,7 +837,7 @@ grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
     cut -f1,4,5,7,9 | tr ";" "\t" | \
     awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
     tr " " "\t" | tr -d '"' | \
-    grep -v "\tENSG" > gencode.hg38.v42.basic.firstExon.latest.filtered.bed
+    grep -v "\tENSG" > gencode.hg38.v44.basic.firstExon.latest.filtered.bed
 
 ```
 
@@ -855,8 +856,8 @@ source("/home/FCAM/ssun/scripts/TSSinference.R")
 library(bigWig)
 # prepare annotation file
 
-#TSS_annot_input=read.table("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed",col.names=c('chrom', 'start', 'end', 'gene', 'v5', 'strand'))
-gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed")
+#TSS_annot_input=read.table("/home/FCAM/ssun/Annotation_v44/gencode.hg38.v44.basic.firstExon.latest.filtered.bed",col.names=c('chrom', 'start', 'end', 'gene', 'v5', 'strand'))
+gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v44/gencode.hg38.v44.basic.firstExon.latest.filtered.bed")
 
 # assign bigWig variables
 # These two are the ones with control + experimental merged
@@ -884,25 +885,22 @@ We are employing WarrenDavidAnderson's `Primary Transcription Annotation` packag
 
 **PTA Annotations** \
 ```{r engine='R', eval=F, echo=TRUE}
-#mkdir Annotation_v42
-#cd Annotation_v42
-#wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.basic.annotation.gtf.gz
-#gunzip gencode.v42.basic.annotation.gtf.gz
+#cd Annotation_v44
 
 # get the coordinates of first exon for every protein-coding gene
-grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
+grep 'transcript_type "protein_coding"' gencode.v44.basic.annotation.gtf | \
    awk '{if($3=="exon"){print $0}}' | \
    grep -w "exon_number 1" | \
    cut -f1,4,5,7,9 | tr ";" "\t" | \
    awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
-   tr " " "\t" | tr -d '"' > gencode.v42.firstExon.bed
+   tr " " "\t" | tr -d '"' > gencode.v44.firstExon.bed
   
 # get all transcripts
-grep 'transcript_type "protein_coding"' gencode.v42.basic.annotation.gtf | \
+grep 'transcript_type "protein_coding"' gencode.v44.basic.annotation.gtf | \
     awk '{if($3=="transcript"){print $0}} ' | \
     cut -f1,4,5,7,9 | tr ";" "\t" | \
     awk '{for(i=5;i<=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,"na",$4}' | \
-    tr " " "\t" | tr -d '"' > gencode.v42.transcript.bed
+    tr " " "\t" | tr -d '"' > gencode.v44.transcript.bed
 ```
 
 **PTA** \
@@ -931,14 +929,14 @@ source("/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-master/pri
 
 
 # import data for all 1's exons, annotate, and remove duplicate transcripts
-fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed"
+fname = "/home/FCAM/ssun/Annotation_v44/gencode.v44.firstExon.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
 dat0 = unique(dat0)
 gencode.firstExon = dat0
 
 # import data for all transcripts, annotate, and remove duplicate transcripts
-fname = "/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed"
+fname = "/home/FCAM/ssun/Annotation_v44/gencode.v44.transcript.bed"
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c('chr', 'start', 'end', 'gene', 'xy', 'strand') 
 dat0 = unique(dat0)
