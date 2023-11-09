@@ -1507,15 +1507,16 @@ rm tmpMinus${pair}.bg</code></pre>
 <div id="transcription-start-site-tss-inference-analysis" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Transcription start site (TSS) Inference analysis</h2>
 <p><strong>TSS Annotations</strong></p>
-<pre class="r"><code># download the gencode.v42.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/release_42.html
-# content: Basic gene annotation; region: Chr; Download: GTF
+<pre class="r"><code># download the gencode.v44.basic.annotation.gtf.gz file from: https://www.gencodegenes.org/human/
+# content: Basic gene annotation; region: CHR; Download: GTF
 
-#mkdir Annotation_v42
-#cd Annotation_v42
-wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.basic.annotation.gtf.gz
-gunzip gencode.v42.basic.annotation.gtf.gz
 
-grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v42.basic.annotation.gtf | \
+#mkdir Annotation_v44
+#cd Annotation_v44
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.basic.annotation.gtf.gz
+gunzip gencode.v44.basic.annotation.gtf.gz
+
+grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v44.basic.annotation.gtf | \
     grep -v &#39;tag &quot;readthrough_transcript&quot;&#39; | \
     grep -v &#39;tag &quot;RNA_Seq_supported_only&quot;&#39; | \
     grep -v &#39;tag &quot;RNA_Seq_supported_partial&quot;&#39; | \
@@ -1524,7 +1525,7 @@ grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v42.basic.anno
     cut -f1,4,5,7,9 | tr &quot;;&quot; &quot;\t&quot; | \
     awk &#39;{for(i=5;i&lt;=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,&quot;na&quot;,$4}&#39; | \
     tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; | \
-    grep -v &quot;\tENSG&quot; &gt; gencode.hg38.v42.basic.firstExon.latest.filtered.bed</code></pre>
+    grep -v &quot;\tENSG&quot; &gt; gencode.hg38.v44.basic.firstExon.latest.filtered.bed</code></pre>
 <p><strong>TSS</strong><br />
 Here we define the TSS, by first making a unique bed file with function <code>parse.bed.exon1</code>, which modified the GTF file exon1 info for each gene. In the output gene.exon1 data frame, we will have unique genes with its correct chrom, and strand info. It also contains most upstream and most downstream TSS in the second and third columns in a strand-specific manner.<br />
 </p>
@@ -1539,8 +1540,8 @@ source(&quot;/home/FCAM/ssun/scripts/TSSinference.R&quot;)
 library(bigWig)
 # prepare annotation file
 
-#TSS_annot_input=read.table(&quot;/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed&quot;,col.names=c(&#39;chrom&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;v5&#39;, &#39;strand&#39;))
-gene.exon1 = parse.bed.exon1(&quot;/home/FCAM/ssun/Annotation_v42/gencode.hg38.v42.basic.firstExon.latest.filtered.bed&quot;)
+#TSS_annot_input=read.table(&quot;/home/FCAM/ssun/Annotation_v44/gencode.hg38.v44.basic.firstExon.latest.filtered.bed&quot;,col.names=c(&#39;chrom&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;v5&#39;, &#39;strand&#39;))
+gene.exon1 = parse.bed.exon1(&quot;/home/FCAM/ssun/Annotation_v44/gencode.hg38.v44.basic.firstExon.latest.filtered.bed&quot;)
 
 # assign bigWig variables
 # These two are the ones with control + experimental merged
@@ -1567,25 +1568,22 @@ save.image(&#39;231003_GATA3_pro_TSS.Rdata&#39;)</code></pre>
 </p>
 <p><strong>PTA Annotations</strong><br />
 </p>
-<pre class="r"><code>#mkdir Annotation_v42
-#cd Annotation_v42
-#wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.basic.annotation.gtf.gz
-#gunzip gencode.v42.basic.annotation.gtf.gz
+<pre class="r"><code>#cd Annotation_v44
 
 # get the coordinates of first exon for every protein-coding gene
-grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v42.basic.annotation.gtf | \
+grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v44.basic.annotation.gtf | \
    awk &#39;{if($3==&quot;exon&quot;){print $0}}&#39; | \
    grep -w &quot;exon_number 1&quot; | \
    cut -f1,4,5,7,9 | tr &quot;;&quot; &quot;\t&quot; | \
    awk &#39;{for(i=5;i&lt;=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,&quot;na&quot;,$4}&#39; | \
-   tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; &gt; gencode.v42.firstExon.bed
+   tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; &gt; gencode.v44.firstExon.bed
   
 # get all transcripts
-grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v42.basic.annotation.gtf | \
+grep &#39;transcript_type &quot;protein_coding&quot;&#39; gencode.v44.basic.annotation.gtf | \
     awk &#39;{if($3==&quot;transcript&quot;){print $0}} &#39; | \
     cut -f1,4,5,7,9 | tr &quot;;&quot; &quot;\t&quot; | \
     awk &#39;{for(i=5;i&lt;=NF;i++){if($i~/^gene_name/){a=$(i+1)}} print $1,$2,$3,a,&quot;na&quot;,$4}&#39; | \
-    tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; &gt; gencode.v42.transcript.bed</code></pre>
+    tr &quot; &quot; &quot;\t&quot; | tr -d &#39;&quot;&#39; &gt; gencode.v44.transcript.bed</code></pre>
 <p><strong>PTA</strong><br />
 1.Loading key packages and pre-processed PRO-seq data</p>
 <pre class="r"><code>#if (!require(&quot;BiocManager&quot;, quietly = TRUE))
@@ -1611,14 +1609,14 @@ source(&quot;/home/FCAM/ssun/primaryTranscriptsAnnotation/genomicsRpackage-maste
 
 
 # import data for all 1&#39;s exons, annotate, and remove duplicate transcripts
-fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.firstExon.bed&quot;
+fname = &quot;/home/FCAM/ssun/Annotation_v44/gencode.v44.firstExon.bed&quot;
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
 dat0 = unique(dat0)
 gencode.firstExon = dat0
 
 # import data for all transcripts, annotate, and remove duplicate transcripts
-fname = &quot;/home/FCAM/ssun/Annotation_v42/gencode.v42.transcript.bed&quot;
+fname = &quot;/home/FCAM/ssun/Annotation_v44/gencode.v44.transcript.bed&quot;
 dat0 = read.table(fname,header=F,stringsAsFactors=F) 
 names(dat0) = c(&#39;chr&#39;, &#39;start&#39;, &#39;end&#39;, &#39;gene&#39;, &#39;xy&#39;, &#39;strand&#39;) 
 dat0 = unique(dat0)
