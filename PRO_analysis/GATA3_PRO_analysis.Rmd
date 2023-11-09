@@ -696,9 +696,10 @@ done 2>&1 | tee -a bowtie2_alignment_rate.txt
 
 
 # primaryTranscriptAnnotation (PTA) 
-The purpose of this analysis is to define primary transcripts 
+The purpose of this analysis is to annotate gene properly and define primary transcripts 
 
 ## Data pre-process
+In the directory with bigWig file of control libraries (no dTAG +/- E2), run the script below: \
 ```{r engine='bash', eval=F, echo=TRUE}
 #! /bin/sh
 
@@ -743,7 +744,7 @@ get the merged bigWigs (minus and plus) for primaryTranscriptAnnotation （PE1 d
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 
-reps=12
+reps=6
 pair="_PE1"
 name="MCF7_dTAGGATAClone522_30min"
 chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes 
@@ -789,7 +790,7 @@ get the merged plus and minus for TSS inference (PE2 data) \
 export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
 module load ucsc_genome/2012.05.22
 
-reps=12
+reps=6
 pair="_PE2"
 name="MCF7_dTAGGATAClone522_30min"
 chrSizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
@@ -3548,7 +3549,7 @@ The above activated, repressed, and matched files in bed format are going to be 
 There are ~15% reads in this PRO-seq are not aligned to human genome. \
 
 **Are these un-mapped reads short sequences?** \
-We first use `samtools` to convert concordantly mapped reads (`-f 0x2`) and un-mapped(`-F 0X2`) reads to .fastq format, then use `fastqc` to get information about sequence length distribution. \
+We first use `samtools` to convert concordantly mapped reads (`-f 0x2`) and un-mapped(`-F 0X2`) reads to .fastq format, then use `fastqc` to check sequence quality (length distribution,...). \
 other useful command: `samtools flagstat` \
 
 **PE1**
@@ -3645,8 +3646,6 @@ do
 done
 
 
-
-
 module load samtools/1.16.1
 for i in ../*.bam
 do
@@ -3691,25 +3690,26 @@ cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep TGGAATTC
 #cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l # 0 #reverse complement
 
 cat MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_unmapped.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l # 1418
-
 ```
 
-I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`, and trimmed after `cutadapt`. However, **PE1 sequences somehow has some sequences with reverse compliment of PE2 adapter**. We did not trim these off and these sequences are carried on to next steps. \
+I confirmed that in the raw fastq file, the two adapter sequences are indeed in the PE1 and PE2 reads before `cutadapt`, and trimmed after `cutadapt`. \
+In normal situation, the sequences from raw fastq will have features of: PE1 reads with 5' adapter, PE2 reads with 3' adapter;
+However, I found some unexpected cases where **some PE1 sequences somehow has reverse compliment of 3' adapter**, and **some PE2 sequences has reversed 5' adapter**. `cutadapt` will not trim these off and these sequences are carried on to next steps. \
 
 ```{r engine='R', eval=F, echo=TRUE}
 cat /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq | head -n 20000000 > MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq
 #PE1 adapter
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #1987892
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #0. rv PE1_adp
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #0 PE2_adp
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #143 rv PE2_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #0. rv 5' adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #0 3' adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #143 rv 3' adp
 
 cat /labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq | head -n 20000000 > MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq
 #PE2 adapter
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l #1260034
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #0 rv PE2_adp
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0 PE1_adp
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73980. rv PE1_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #0 rv 3' adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0 5' adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73980. rv 5' adp
 
 
 # we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10
@@ -3718,16 +3718,15 @@ cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG MCF7_dTAGGATAClone522_30min_control
 cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final_test.fastq -o MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq --too-short-output test_PE2_short.fastq
 
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep TGGAATTCTCGGGTGCCAAGG | wc -l #0
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #86 rv PE2_adp
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #86 rv 3' adp
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l
-#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73979 rv PE1_adp
-
-#conclusion: cutadapt trims off the PE1 adapter from PE1.fastq, PE2 adapter from PE2.fastq, but the reverse compliment of the opposite adapter is carried on to next step
+#cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73979 rv 5' adp
 ```
 
 
 ## BLAST to nt
-**Parse file and BLAST on web**
+**BLAST on web**
+To run BLAST on NCBI web, we need to first divide large sequence file (.fasta) to smaller sequence file due to web's size limitation on input files.
 ```{r engine='R', eval=F, echo=TRUE}
 awk -v size=25000 -v pre=30min_control_NoE2_rep1_unmapped -v pad=5 '
    /^>/ { n++; if (n % size == 1) { close(fname); fname = sprintf("%s.%0" pad "d", pre, n ) } }
@@ -3754,8 +3753,31 @@ cd blastdb
 perl ../bin/update_blastdb.pl --passive --decompress nt #nt.gz nucleotide sequence database
 ```
 
-**Blast un-mapped reads** \
+**Blast un-mapped reads locally** \
 1) Blast to full nt database \
+To save running time, first we need to divide the large .fa sequence file to smaller file contains 500 sequences (i.e., test2-500.00001); running multiple files at the same time give us 2k to 10k random sequence blast output to make some conclusions. \
+
+MCF7 libraries: \
+```{r engine='R', eval=F, echo=TRUE}
+#500 blastn set1 (test2.00001) 
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00001.txt
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split2/test2-500.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_MCF7_nt.all/Blast_nt.all_test2-500.00001_OR.txt -outfmt 18 #Organism Report
+```
+HEK libraries: \
+```{r engine='R', eval=F, echo=TRUE}
+awk -v size=2000 -v pre=HEK -v pad=5 '
+   /^>/ { n++; if (n % size == 1) { close(fname); fname = sprintf("%s.%0" pad "d", pre, n ) } }
+   { print >> fname }
+' HEK_CloneZD29_30min_control_rep2_unmapped.fasta
+
+#try blast the entire nt database with 2000 random peaks (around 4 hrs for megablast) per file 
+cd /Users/ssun/blast/ncbi-blast-2.14.1+/blastdb
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt
+
+blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt -outfmt 18
+```
+
+<!--
 ```{r engine='R', eval=F, echo=TRUE}
 #num=( {000..114} )
 #for i in $num
@@ -3940,9 +3962,11 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.0000
 
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt -outfmt 18
 ```
+-->
 
-## Summarize BLAST results by parsing output file
+### BLASTn results
 
+<!--
 ```{r engine='R', eval=F, echo=TRUE}
 # megablast
 for i in *.txt
@@ -3990,6 +4014,7 @@ Blast_nt.all_test2-500.01501.txt #43
 Blast_nt.all_test2.test2-500.01001.txt #52
 
 ```
+-->
 
 ```{r engine='R', eval=F, echo=TRUE}
 #cat Blast_nt.all_test2-500.00001.txt Blast_nt.all_test2-500.00501.txt Blast_nt.all_test2-500.01501.txt Blast_nt.all_test2.test2-500.01001.txt > Blast_MCF7_nt.all_test2.00001_2000.txt
@@ -4015,7 +4040,6 @@ awk '/Tax BLAST report/{x="F"++i;}{print > x;}' file2
 grep -rl "Homo sapiens" "/usr/share"
 
 
-
 # print the file with
 cat *Blast_nt.all*.txt > blastn_MCF7_10k.txt
 cat blastn_MCF7_10k.txt | grep "Query=" | wc -l
@@ -4032,7 +4056,7 @@ cat blastn_MCF7_10k_OR_human.txt | grep "Query=" | wc -l
 ```
 
 
-## BLAST other databases
+## BLAST to other databases
 2) Blast to env_nt.00 \
 ```{r engine='R', eval=F, echo=TRUE}
 tar xfz env_nt.tar
@@ -4103,12 +4127,14 @@ eval $create
 
 makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqids -max_file_sz='20GB'
 ```
-
-
 -->
 
-## reads with unmapped mate?
-I have some suspicions on Sam flag: Does calling "unmapped reads" use Sam Flag -F 0x82 contain some mapped reads? \
+## Why many "unmapped reads" can BLAST to human genome?
+SAM Flags can extract reads with different features (reference: https://broadinstitute.github.io/picard/explain-flags.html): \
+**Concordantly aligned reads**: (-f 0x2) R1 (forward)——-> expected mapping distance <——- R2 (reverse) \
+note that in our pipeline, we have reversed R1 and R2, and we set the maximum mapping distance between them as 1000bp (--maxins 1000).\ 
+**discordantly aligned reads**: these reads can align to human genome, but with 1) unexpected mapping distance; 2) unexpected read orientation; or 3) read 1/2 align to completely different locus. \ 
+**not aligned reads**: 1) reads with one mate aligned, the other not; 2) both mate not align to genome. \
 
 ```{r engine='R', eval=F, echo=TRUE}
 #bowtie2 alignment report for MCF7_dTAGGATAClone522_30min_control_NoE2_rep1
@@ -4146,13 +4172,13 @@ samtools view -c -F 2 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam  # not c
 14581690
 ```
 
-unmapped reads (use -F 0X2) is actually All non-concordantly aligned reads: (total - concordantly aligned) : 23110803*2-(10029068*2+5790890*2 == 7290845*2, these reads include:
-1) read 1 in one locus & read2 in completely different locus
-2) one mate aligned, the other mate not aligned 
-3) some reverse strand in one of the mate or both of the mate
-4) some combinations
-5) not align at all 
+"Unmapped reads" (use -F 0X2) is actually **All non-concordantly aligned reads**: (total - concordantly aligned) 23110803*2-(10029068*2+5790890*2) == 7290845*2, these reads include: \
+1) both reads aligned, but read1 or read2 or both reads has unexpected orientation; \
+2) both reads aligned, but read 1 align to one locus & read2 align to completely different locus; \
+3) one mate aligned, the other mate not aligned; \
+4) both reads not align at all . \
 
+**MCF7** \
 ```{r engine='R', eval=F, echo=TRUE}
 samtools view -b -F 2 ../MCF7_dTAGGATAClone522_30min_control_NoE2_rep1.bam >MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.bam
 
@@ -4204,7 +4230,7 @@ samtools view -c -f 77 -F 48 MCF7_dTAGGATAClone522_30min_control_NoE2_rep1_nca.b
 #8518974 #(18.43% overall not aligned reads) 
 ```
 
-
+**HEK** \
 ```{r engine='R', eval=F, echo=TRUE}
 samtools view -c /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam #51883566/2=25941783
 samtools view -b -F 2 /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam >HEK_CloneZD29_30min_control_rep2_nca.bam
@@ -4285,8 +4311,9 @@ dev.off()
 ```
 
 
-## 1106
-coherence check
+### Coherence check
+
+Check if SAM Flag called unmapped reads are indeed not align to genome (bowtie2). \
 ```{r engine='R', eval=F, echo=TRUE}
 module load samtools/1.16.1
 dir=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/Analysis/
@@ -4342,8 +4369,8 @@ do
 done
 ```
 
-
-fastqc on reads that not aligned at all (MCF7_setC); fastqc on reads that one mate align but its pair not (MCF7_setA and MCF7_setB).
+### FASTQC
+FASTQC on reads that not aligned at all (MCF7_setC); FASTQC on reads that one mate align but its pair not (MCF7_setA and MCF7_setB).
 
 ```{r engine='R', eval=F, echo=TRUE}
 module load fastqc 
@@ -4355,7 +4382,8 @@ do
 done
 ```
 
-blastn reads that not aligned at all (e-value 0.001)
+### BLAST
+blastn for "reads that not aligned at all" (e-value 0.001)
 ```{r engine='R', eval=F, echo=TRUE}
 #module load samtools/1.16.1
 #dir=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/Analysis/
@@ -4381,6 +4409,26 @@ blastn -task blastn -query /Users/ssun/Desktop/not_aligned_atall/MCF7_setC_unmap
 # HEK control for blastn
 # module load samtools/1.16.1
 # samtools view -b -F 2 /labs/Guertin/siyu/HEK_CloneZD29_30min_control_rep2.bam >HEK_CloneZD29_30min_control_rep2_nca.bam
+# PE1 unmap, but PE2 map (HEK_setA)
+samtools fastq -f 153 -F 36 HEK_CloneZD29_30min_control_rep2_nca.bam > PE2_test1.fastq #PE2 reverse but map.# 489522
+samtools fastq -f 101 -F 24 HEK_CloneZD29_30min_control_rep2_nca.bam > PE1_test1.fastq #PE1 un-map  # 489522
+
+samtools fastq -f 137 -F 52 HEK_CloneZD29_30min_control_rep2_nca.bam > PE2_test2.fastq #PE2 map non-reverse     #207603
+samtools fastq -f 69 -F 56 HEK_CloneZD29_30min_control_rep2_nca.bam > PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq > HEK_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq > HEK_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (HEK_setB)
+samtools fastq -f 165 -F 24 HEK_CloneZD29_30min_control_rep2_nca.bam > PE2_test3.fastq #PE2 un-map               # 1424033
+samtools fastq -f 89 -F 36 HEK_CloneZD29_30min_control_rep2_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 HEK_CloneZD29_30min_control_rep2_nca.bam > PE2_test4.fastq #PE2 un-map              #1495474     
+samtools fastq -f 73 -F 52 HEK_CloneZD29_30min_control_rep2_nca.bam > PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq > HEK_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq > HEK_setB_unmap_PE2.fastq
+
 # PE1 unmap, and PE2 unmap (HEK_notalignatall)
 samtools fasta -f 141 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam > HEK_setC_unmap_PE2.fasta #PE2 un-map       
 samtools fasta -f 77 -F 48 HEK_CloneZD29_30min_control_rep2_nca.bam > HEK_setC_unmap_PE1.fasta #PE1 un-map
@@ -4417,6 +4465,7 @@ cat MCF_setC_unmap_PE1_2k.txt | grep "Query=" | wc -l
 cat MCF_setC_unmap_PE1_2k.txt | grep "No hits found" | wc -l #1498
 cat HEK_setC_unmap_PE1_2k.txt | grep "No hits found" | wc -l #1358
 
+
 # MCF_setC_unmap_PE1_2k.txt
 awk '/homo sapiens/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_human.txt
 cat blastn_MCF7_2k_OR_human.txt | grep "Query=" | wc -l #10
@@ -4435,8 +4484,10 @@ awk '/fish/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_
 cat blastn_MCF7_2k_OR_fish.txt | grep "Query=" | wc -l #169
 awk '/moth/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_moth.txt
 cat blastn_MCF7_2k_OR_moth.txt | grep "Query=" | wc -l #165
+awk '/eudicots/' RS="Tax BLAST report" ORS="" MCF_setC_unmap_PE1_2k_OR.txt > blastn_MCF7_2k_OR_eudicots.txt
+cat blastn_MCF7_2k_OR_eudicots.txt | grep "Query=" | wc -l #123
 
-#hek
+#HEK
 awk '/eukaryotes/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_eukaryotes.txt
 cat blastn_HEK_2k_OR_eukaryotes.txt | grep "Query=" | wc -l #16
 awk '/phage/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_phage.txt
@@ -4447,11 +4498,37 @@ awk '/fish/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_
 cat blastn_HEK_2k_OR_fish.txt | grep "Query=" | wc -l #140
 awk '/moth/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_moth.txt
 cat blastn_HEK_2k_OR_moth.txt | grep "Query=" | wc -l #133
+awk '/eudicots/' RS="Tax BLAST report" ORS="" HEK_setC_unmap_PE1_2k_OR.txt > blastn_HEK_2k_OR_eudicots.txt
+cat blastn_HEK_2k_OR_eudicots.txt | grep "Query=" | wc -l #92
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+#blastn_setc.csv
+module load R/4.1.2 
+R 
+
+library("lattice") 
+bar4=read.csv('blastn_setc.csv')
+bar4$species_hit<- factor(bar4$species_hit, levels = c("no_hits", "eukaryotes", "phage", "bacteria", "fish", "moth", "eudicots"))
+
+pdf('bar_blastn_setc_unmapped_MCF_vs_HEK.pdf', width=8,height=5)
+print(barchart(percentage ~ species_hit,         
+         data = bar4,
+         groups = supp,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "queries in 2k sequences",
+         xlab = "BLASTn hit",
+         #par.settings = my.settings)
+))
+dev.off()
 ```
 
 The blastn results for reads not aligned at all are comparable between MCF7 PRO-seq library and HEK PRO-seq library. \
 
-bowtie2 align to vectors
+### Align unmapped reads to CAS9/DNA constructs with bowtie2 
 ```{r engine='R', eval=F, echo=TRUE}
 #get ADDGENE vector sequences (pSpCas9(BB)-2A-GFP) & (pCRIS-PITChv2-dTAG-Puro) in fasta format
 #bowtie2-build [options]* <reference_in> <bt2_base>
@@ -4514,7 +4591,7 @@ echo 'aligning to the dtag_puro vector'
 
 ```
 
-## The T47D PRO-seq library control
+### The T47D PRO-seq library control
 
 ```{r engine='R', eval=F, echo=TRUE}
 # T47D control
@@ -4575,7 +4652,81 @@ done
 ```
 
 
+```{r engine='R', eval=F, echo=TRUE}
+cat T47D_DMSO_rep1_bowtie2.log
+13576060 reads; of these:
+  13576060 (100.00%) were paired; of these:
+    2008218 (14.79%) aligned concordantly 0 times
+    7976629 (58.76%) aligned concordantly exactly 1 time
+    3591213 (26.45%) aligned concordantly >1 times
+    ----
+    2008218 pairs aligned concordantly 0 times; of these:
+      158008 (7.87%) aligned discordantly 1 time
+    ----
+    1850210 pairs aligned 0 times concordantly or discordantly; of these:
+      3700420 mates make up the pairs; of these:
+        2069978 (55.94%) aligned 0 times
+        908380 (24.55%) aligned exactly 1 time
+        722062 (19.51%) aligned >1 times
+92.38% overall alignment rate
 
+
+# 1) discordantly aligned as pairs (456800*2)
+samtools view -c -f 161 -F 28 T47D_DMSO_rep1_nca.bam #PE2                #101352     
+samtools view -c -f 81 -F 44 T47D_DMSO_rep1_nca.bam #PE1 reverse strand   
+
+samtools view -c -f 145  -F 44 T47D_DMSO_rep1_nca.bam #PE2 reverse strand. #222274 
+samtools view -c -f 97  -F 28 T47D_DMSO_rep1_nca.bam #PE1                  
+
+samtools view -c -f 177 -F 12 T47D_DMSO_rep1_nca.bam #PE2 reverse strand   # 133174
+samtools view -c -f 113 -F 12 T47D_DMSO_rep1_nca.bam #PE1 reverse strand
+
+# 2) read 1 in one locus & read2 in completely different locus (15119*2) --split reads
+samtools view -c -f 129 -F 60 T47D_DMSO_rep1_nca.bam #PE2.        #15119
+samtools view -c -f 65 -F 60 T47D_DMSO_rep1_nca.bam #PE1.         
+
+
+# 3) one mate aligned, the other mate not aligned (1002620*2)
+samtools view -c -f 165 -F 24 T47D_DMSO_rep1_nca.bam #PE2 un-map               # 394626
+samtools view -c -f 89 -F 36 T47D_DMSO_rep1_nca.bam #PE1 reverse but map.      
+
+samtools view -c -f 153 -F 36 T47D_DMSO_rep1_nca.bam #PE2 reverse but map.    # 128224
+samtools view -c -f 101 -F 24 T47D_DMSO_rep1_nca.bam #PE1 un-map              
+
+samtools view -c -f 137 -F 52 T47D_DMSO_rep1_nca.bam #PE2 map non-reverse           #73992
+samtools view -c -f 69 -F 56 T47D_DMSO_rep1_nca.bam #PE1 un-map.                    
+
+samtools view -c -f 133 -F 56 T47D_DMSO_rep1_nca.bam #PE2 un-map              # 405778    
+samtools view -c -f 73 -F 52 T47D_DMSO_rep1_nca.bam #PE1. map non-reverse     
+
+
+# 4) not align at all
+samtools view -c -f 141 -F 48 T47D_DMSO_rep1_nca.bam #PE2 un-map            # 533679
+samtools view -c -f 77 -F 48 T47D_DMSO_rep1_nca.bam #PE1 un-map       
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+module load R/4.1.2 
+R 
+
+library("lattice") 
+bar3=read.csv('T47D_unmapped_reads_bar.csv')
+bar3$supp<- factor(bar3$supp, levels = c("concordantly_aligned", "discordant_orientation", "split_reads"          , "only_one_mate_align", "not_align_at_all"))
+
+pdf('bar_T47D_DMSO_rep1_unmapped.pdf', width=5,height=6)
+print(barchart(percentage ~ supp,         
+         data = bar3,
+         #groups = enriched_motif,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "percentage of reads",
+         xlab = "reads categories",
+         #par.settings = my.settings)
+))
+dev.off()
+```
 
 
 
