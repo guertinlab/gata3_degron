@@ -4464,13 +4464,6 @@ plot_cdf_all(df.all,
              line.type = c(1), 
              cex = 0.5)
 
-#plot_cdf_all_png(df.all, 
-#             tf = "all_GATA3_dTAGV1_NoE2_vs_control_NoE2",
-#             main="GATA3 ChIP peaks distance to GATA3 regulated gene groups",
-#             col.lines = c("#00ffff", "grey60", "#ff0000", "grey90"), 
-#             line.type = c(1), 
-#             cex = 0.5)
-
 # repressed
 plot_cdf_all(df.repressed, 
              tf = "repressed_GATA3_dTAGV1_NoE2_vs_control_NoE2",
@@ -4486,7 +4479,7 @@ plot_cdf_all(df.activated,
              line.type = c(1), 
              cex = 0.5)
 
-save.image('231004_CDF_GATA3_degradation_effect.Rdata') 
+save.image('231110_CDF_GATA3_degradation_effect.Rdata') 
 ```
 
 
@@ -4575,9 +4568,9 @@ print(bwplot(log(abs(peak_intensity), base = 10) ~ status,
        data = df.repressed,
        do.out = F,
        xlab = "status", ylab = "ChIP peak Intensity (log10)",
-       panel = function(...) {
-             panel.violin(...,col="white",  do.out = F)
-             panel.abline(h= 1.7, lty =2, col="red")
+       panel = function(..., box.ratio) {
+             panel.violin(...,col="white", varwidth = FALSE, box.ratio = box.ratio, do.out = F)
+             panel.abline(h= 1.65, lty =2, col="red")
              #panel.bwplot(...)
              panel.stripplot(...,jitter.data = T, pch=4, cex=0.4, col="grey")
              
@@ -4586,7 +4579,7 @@ print(bwplot(log(abs(peak_intensity), base = 10) ~ status,
 dev.off()
 ```
 
-Most unchanged (match to repressed) peaks are ~50 intensity, so we could choose to select ChIP peak intensity larger than 50 as functional. (at 45% quantile). \
+Most unchanged (match to repressed) peaks are ~45 intensity, so we could choose to select ChIP peak intensity larger than 45 as functional. (at 45% quantile). \
 
 This cutoff also maintains a 10-fold dynamic change between quantile1 peaks and quantile45 peaks. \
 
@@ -4682,7 +4675,7 @@ plot_cdf_all(df.activated,
              line.type = c(1), 
              cex = 0.5)
 
-save.image('231004_CDF_ER_activity_effect.Rdata') 
+save.image('231110_CDF_ER_activity_effect.Rdata') 
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER directly regulate activated genes upon E2 treatment."}
