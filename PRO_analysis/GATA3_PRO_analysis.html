@@ -750,9 +750,9 @@ function toggle_visibility(id1) {
 <li><a href="#gata3-degradtaion-induces-changes-of-gene-expression-level" id="toc-gata3-degradtaion-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.5</span> GATA3 degradtaion induces changes of gene expression level</a></li>
 <li><a href="#e2-treatment-induces-changes-of-gene-expression-level" id="toc-e2-treatment-induces-changes-of-gene-expression-level"><span class="toc-section-number">3.6</span> E2 treatment induces changes of gene expression level</a></li>
 <li><a href="#bw-plot-for-gene-expression-change-under-different-condition" id="toc-bw-plot-for-gene-expression-change-under-different-condition"><span class="toc-section-number">3.7</span> bw plot for gene expression change under different condition</a></li>
-<li><a href="#cdf" id="toc-cdf"><span class="toc-section-number">3.8</span> CDF</a></li>
-<li><a href="#call-the-interaction-term-directly-from-deseq2-results-play-around" id="toc-call-the-interaction-term-directly-from-deseq2-results-play-around"><span class="toc-section-number">3.9</span> Call the interaction term directly from DESeq2 results (play around)</a></li>
-<li><a href="#questions-how-gata3-contributes-to-er-regulated-genes" id="toc-questions-how-gata3-contributes-to-er-regulated-genes"><span class="toc-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes?</a></li>
+<li><a href="#coherence-check-call-the-interaction-term-directly-from-deseq2-results-play-around" id="toc-coherence-check-call-the-interaction-term-directly-from-deseq2-results-play-around"><span class="toc-section-number">3.8</span> Coherence Check Call the interaction term directly from DESeq2 results (play around)</a></li>
+<li><a href="#cdf-ongoing" id="toc-cdf-ongoing"><span class="toc-section-number">3.9</span> CDF [ongoing]</a></li>
+<li><a href="#questions-how-gata3-contributes-to-er-regulated-genes-ongoing" id="toc-questions-how-gata3-contributes-to-er-regulated-genes-ongoing"><span class="toc-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes? [ongoing]</a></li>
 </ul></li>
 <li><a href="#integrate-with-chip-see-chip_analysis" id="toc-integrate-with-chip-see-chip_analysis"><span class="toc-section-number">4</span> Integrate with ChIP [SEE ChIP_analysis]</a></li>
 <li><a href="#un-mapped-reads-in-pro-seq" id="toc-un-mapped-reads-in-pro-seq"><span class="toc-section-number">5</span> Un-mapped reads in PRO-seq</a>
@@ -2677,8 +2677,87 @@ Figure 12: <span class="caption-title">ER-regulated/activated genes increase act
 </p>
 </div>
 </div>
-<div id="cdf" class="section level2" number="3.8">
-<h2><span class="header-section-number">3.8</span> CDF</h2>
+<div id="coherence-check-call-the-interaction-term-directly-from-deseq2-results-play-around" class="section level2" number="3.8">
+<h2><span class="header-section-number">3.8</span> <a href="#coherence-check">Coherence Check</a> Call the interaction term directly from DESeq2 results (play around)</h2>
+<p>By changing the reference level in setting up conditions, or utilize the interaction term implied inside, one can easily call different DESeq2 results to address different questions<br />
+</p>
+<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA_ctrl/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+#counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
+
+supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;noE2&quot;,&quot;E2&quot;)) #noE2 is reference
+supp.condition1.1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;E2&quot;,&quot;noE2&quot;)) #E2 is reference
+supp.condition2=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;ctrl&quot;,&quot;dTAG&quot;)) #ctrl is reference
+supp.condition2.1=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;dTAG&quot;,&quot;ctrl&quot;)) #dTAG is reference
+
+#noE2, nodTAG as reference
+deseq.df = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2), 
+                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
+dds = DESeq(deseq.df)
+
+#E2 as reference 
+deseq.df1 = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1.1, supp.condition2), 
+                                  ~ supp.condition1.1 + supp.condition2 + supp.condition1.1:supp.condition2)
+dds1 = DESeq(deseq.df1)
+
+#+dTAG as reference 
+deseq.df2 = DESeqDataSetFromMatrix(counts.df, 
+                                  cbind.data.frame(supp.condition1, supp.condition2.1), 
+                                  ~ supp.condition1 + supp.condition2.1 + supp.condition1:supp.condition2.1)
+dds2 = DESeq(deseq.df2)</code></pre>
+<p><strong>the effect of dTAG treatment in ER activated condition</strong></p>
+<pre class="r"><code># the effect of dTAG treatment in ER activated condition
+res1=results(dds, list(c(&quot;supp.condition2_dTAG_vs_ctrl&quot;, &quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+#vs.
+res1.1=results(dds1, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;)) 
+sum(res1$padj &lt; 0.1 &amp; !is.na(res1$padj)) #1963
+sum(res1.1$padj &lt; 0.1 &amp; !is.na(res1.1$padj)) #1965
+
+#this two call should be the same 
+
+temp=as.data.frame(cbind(res1, res1.1)[,c(2,8)])
+colnames(temp)=c(&quot;interaction&quot;,&quot;E2_ref&quot;)
+library(lattice)
+png(&quot;comparing DESeq2 with interaction with different reference 1.png&quot;)
+print(
+  xyplot(E2_ref ~ interaction,data=temp,
+       main=&quot;comparing DESeq2 with interaction with different reference&quot;)
+)
+dev.off()</code></pre>
+<p><strong>the effect of E2 treatment in GATA3-degraded (+dTAG) condition</strong></p>
+<pre class="r"><code># the effect of E2 treatment in GATA3-degraded (+dTAG) condition. 
+res2 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
+sum(res2$padj &lt; 0.1 &amp; !is.na(res2$padj)) #552
+
+
+res2.1=results(dds2, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;)) 
+sum(res2.1$padj &lt; 0.1 &amp; !is.na(res2.1$padj)) #543
+
+#this two call should be the same 
+
+temp1=as.data.frame(cbind(res2, res2.1)[,c(2,8)])
+colnames(temp1)=c(&quot;interaction&quot;,&quot;dTAG_ref&quot;)
+library(lattice)
+png(&quot;comparing DESeq2 with interaction with different reference 2.png&quot;)
+print(
+  xyplot(dTAG_ref ~ interaction,data=temp1,
+       main=&quot;comparing DESeq2 with interaction with different reference&quot;)
+)
+dev.off()</code></pre>
+<p><strong>Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status?</strong></p>
+<pre class="r"><code># Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status? This is the interaction term. ---whether GATA3 depend on ER -- not much
+
+res3 = results(dds, name=&quot;supp.condition1E2.supp.condition2dTAG&quot;)
+sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
+#110
+sum(res3$padj &lt; 0.05 &amp; !is.na(res3$padj))
+#49
+sum(res3$padj &lt; 0.01 &amp; !is.na(res3$padj))
+#19</code></pre>
+</div>
+<div id="cdf-ongoing" class="section level2" number="3.9">
+<h2><span class="header-section-number">3.9</span> CDF [ongoing]</h2>
 <p><strong>Determine if GATA3 directly regulate these ER-regulated/activated genes</strong>
 (match to reverse…)</p>
 <pre class="r"><code>load(&#39;231017_bw.Rdata&#39;)
@@ -2770,87 +2849,8 @@ repressed$treatment = &quot;Down&quot;
 df.x = rbind(df.x, unchanged)
 df.x = rbind(df.x, repressed)</code></pre>
 </div>
-<div id="call-the-interaction-term-directly-from-deseq2-results-play-around" class="section level2" number="3.9">
-<h2><span class="header-section-number">3.9</span> Call the interaction term directly from DESeq2 results (play around)</h2>
-<p>By changing the reference level in setting up conditions, or utilize the interaction term implied inside, one can easily call different DESeq2 results to address different questions<br />
-</p>
-<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
-#counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
-
-supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;noE2&quot;,&quot;E2&quot;)) #noE2 is reference
-supp.condition1.1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;E2&quot;,&quot;noE2&quot;)) #E2 is reference
-supp.condition2=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;ctrl&quot;,&quot;dTAG&quot;)) #ctrl is reference
-supp.condition2.1=factor(rep(c(&quot;ctrl&quot;, &quot;dTAG&quot;), each = 6), levels=c(&quot;dTAG&quot;,&quot;ctrl&quot;)) #dTAG is reference
-
-#noE2, nodTAG as reference
-deseq.df = DESeqDataSetFromMatrix(counts.df, 
-                                  cbind.data.frame(supp.condition1, supp.condition2), 
-                                  ~ supp.condition1 + supp.condition2 + supp.condition1:supp.condition2)
-dds = DESeq(deseq.df)
-
-#E2 as reference 
-deseq.df1 = DESeqDataSetFromMatrix(counts.df, 
-                                  cbind.data.frame(supp.condition1.1, supp.condition2), 
-                                  ~ supp.condition1.1 + supp.condition2 + supp.condition1.1:supp.condition2)
-dds1 = DESeq(deseq.df1)
-
-#+dTAG as reference 
-deseq.df2 = DESeqDataSetFromMatrix(counts.df, 
-                                  cbind.data.frame(supp.condition1, supp.condition2.1), 
-                                  ~ supp.condition1 + supp.condition2.1 + supp.condition1:supp.condition2.1)
-dds2 = DESeq(deseq.df2)</code></pre>
-<p><strong>the effect of dTAG treatment in ER activated condition</strong></p>
-<pre class="r"><code># the effect of dTAG treatment in ER activated condition
-res1=results(dds, list(c(&quot;supp.condition2_dTAG_vs_ctrl&quot;, &quot;supp.condition1E2.supp.condition2dTAG&quot;)))
-#vs.
-res1.1=results(dds1, contrast=c(&quot;supp.condition2&quot;,&quot;dTAG&quot;,&quot;ctrl&quot;)) 
-sum(res1$padj &lt; 0.1 &amp; !is.na(res1$padj)) #1965
-sum(res1.1$padj &lt; 0.1 &amp; !is.na(res1.1$padj)) #1965
-
-#this two call should be the same 
-
-temp=as.data.frame(cbind(res1, res1.1)[,c(2,8)])
-colnames(temp)=c(&quot;interaction&quot;,&quot;E2_ref&quot;)
-library(lattice)
-png(&quot;comparing DESeq2 with interaction with different reference 1.png&quot;)
-print(
-  xyplot(E2_ref ~ interaction,data=temp,
-       main=&quot;comparing DESeq2 with interaction with different reference&quot;)
-)
-dev.off()</code></pre>
-<p><strong>the effect of E2 treatment in GATA3-degraded (+dTAG) condition</strong></p>
-<pre class="r"><code># the effect of E2 treatment in GATA3-degraded (+dTAG) condition. 
-res2 = results(dds, list(c(&quot;supp.condition1_E2_vs_noE2&quot;,&quot;supp.condition1E2.supp.condition2dTAG&quot;)))
-sum(res2$padj &lt; 0.1 &amp; !is.na(res2$padj)) #552
-
-
-res2.1=results(dds2, contrast=c(&quot;supp.condition1&quot;,&quot;E2&quot;,&quot;noE2&quot;)) 
-sum(res2.1$padj &lt; 0.1 &amp; !is.na(res2.1$padj)) #552
-
-#this two call should be the same 
-
-temp1=as.data.frame(cbind(res2, res2.1)[,c(2,8)])
-colnames(temp1)=c(&quot;interaction&quot;,&quot;dTAG_ref&quot;)
-library(lattice)
-png(&quot;comparing DESeq2 with interaction with different reference 2.png&quot;)
-print(
-  xyplot(dTAG_ref ~ interaction,data=temp1,
-       main=&quot;comparing DESeq2 with interaction with different reference&quot;)
-)
-dev.off()</code></pre>
-<p><strong>Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status?</strong></p>
-<pre class="r"><code># Is degrading GATA3 has different effect in E2 activated status and E2 inactivated status? This is the interaction term. ---whether GATA3 depend on ER -- not much
-
-res3 = results(dds, name=&quot;supp.condition1E2.supp.condition2dTAG&quot;)
-sum(res3$padj &lt; 0.1 &amp; !is.na(res3$padj))
-#99
-sum(res3$padj &lt; 0.05 &amp; !is.na(res3$padj))
-#55
-sum(res3$padj &lt; 0.01 &amp; !is.na(res3$padj))
-#18</code></pre>
-</div>
-<div id="questions-how-gata3-contributes-to-er-regulated-genes" class="section level2" number="3.10">
-<h2><span class="header-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes?</h2>
+<div id="questions-how-gata3-contributes-to-er-regulated-genes-ongoing" class="section level2" number="3.10">
+<h2><span class="header-section-number">3.10</span> Questions: how GATA3 contributes to ER regulated genes? [ongoing]</h2>
 <p>Some possibilities:<br />
 If GATA3 directly regulate ER-activated genes:</p>
 <p>GATA3 it self or its co-activator is activating some genes, so lose GATA3 will cause gene decrease activation/lose activation(become repress); GATA3 is able to recruit some co-activator</p>
