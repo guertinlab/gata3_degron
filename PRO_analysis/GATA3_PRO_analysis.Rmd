@@ -1646,7 +1646,7 @@ conclusion: subsetting data first, then call DESeq2 has similar results as: firs
 (The concern that I am having when calling interaction is that I actually don't know if there are actual interactions between ER and GATA3, if there is not, then did we decreased our effective size by calling the interactions?) \
 
 ```{r engine='R', eval=F, echo=TRUE}
-inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+inferred.coords=read.table('../PTA_ctrl/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) #noE2 is reference
@@ -1948,7 +1948,7 @@ Taking the E2 activated genes (which confirmed by CDF that these are directly re
 Need to first re-call DEseq2 to shift the reference level for ER. Make the reference level from noE2 to E2. \
 
 ```{r engine='R', eval=F, echo=TRUE}
-#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#inferred.coords=read.table('../PTA_ctrl/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) # **E2 is the reference level
@@ -2177,7 +2177,7 @@ rbind(rev_exp, change_exp)
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#inferred.coords=read.table('../PTA_ctrl/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("E2","noE2")) # **E2 is the reference level
