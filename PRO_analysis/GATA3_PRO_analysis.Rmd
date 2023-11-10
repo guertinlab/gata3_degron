@@ -860,7 +860,7 @@ library(bigWig)
 gene.exon1 = parse.bed.exon1("/home/FCAM/ssun/Annotation_v44/gencode.hg38.v44.basic.firstExon.latest.filtered.bed")
 
 # assign bigWig variables
-# These two are the ones with control + experimental merged
+# These two are the ones with control merged (no dTAG +/-E2)
 bw.plus='MCF7_dTAGGATAClone522_30min_plus_PE2_scaled.bigWig'
 bw.minus='MCF7_dTAGGATAClone522_30min_minus_PE2_scaled.bigWig'
 
@@ -868,7 +868,7 @@ potential.tss2 = TSSinference(gene.exon1, bw.minus, bw.plus, densityFilter=TRUE)
 # TSSinference <- function(bed, bw.plus, bw.minus, tssWin = 100, top.num.peaks = 20, low.limit.tss.factor = 3, denWin = 100, densityFilter = FALSE)
 
 head(potential.tss2)
-#chrom     start       end  gene  misc strand height up down
+#   chrom     start       end  gene  misc strand height up down
 #1  chr19  58353491  58353492  A1BG  A1BG      -     NA NA   NA
 #2  chr10  50885674  50885675  A1CF  A1CF      -     NA NA   NA
 #3  chr12   9115918   9115919   A2M   A2M      -     NA NA   NA
@@ -876,7 +876,7 @@ head(potential.tss2)
 #7   chr3 138132389 138132390 A4GNT A4GNT      -     NA NA   NA
 #10  chr3 151814073 151814074 AADAC AADAC      +     NA NA   NA
 
-save.image('231003_GATA3_pro_TSS.Rdata')
+save.image('231110_GATA3_pro_TSS.Rdata')
 ```
 
 
@@ -966,10 +966,11 @@ transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus
 
 # str(transcript.reads)
 #List of 2
-# $ counts : Named num [1:19650] 0 0 0 244 140 ...
-#  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
-# $ density: Named num [1:19650] 0 0 0 0.01183 0.00932 ...
-#  ..- attr(*, "names")= chr [1:19650] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
+# $ counts : Named num [1:19667] 0 0 0 198 123 ...
+#  ..- attr(*, "names")= chr [1:19667] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
+# $ density: Named num [1:19667] 0 0 0 0.00959 0.00819 ...
+#  ..- attr(*, "names")= chr [1:19667] "OR4F5" "OR4F29" "OR4F16" "SAMD11" ...
+
 ```
 
 3. Evaluate count and density distribution \
@@ -1016,17 +1017,19 @@ knitr::include_graphics("./png_image/cut_count_density_distribution.png")
 ```{r engine='R', eval=F, echo=TRUE}
 unexp = names(transcript.reads$counts)[ind.cut]
 # length(unexp)
-# 5841
+# 5839
 largest.interval.expr.bed = largest.interval.bed[!(largest.interval.bed$gene %in% unexp),]
 
 #head(largest.interval.bed)
-# chr    start      end    gene xy strand
-#57158 chr19 58345183 58353492    A1BG na      -
-#31276 chr10 50799409 50885675    A1CF na      -
-#37570 chr12  9067708  9115919     A2M na      -
-#37561 chr12  8822621  8876787   A2ML1 na      +
-#1408   chr1 33306766 33321098 A3GALT2 na      -
-#60649 chr22 42692121 42720870  A4GALT na      -
+#        chr    start      end    gene xy strand
+#57134 chr19 58345183 58353492    A1BG na      -
+#31229 chr10 50799409 50885675    A1CF na      -
+#37529 chr12  9067708  9115919     A2M na      -
+#37520 chr12  8822621  8876787   A2ML1 na      +
+#1410   chr1 33306766 33321098 A3GALT2 na      -
+#60611 chr22 42692121 42720870  A4GALT na      -
+
+
 ```
 
 6. TSS identification and remove overlaps \
@@ -1045,13 +1048,13 @@ colnames(tss.interval.bed) = c('chr', 'start', 'end', 'gene', 'xy', 'strand')
 tss.interval.bed$xy <- 0
 
 # head(tss.interval.bed)
-#chr     start       end    gene xy strand
+#    chr     start       end    gene xy strand
 #1 chr19  58345183  58353492    A1BG  0      -
-#2  chr1  33306766  33321127 A3GALT2  0      -
+#2  chr1  33306766  33321028 A3GALT2  0      -
 #3 chr22  42692121  42720870  A4GALT  0      -
 #4 chr12  53307459  53321610    AAAS  0      -
 #5 chr12 125065402 125143316    AACS  0      +
-#6  chr4 170060222 170090202   AADAT  0      -
+#6  chr4 170060222 170090221   AADAT  0      -
 
 ```
 
@@ -1093,7 +1096,7 @@ tau.dist = 50000
 frac.max = 1
 frac.min = 0.3
 
-#save.image('231003_GATA3_pro_PTA.Rdata')
+#save.image('231110_GATA3_pro_PTA.Rdata')
 
 inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=  filtered.id.overlaps,
                           bw.plus=bw.plus, bw.minus=bw.minus,
@@ -1106,9 +1109,9 @@ final.coords = inferred.coords$bed
 
 write.table(final.coords, file = "MCF7_GATA3_gene_annotations.bed",
 sep = "\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
-#save.image('231003_GATA3_pro_PTA_final.Rdata')
+#save.image('231110_GATA3_pro_PTA_final.Rdata')
 
-# we have one chrM coordinates exceeds chrM end: chrM	14746	16809	MT-CYB	0	+
+# we have one chrM coordinates exceeds chrM end ((16809 > 16569): chrM	14746	16809	MT-CYB	0	+ 
 # removed this single line when uploading TSS.bed to genome browser.
 ```
 
@@ -1379,7 +1382,7 @@ We are loading the un-normalized bigWig (and notice only the PE1 files) to `get.
 Then we will estimate read size use the `DESeq2` function `estimateSizeFactorsForMatrix`: Each column is divided by the mean of the row. The median of the ratios will be the size factor of the column. \
 
 ```{r engine='R', eval=F, echo=TRUE}
-inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+inferred.coords=read.table('../PTA_ctrl/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
@@ -1388,18 +1391,19 @@ estimateSizeFactorsForMatrix(counts.df)
 ```
 
 ```{r engine='R', eval=F, echo=F}
-MCF7_dTAGGATAClone522_30min_control_E2_rep1 0.9505786 
-MCF7_dTAGGATAClone522_30min_control_E2_rep2 0.9749445 
-MCF7_dTAGGATAClone522_30min_control_E2_rep3 0.9423860 
-MCF7_dTAGGATAClone522_30min_control_NoE2_rep1 0.9870192 
-MCF7_dTAGGATAClone522_30min_control_NoE2_rep2 1.4476334 **
-MCF7_dTAGGATAClone522_30min_control_NoE2_rep3 0.9765735 
-MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1 0.9640323 
-MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2 0.9340603 **
-MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3 0.9533636 
-MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 1.0184865 
-MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 0.9556203 
-MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 0.9959829 
+MCF7_dTAGGATAClone522_30min_control_E2_rep1 0.9507953 
+MCF7_dTAGGATAClone522_30min_control_E2_rep2 0.9758427 
+MCF7_dTAGGATAClone522_30min_control_E2_rep3  0.9425850 
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep1 0.9877159 
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep2 1.4483303 
+MCF7_dTAGGATAClone522_30min_control_NoE2_rep3 0.9770686 
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep1 0.9634926 
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep2 0.9337290 
+MCF7_dTAGGATAClone522_30min_dTAGV1_E2_rep3 0.9528725 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep1 1.0178932 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep2 0.9545367 
+MCF7_dTAGGATAClone522_30min_dTAGV1_NoE2_rep3 0.9955123
+
 ```
 
 ## Principal Component Analysis (PCA)
@@ -1419,6 +1423,7 @@ dds = DESeq(deseq.counts.table)
 #[2] "sample.conditions_control_NoE2_vs_control_E2"
 #[3] "sample.conditions_dTAGV1_E2_vs_control_E2"   
 #[4] "sample.conditions_dTAGV1_NoE2_vs_control_E2" 
+
 res = results(dds)
 #res = res[order(res$padj),]
 rld <- rlog(dds)
@@ -1654,9 +1659,10 @@ deseq.df = DESeqDataSetFromMatrix(counts.df,
 dds = DESeq(deseq.df)
 resultsNames(dds)
 #[1] "Intercept"                            
-#[2] "supp.condition1_E2_vs_noE2"            
-#[3] "supp.condition2_dTAG_vs_ctrl"     
+#[2] "supp.condition1_E2_vs_noE2"           
+#[3] "supp.condition2_dTAG_vs_ctrl"         
 #[4] "supp.condition1E2.supp.condition2dTAG"
+
 ```
 
 ## GATA3 degradtaion induces changes of gene expression level 
@@ -1667,11 +1673,11 @@ Extract **GATA3 degradation effects** under no-E2 reference level: \
 # the effect of dTAG treatment in no-E2 condition (no-E2 is reference level)--main effect
 res1 = results(dds, contrast=c("supp.condition2","dTAG","ctrl"))
 sum(res1$padj < 0.1 & !is.na(res1$padj))
-# 2837
+# 2838
 sum(res1$padj < 0.05 & !is.na(res1$padj))
-# 2309
+# 2318
 sum(res1$padj < 0.01 & !is.na(res1$padj))
-# 1619
+# 1618
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1689,7 +1695,7 @@ df.deseq.effects.lattice = rbind(unchanged, activated)
 out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = "optimal", ratio = 1)
         #Warning message:
         #Fewer control units than treated units; not all treated units will get a match.
-        #unchanged has 655 genes, activated has 893 genes. Change log2FoldChange cutoff for unchanged gene (from 0.01) to 0.015, which increase the number of unchanged genes to 960. Now we have enough unchanged to match with the activated genes.
+        #unchanged has 655 genes, activated has 891 genes. Change log2FoldChange cutoff for unchanged gene (from 0.01) to 0.015, which increase the number of unchanged genes from 638 to 951. Now we have enough unchanged to match with the activated genes.
 
 unchanged = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
 unchanged.strand = merge(cbind(tighten_summit_window(unchanged), "Matched to Activated"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
@@ -1700,7 +1706,7 @@ df.x = rbind(activated, unchanged)
 
 
 # repressed
-repressed = res1[res1$padj < 0.01 & !is.na(res1$padj) & res1$log2FoldChange < 0,] #726
+repressed = res1[res1$padj < 0.01 & !is.na(res1$padj) & res1$log2FoldChange < 0,] #727
 repressed.strand = merge(cbind(tighten_summit_window(repressed), "Repressed"), inferred.coords, by.x = "gene", by.y = "V4")[,c(2, 3, 4, 1, 5, 10)]	
 write.table(repressed.strand, file = 'dTAGV1_NoE2_vs_control_NoE2_repressed_genes.bed', quote = FALSE, row.names = FALSE, col.names = FALSE, sep = '\t')
  
@@ -1742,7 +1748,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="G
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-save.image('231018_GATA3_pro_DEA_interaction1.Rdata')
+save.image('231110_GATA3_pro_DEA_interaction1.Rdata')
 ```
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 degradation effects (FDR <0.01)"}
@@ -1758,9 +1764,9 @@ Extract **E2 effects** under no-dTAG reference level: \
 # What is the difference between E2 treated and noE2 without dTAG treatment (didn't degrade GATA3)?
 res2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res2$padj < 0.1 & !is.na(res2$padj))
-#393
+#392
 sum(res2$padj < 0.05 & !is.na(res2$padj))
-#302
+#311
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -1819,7 +1825,7 @@ all.other$treatment="all.other"
 ma.df= rbind(ma.df, all.other)
 ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Up", "Down"))
 
-# repressed: 57; activated: 336
+# repressed: 60; activated: 332
 
 
 ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.1)", col=c("grey90","grey60", "red", "blue"))
@@ -1827,7 +1833,7 @@ ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Ef
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-save.image('231018_GATA3_pro_DEA_interaction1.1.Rdata')
+save.image('231110_GATA3_pro_DEA_interaction1.1.Rdata')
 ```
 
 
@@ -1876,23 +1882,27 @@ all.other$treatment="all.other"
 ma.df= rbind(ma.df, all.other)
 ma.df$treatment <- factor(ma.df$treatment, levels=c("all.other", "Unchanged", "Up", "Down"))
 
-# repressed: 25; activated: 277
+# repressed: 28; activated: 283
 
 
-ma.plot.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
-ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.lattice(ma.df, filename='FDR0.05_control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
+ma.plot.png.lattice(ma.df, filename='FDR0.05_control_E2_vs_control_NoE2', title.main="Effect of E2 treatment (FDR <0.05)", col=c("grey90","grey60", "red", "blue"))
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-save.image('231018_GATA3_pro_DEA_interaction1.2.Rdata')
+save.image('231110_GATA3_pro_DEA_interaction1.2.Rdata')
 ```
 
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Effect of E2 treatment (FDR <0.05)"}
+#library(knitr)
+knitr::include_graphics("./png_image/MA_plot_FDR0.05_control_E2_vs_control_NoE2_response.png") 
+```
 
 ## bw plot for gene expression change under different condition
 **+/- E2 effects** \
 
 ```{r engine='R', eval=F, echo=TRUE}
-#inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
+#inferred.coords=read.table('../PTA_ctrl/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2")) #noE2 is reference
@@ -1904,16 +1914,16 @@ dds = DESeq(deseq.df)
 
 res_E2 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res_E2$padj < 0.1 & !is.na(res_E2$padj))
-#393
+#392
 sum(res_E2$padj < 0.05 & !is.na(res_E2$padj))
-#302
+#311
 
 ############################### activated
-activated = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange > 0,] #277
+activated = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange > 0,] #283
 activated$treatment = "Activated"
 
 ############################### repressed
-repressed = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange < 0,] #25
+repressed = res_E2[res_E2$padj < 0.05 & !is.na(res_E2$padj) & res_E2$log2FoldChange < 0,] #28
 repressed$treatment = "Repressed"
 ```
 
@@ -1928,7 +1938,10 @@ bw.plot.lattice(bw.df.E2, filename = '0.05_control_E2_vs_control_NoE2',
          fill.col = c("pink",  "light grey"))
 ```
 
-
+```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="ER-regulated genes upon E2 treatment (FDR <0.05)"}
+#library(knitr)
+knitr::include_graphics("./png_image/BW_plot_0.05_control_E2_vs_control_NoE2_response.png") 
+```
 
 **+/- dTAG effects on ER-activated genes** \
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "dTAGV1_E2" vs. "control_E2". \
@@ -1958,29 +1971,29 @@ sum(res_dTAG_E2$padj < 0.1 & !is.na(res_dTAG_E2$padj))
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-ER_activated =as.data.frame(activated)[,c(2,7)] #277
-res_dTAG_E2=as.data.frame(results(dds, contrast=c("supp.condition2","dTAG","ctrl"))) #13090
+ER_activated =as.data.frame(activated)[,c(2,7)] #283
+res_dTAG_E2=as.data.frame(results(dds, contrast=c("supp.condition2","dTAG","ctrl"))) #12952
 
-ER_activated_dTAG = res_dTAG_E2[rownames(res_dTAG_E2) %in% rownames(ER_activated),] #277
-sum(ER_activated_dTAG$padj < 0.1 & !is.na(ER_activated_dTAG$padj)) # 185
-sum(ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj)) # 174
+ER_activated_dTAG = res_dTAG_E2[rownames(res_dTAG_E2) %in% rownames(ER_activated),] #283
+sum(ER_activated_dTAG$padj < 0.1 & !is.na(ER_activated_dTAG$padj)) # 191
+sum(ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj)) # 176
 
 ############################### consider FDR (<0.05)
 activated = ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange > 0,] #107
-repressed= ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange < 0,] # 67
+repressed= ER_activated_dTAG[ER_activated_dTAG$padj < 0.05 & !is.na(ER_activated_dTAG$padj) & ER_activated_dTAG$log2FoldChange < 0,] # 69
 
 activated$treatment = "Activated*"
 repressed$treatment = "Repressed*"
 
-sig_ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #174
+sig_ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #176
 ```
 
 1) ER-activated genes change expression status from active to repress upon GATA3 degradation
 
 ```{r engine='R', eval=F, echo=TRUE}
-temp1=sig_ER_dTAG_df[sig_ER_dTAG_df$treatment=="Repressed*", ][,c(2,7)] #67
+temp1=sig_ER_dTAG_df[sig_ER_dTAG_df$treatment=="Repressed*", ][,c(2,7)] #69
 temp1$treatment="E2_plus_dTAG"
-temp2=ER_activated[rownames(ER_activated) %in% rownames(temp1),] #67
+temp2=ER_activated[rownames(ER_activated) %in% rownames(temp1),] #69
 temp2$treatment="E2_only"
 
 # bw plot
@@ -2011,7 +2024,7 @@ change_exp$treatment = ifelse(change_exp$log2FoldChange.x > change_exp$log2FoldC
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
-inc_exp=change_exp[change_exp$treatment=="increase_activation",] #70
+inc_exp=change_exp[change_exp$treatment=="increase_activation",] #72
 
 x=inc_exp[,2:3]
 colnames(x)=c("log2FoldChange","treatment")
@@ -2032,7 +2045,7 @@ knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_increa
 
 3) ER-activated genes decrease activation upon GATA3 degradation
 ```{r engine='R', eval=F, echo=TRUE}
-dec_exp=change_exp[change_exp$treatment=="decrease_activation",] #37
+dec_exp=change_exp[change_exp$treatment=="decrease_activation",] #35
 
 x=dec_exp[,2:3]
 colnames(x)=c("log2FoldChange","treatment")
@@ -2052,7 +2065,7 @@ knitr::include_graphics("./png_image/BW_plot_ER-activated_genes_upon_dTAG_decrea
 ```
 
 ```{r engine='R', eval=F, echo=F}
-save.image('231017_bw.Rdata')
+save.image('231110_bw.Rdata')
 ```
 
 ## CDF
