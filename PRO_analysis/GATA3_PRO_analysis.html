@@ -2301,7 +2301,7 @@ conclusion: subsetting data first, then call DESeq2 has similar results as: firs
 </p>
 <p>(The concern that I am having when calling interaction is that I actually don’t know if there are actual interactions between ER and GATA3, if there is not, then did we decreased our effective size by calling the interactions?)<br />
 </p>
-<pre class="r"><code>inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+<pre class="r"><code>inferred.coords=read.table(&#39;../PTA_ctrl/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
 
 supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;noE2&quot;,&quot;E2&quot;)) #noE2 is reference
@@ -2570,7 +2570,7 @@ Figure 9: <span class="caption-title">ER-regulated genes upon E2 treatment (FDR 
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes’ log2FoldChange value from DESeq2 results of “dTAGV1_E2” vs. “control_E2”.<br />
 Need to first re-call DEseq2 to shift the reference level for ER. Make the reference level from noE2 to E2.<br />
 </p>
-<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA_ctrl/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
 
 supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;E2&quot;,&quot;noE2&quot;)) # **E2 is the reference level
@@ -2764,7 +2764,7 @@ sum(res3$padj &lt; 0.01 &amp; !is.na(res3$padj))
 rev_exp=temp1
 rev_exp$treatment=&quot;reverse_expression&quot;
 rbind(rev_exp, change_exp)</code></pre>
-<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
+<pre class="r"><code>#inferred.coords=read.table(&#39;../PTA_ctrl/MCF7_GATA3_gene_annotations.bed&#39;, header =FALSE)
 #counts.df = abs(get.raw.counts.interval(inferred.coords, &quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw&quot;, file.prefix = &quot;MCF&quot;))
 
 supp.condition1 =factor(rep(rep(c(&quot;E2&quot;,&quot;noE2&quot;),each=3),2), levels=c(&quot;E2&quot;,&quot;noE2&quot;)) # **E2 is the reference level
