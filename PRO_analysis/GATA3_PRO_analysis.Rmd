@@ -3738,6 +3738,24 @@ cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep GAT
 #cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73979 rv 5' adp
 ```
 
+## two-step cutadapt try out
+```{r engine='R', eval=F, echo=TRUE}
+file_PE1=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq
+file_PE2=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq
+# 1st cutadapt: we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10; -O sets the minimum overlap parameters 
+module load cutadapt/3.5
+cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG $file_PE1 -o PE1_test_noadap1.fastq --too-short-output test_PE1_short1.fastq > PE1_test_cutadapt1.txt
+cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq > PE1_test_cutadapt1.txt
+
+cutadapt -m 10 -O 10 -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap2.fastq --too-short-output test_PE1_short2.fastq > PE1_test_cutadapt2.txt
+cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq > PE1_test_cutadapt2.txt
+
+
+wc -l PE1_test_noadap1.fastq | awk '{print $1/4}'
+wc -l PE2_test_noadap1.fastq | awk '{print $1/4}'
+wc -l PE1_test_noadap2.fastq | awk '{print $1/4}'
+wc -l PE2_test_noadap2.fastq | awk '{print $1/4}'
+```
 
 ## BLAST to nt
 **BLAST on web**
