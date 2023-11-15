@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-11-10" />
+<meta name="date" content="2023-11-15" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-11-10</h4>
+<h4 class="date">2023-11-15</h4>
 
 </div>
 
@@ -757,18 +757,19 @@ function toggle_visibility(id1) {
 <li><a href="#integrate-with-chip-see-chip_analysis" id="toc-integrate-with-chip-see-chip_analysis"><span class="toc-section-number">4</span> Integrate with ChIP [SEE ChIP_analysis]</a></li>
 <li><a href="#un-mapped-reads-in-pro-seq" id="toc-un-mapped-reads-in-pro-seq"><span class="toc-section-number">5</span> Un-mapped reads in PRO-seq</a>
 <ul>
-<li><a href="#blast-to-nt" id="toc-blast-to-nt"><span class="toc-section-number">5.1</span> BLAST to nt</a>
+<li><a href="#two-step-cutadapt-try-out" id="toc-two-step-cutadapt-try-out"><span class="toc-section-number">5.1</span> two-step cutadapt try out</a></li>
+<li><a href="#blast-to-nt" id="toc-blast-to-nt"><span class="toc-section-number">5.2</span> BLAST to nt</a>
 <ul>
-<li><a href="#blastn-results" id="toc-blastn-results"><span class="toc-section-number">5.1.1</span> BLASTn results</a></li>
+<li><a href="#blastn-results" id="toc-blastn-results"><span class="toc-section-number">5.2.1</span> BLASTn results</a></li>
 </ul></li>
-<li><a href="#blast-to-other-databases" id="toc-blast-to-other-databases"><span class="toc-section-number">5.2</span> BLAST to other databases</a></li>
-<li><a href="#why-many-unmapped-reads-can-blast-to-human-genome" id="toc-why-many-unmapped-reads-can-blast-to-human-genome"><span class="toc-section-number">5.3</span> Why many “unmapped reads” can BLAST to human genome?</a>
+<li><a href="#blast-to-other-databases" id="toc-blast-to-other-databases"><span class="toc-section-number">5.3</span> BLAST to other databases</a></li>
+<li><a href="#why-many-unmapped-reads-can-blast-to-human-genome" id="toc-why-many-unmapped-reads-can-blast-to-human-genome"><span class="toc-section-number">5.4</span> Why many “unmapped reads” can BLAST to human genome?</a>
 <ul>
-<li><a href="#coherence-check" id="toc-coherence-check"><span class="toc-section-number">5.3.1</span> Coherence check</a></li>
-<li><a href="#fastqc" id="toc-fastqc"><span class="toc-section-number">5.3.2</span> FASTQC</a></li>
-<li><a href="#blast" id="toc-blast"><span class="toc-section-number">5.3.3</span> BLAST</a></li>
-<li><a href="#align-unmapped-reads-to-cas9dna-constructs-with-bowtie2" id="toc-align-unmapped-reads-to-cas9dna-constructs-with-bowtie2"><span class="toc-section-number">5.3.4</span> Align unmapped reads to CAS9/DNA constructs with bowtie2</a></li>
-<li><a href="#the-t47d-pro-seq-library-control" id="toc-the-t47d-pro-seq-library-control"><span class="toc-section-number">5.3.5</span> The T47D PRO-seq library control</a></li>
+<li><a href="#coherence-check" id="toc-coherence-check"><span class="toc-section-number">5.4.1</span> Coherence check</a></li>
+<li><a href="#fastqc" id="toc-fastqc"><span class="toc-section-number">5.4.2</span> FASTQC</a></li>
+<li><a href="#blast" id="toc-blast"><span class="toc-section-number">5.4.3</span> BLAST</a></li>
+<li><a href="#align-unmapped-reads-to-cas9dna-constructs-with-bowtie2" id="toc-align-unmapped-reads-to-cas9dna-constructs-with-bowtie2"><span class="toc-section-number">5.4.4</span> Align unmapped reads to CAS9/DNA constructs with bowtie2</a></li>
+<li><a href="#the-t47d-pro-seq-library-control" id="toc-the-t47d-pro-seq-library-control"><span class="toc-section-number">5.4.5</span> The T47D PRO-seq library control</a></li>
 </ul></li>
 </ul></li>
 </ul>
@@ -4269,8 +4270,26 @@ cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep TGG
 #cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_test_noadap.fastq | grep GTTCAGAGTTCTACAGTCCGACGATC | wc -l #86 rv 3&#39; adp
 cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep GATCGTCGGACTGTAGAACTCTGAAC | wc -l
 #cat MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_test_noadap.fastq | grep CCTTGGCACCCGAGAATTCCA | wc -l #73979 rv 5&#39; adp</code></pre>
-<div id="blast-to-nt" class="section level2" number="5.1">
-<h2><span class="header-section-number">5.1</span> BLAST to nt</h2>
+<div id="two-step-cutadapt-try-out" class="section level2" number="5.1">
+<h2><span class="header-section-number">5.1</span> two-step cutadapt try out</h2>
+<pre class="r"><code>file_PE1=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE1_final.fastq
+file_PE2=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone522_30min_control_E2_rep1_PE2_final.fastq
+# 1st cutadapt: we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10; -O sets the minimum overlap parameters 
+module load cutadapt/3.5
+cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG $file_PE1 -o PE1_test_noadap1.fastq --too-short-output test_PE1_short1.fastq &gt; PE1_test_cutadapt1.txt
+cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq &gt; PE1_test_cutadapt1.txt
+
+cutadapt -m 10 -O 10 -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap2.fastq --too-short-output test_PE1_short2.fastq &gt; PE1_test_cutadapt2.txt
+cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq &gt; PE1_test_cutadapt2.txt
+
+
+wc -l PE1_test_noadap1.fastq | awk &#39;{print $1/4}&#39;
+wc -l PE2_test_noadap1.fastq | awk &#39;{print $1/4}&#39;
+wc -l PE1_test_noadap2.fastq | awk &#39;{print $1/4}&#39;
+wc -l PE2_test_noadap2.fastq | awk &#39;{print $1/4}&#39;</code></pre>
+</div>
+<div id="blast-to-nt" class="section level2" number="5.2">
+<h2><span class="header-section-number">5.2</span> BLAST to nt</h2>
 <p><strong>BLAST on web</strong>
 To run BLAST on NCBI web, we need to first divide large sequence file (.fasta) to smaller sequence file due to web’s size limitation on input files.</p>
 <pre class="r"><code>awk -v size=25000 -v pre=30min_control_NoE2_rep1_unmapped -v pad=5 &#39;
@@ -4502,8 +4521,8 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.0000
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt -outfmt 18
 ```
 -->
-<div id="blastn-results" class="section level3" number="5.1.1">
-<h3><span class="header-section-number">5.1.1</span> BLASTn results</h3>
+<div id="blastn-results" class="section level3" number="5.2.1">
+<h3><span class="header-section-number">5.2.1</span> BLASTn results</h3>
 <!--
 
 ```r
@@ -4588,8 +4607,8 @@ awk &#39;/homo sapiens/&#39; RS=&quot;Tax BLAST report&quot; ORS=&quot;&quot; bl
 cat blastn_MCF7_10k_OR_human.txt | grep &quot;Query=&quot; | wc -l</code></pre>
 </div>
 </div>
-<div id="blast-to-other-databases" class="section level2" number="5.2">
-<h2><span class="header-section-number">5.2</span> BLAST to other databases</h2>
+<div id="blast-to-other-databases" class="section level2" number="5.3">
+<h2><span class="header-section-number">5.3</span> BLAST to other databases</h2>
 <ol start="2" style="list-style-type: decimal">
 <li>Blast to env_nt.00<br />
 </li>
@@ -4663,8 +4682,8 @@ makeblastdb -in all.fna -out Bacteria -dbtype nucl -title "Bacteria" -parse_seqi
 ```
 -->
 </div>
-<div id="why-many-unmapped-reads-can-blast-to-human-genome" class="section level2" number="5.3">
-<h2><span class="header-section-number">5.3</span> Why many “unmapped reads” can BLAST to human genome?</h2>
+<div id="why-many-unmapped-reads-can-blast-to-human-genome" class="section level2" number="5.4">
+<h2><span class="header-section-number">5.4</span> Why many “unmapped reads” can BLAST to human genome?</h2>
 <p>SAM Flags can extract reads with different features (reference: <a href="https://broadinstitute.github.io/picard/explain-flags.html" class="uri">https://broadinstitute.github.io/picard/explain-flags.html</a>):<br />
 <strong>Concordantly aligned reads</strong>: (-f 0x2) R1 (forward)——-&gt; expected mapping distance &lt;——- R2 (reverse)<br />
 note that in our pipeline, we have reversed R1 and R2, and we set the maximum mapping distance between them as 1000bp (–maxins 1000). 
@@ -4831,8 +4850,8 @@ print(barchart(percentage ~ supp,
          #par.settings = my.settings)
 ))
 dev.off()</code></pre>
-<div id="coherence-check" class="section level3" number="5.3.1">
-<h3><span class="header-section-number">5.3.1</span> Coherence check</h3>
+<div id="coherence-check" class="section level3" number="5.4.1">
+<h3><span class="header-section-number">5.4.1</span> Coherence check</h3>
 <p>Check if SAM Flag called unmapped reads are indeed not align to genome (bowtie2).<br />
 </p>
 <pre class="r"><code>module load samtools/1.16.1
@@ -4885,8 +4904,8 @@ do
   echo $i
 done</code></pre>
 </div>
-<div id="fastqc" class="section level3" number="5.3.2">
-<h3><span class="header-section-number">5.3.2</span> FASTQC</h3>
+<div id="fastqc" class="section level3" number="5.4.2">
+<h3><span class="header-section-number">5.4.2</span> FASTQC</h3>
 <p>FASTQC on reads that not aligned at all (MCF7_setC); FASTQC on reads that one mate align but its pair not (MCF7_setA and MCF7_setB).</p>
 <pre class="r"><code>module load fastqc 
 for i in *set*.fastq
@@ -4896,8 +4915,8 @@ do
   echo &quot;fastqc complete&quot;
 done</code></pre>
 </div>
-<div id="blast" class="section level3" number="5.3.3">
-<h3><span class="header-section-number">5.3.3</span> BLAST</h3>
+<div id="blast" class="section level3" number="5.4.3">
+<h3><span class="header-section-number">5.4.3</span> BLAST</h3>
 <p>blastn for “reads that not aligned at all” (e-value 0.001)</p>
 <pre class="r"><code>#module load samtools/1.16.1
 #dir=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_processed/bam/Analysis/
@@ -5029,8 +5048,8 @@ dev.off()</code></pre>
 <p>The blastn results for reads not aligned at all are comparable between MCF7 PRO-seq library and HEK PRO-seq library.<br />
 </p>
 </div>
-<div id="align-unmapped-reads-to-cas9dna-constructs-with-bowtie2" class="section level3" number="5.3.4">
-<h3><span class="header-section-number">5.3.4</span> Align unmapped reads to CAS9/DNA constructs with bowtie2</h3>
+<div id="align-unmapped-reads-to-cas9dna-constructs-with-bowtie2" class="section level3" number="5.4.4">
+<h3><span class="header-section-number">5.4.4</span> Align unmapped reads to CAS9/DNA constructs with bowtie2</h3>
 <pre class="r"><code>#get ADDGENE vector sequences (pSpCas9(BB)-2A-GFP) &amp; (pCRIS-PITChv2-dTAG-Puro) in fasta format
 #bowtie2-build [options]* &lt;reference_in&gt; &lt;bt2_base&gt;
 module load bowtie2/2.5.0
@@ -5085,8 +5104,8 @@ echo &#39;aligning to the dtag_puro vector&#39;
         -2 HEK_CloneZD29_30min_control_rep2_unmapped_PE2.fastq 2&gt;HEK_CloneZD29_30min_control_rep2_unmapped_dTAG_puro_bowtie2.log | samtools view -b - | \
         samtools sort - -o HEK_CloneZD29_30min_control_rep2_unmapped_dTAG_puro.bam</code></pre>
 </div>
-<div id="the-t47d-pro-seq-library-control" class="section level3" number="5.3.5">
-<h3><span class="header-section-number">5.3.5</span> The T47D PRO-seq library control</h3>
+<div id="the-t47d-pro-seq-library-control" class="section level3" number="5.4.5">
+<h3><span class="header-section-number">5.4.5</span> The T47D PRO-seq library control</h3>
 <pre class="r"><code># T47D control
 fasterq-dump SRR15944159
 mv SRR15944159_1.fastq T47D_DMSO_rep1_PE1.fastq # 79871492/4= 19967873
