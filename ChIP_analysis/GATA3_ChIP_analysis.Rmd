@@ -468,7 +468,8 @@ dev.off()
 
 Usually we combine replicates into a single track for visualization
 and we compare the tracks between conditions. It is important that we
-read-depth normalize before we combine the signal from each
+**read-depth normalize** (we are currently trying to change from read-depth 
+normalize to deseq2 size-factor normalize) before we combine the signal from each
 replicate. Otherwise, we would be weighting replicates differently;
 for example, if a library is sequenced to twice the read depth and we
 combine first then read depth normalize, then the more high coverage
@@ -4273,7 +4274,168 @@ rm rowname.txt
 ```
 
 -->
+## overrep kmer
 
+the hidden Markov model
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+genome=/home/FCAM/ssun/Genome/hg38.fa
+
+#fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt
+fasta-get-markov -m 3 $genome -counts > hg38_bkgrnd_counts.txt
+```
+
+seqoutbias-kmer scaling \
+calculates sequence bias from an aligned BAM file and corrects individual reads accordingly \
+```{r, engine='R', eval=F, echo=TRUE}
+#try ref genome subset: chr10
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/chromosomes/chr10.fa.gz
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/chromosomes/chr22.fa.gz
+gunzip chr10.fa.gz
+gunzip chr22.fa.gz
+
+genome=/home/FCAM/ssun/Genome/hg38/chr10.fa
+seqOutBias seqtable ${genome} --read-size=42 --kmer-size=3 #default kmer=4
+#cat /home/FCAM/ssun/Genome/hg38/chr10.fa | head -4000000 >chr10_4M.fa
+
+module load samtools/1.12
+samtools index /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep1.hg38.bam
+samtools view -b /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep1.hg38.bam chr10 > MCF7_GATA_CC_rep1_hg38.chr10.bam
+
+samtools view -b /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep1.hg38.bam chr22 > MCF7_GATA_CC_rep1_hg38.chr22.bam
+
+seqOutBias table ../chr10_42.3.2.2.tbl MCF7_GATA_CC_rep1_hg38.chr10.bam > scale_factors.txt #error: Unknown sequence name in BAM: chr1
+
+
+#previous 4mer
+seqOutBias table /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP2_Sathyan_MCF7_GATA3/no_adapt/seqoutbias_hg38_42/hg38_42.4.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep1.hg38.bam > scale_factors.txt
+# k-mer +strand count -strand count observed + observed -
+#1	AAAA	40820699	38610527	215330	180552
+#2	AAAC	14658300	14463162	73982	76088
+#3	AAAG	19210636	18952344	113141	99403
+#4	AAAT	26856385	26559020	143034	130659
+#5	AACA	15978758	15827182	99327	98496
+#...
+#141	GATA	8429505	8423547	43025	43095
+#142	GATC	5946523	5946190	26481	26397
+#143	GATG	9315812	9369558	45487	43589
+#144	GATT	10661005	10473291	51086	48121
+#...
+
+counts.table = read.table('scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+#       V3         V4         V5         V6 
+# 2573616554 2573599339   15260786   15259029
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+
+scale.table[scale.table[,2] == 'GATA',]
+# V1   V2       V3       V4
+# 141 GATA 1.161754 1.158922
+scale.table[scale.table[,2] == 'GATT',]
+#144 GATT 1.237455 1.29043
+scale.table[scale.table[,2] == 'GATC',] 
+#142 GATC 1.331563 1.335581
+scale.table[scale.table[,2] == 'GATG',]
+#143 GATG 1.214413 1.274466
+
+#the higher the scale factor, the less over-represented the kmer are...
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# try 3mer on whole ref genome
+source('https://raw.githubusercontent.com/guertinlab/Tn5bias/master/Manuscript_Vignette/Vignette_Scripts/Tn5_Bias_Functions.R')
+genome=/home/FCAM/ssun/Genome/hg38.fa
+seqOutBias seqtable ${genome} --read-size=42 --kmer-size=3
+
+
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep1.hg38.bam > GATA_CC_rep1_scale_factors.txt
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep2.hg38.bam > GATA_CC_rep2_scale_factors.txt
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_GATA_CC_rep3.hg38.bam > GATA_CC_rep3_scale_factors.txt
+
+module load R/4.1.2
+R
+counts.table = read.table('GATA_CC_rep1_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+#  V3         V4         V5         V6 
+#2573618185 2573600539   15260787   15259030 
+
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+
+scale.table[scale.table[,2] == 'GAT',]
+# V1  V2       V3      V4
+#36 GAT 1.226538 0.95873
+
+counts.table = read.table('GATA_CC_rep2_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+scale.table[scale.table[,2] == 'GAT',]
+#V1  V2       V3       V4
+#36 GAT 1.179193 1.016729
+
+counts.table = read.table('GATA_CC_rep3_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+scale.table[scale.table[,2] == 'GAT',]
+#V1  V2      V3        V4
+#36 GAT 1.19347 0.9992322
+```
+
+hypothesis: for peaks that MEME-STREME did not find motif, we want to know if those peaks has overrepresented 3mer like GAT.
+```{r, engine='R', eval=F, echo=TRUE}
+# other libraries
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_IgG_CC_rep1.hg38.bam > IgG_CC_rep1_scale_factors.txt
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_IgG_CE_rep2.hg38.bam > IgG_CE_rep2_scale_factors.txt
+seqOutBias table /home/FCAM/ssun/seqoutbias/all_kmer3/hg38_42.3.2.2.tbl /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIP1_Sathyan_MCF7_GATA3/1_DataProcessing_\&Alignment/MCF7_dTAGGATA522_IgG_dE_rep3.hg38.bam > IgG_dE_rep3_scale_factors.txt
+
+module load R/4.1.2
+R
+counts.table = read.table('IgG_CC_rep1_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+scale.table[scale.table[,2] == 'GAT',]
+#V1  V2       V3       V4
+#36 GAT 1.215789 1.051381
+
+counts.table = read.table('IgG_CE_rep2_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+scale.table[scale.table[,2] == 'GAT',]
+#V1  V2       V3       V4
+#36 GAT 1.213892 1.034528
+
+counts.table = read.table('IgG_dE_rep3_scale_factors.txt')
+totals = colSums(counts.table[,3:6])
+scale.table = data.frame(counts.table[,1:2], 
+                         t(apply(counts.table[,3:6], 1,
+function(row) c((row[1]/totals[1]) / (row[3] / totals[3]), (row[2] / totals[2]) / (row[4] / totals[4])))))
+scale.table[scale.table[,2] == 'GAT',]
+#V1  V2      V3       V4
+#36 GAT 1.22122 1.041141
+```
+The above did show that "GAT" is overrepresented in GATA library than IgG library, but might need a different mathematical formula to represent this instead of the "scale factor". \
+
+See if "GAT" over-represented in peaks without motif 12345678: \
+```{r, engine='R', eval=F, echo=TRUE}
+#bed to bam, change the peaks without motif_12345678 to bam format??
+#then, the read size need to change to 100bp?
+export TMPDIR="${HOME}/temp" 
+genome=/home/FCAM/ssun/Genome/hg38.fa
+seqOutBias seqtable ${genome} --read-size=100 --kmer-size=3 2>&1 | tee kmer3_rs100_seqOutBias.log
+
+```
 
 # Integration with PRO-seq data
 
@@ -4577,6 +4739,19 @@ print(bwplot(log(abs(peak_intensity), base = 10) ~ status,
          }
        ))
 dev.off()
+```
+
+```{r, engine='R', eval=F, echo=F}
+#deseq2
+quantile(peak.intensities, probs = seq(.05, 1.00, by = .05))
+#         5%         10%         15%         20%         25%         30% 
+#   25.03477    29.26822    32.24003    34.85009    37.44833    40.19495 
+#        35%         40%         45%         50%         55%         60% 
+#   43.16713    46.62380    50.27567    54.50266    59.81136    66.40026 
+#        65%         70%         75%         80%         85%         90% 
+#   74.63208    86.00656   102.11487   125.08599   160.58147   222.03676 
+#        95%        100% 
+#  348.55000 15936.61845 
 ```
 
 Most unchanged (match to repressed) peaks are ~45 intensity, so we could choose to select ChIP peak intensity larger than 45 as functional. (at 45% quantile). \
