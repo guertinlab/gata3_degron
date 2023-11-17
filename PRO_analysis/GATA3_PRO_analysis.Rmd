@@ -3745,16 +3745,303 @@ file_PE2=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone
 # 1st cutadapt: we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10; -O sets the minimum overlap parameters 
 module load cutadapt/3.5
 cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG $file_PE1 -o PE1_test_noadap1.fastq --too-short-output test_PE1_short1.fastq > PE1_test_cutadapt1.txt
-cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq > PE1_test_cutadapt1.txt
+cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq > PE2_test_cutadapt1.txt
 
+# 2nd cutadapt
 cutadapt -m 10 -O 10 -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap2.fastq --too-short-output test_PE1_short2.fastq > PE1_test_cutadapt2.txt
-cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq > PE1_test_cutadapt2.txt
+cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq > PE2_test_cutadapt2.txt
 
 
-wc -l PE1_test_noadap1.fastq | awk '{print $1/4}'
-wc -l PE2_test_noadap1.fastq | awk '{print $1/4}'
-wc -l PE1_test_noadap2.fastq | awk '{print $1/4}'
-wc -l PE2_test_noadap2.fastq | awk '{print $1/4}'
+wc -l PE1_test_noadap1.fastq | awk '{print $1/4}' #29473968
+wc -l PE2_test_noadap1.fastq | awk '{print $1/4}' #33116654
+wc -l PE1_test_noadap2.fastq | awk '{print $1/4}' #28845586
+wc -l PE2_test_noadap2.fastq | awk '{print $1/4}' #33115759
+
+cutadapt -m 10 -O 10 --rc -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap3.fastq --too-short-output test_PE1_short3.fastq > PE1_test_cutadapt3.txt
+cutadapt -m 18 -O 10 --rc -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap3.fastq --too-short-output test_PE2_short3.fastq > PE2_test_cutadapt3.txt
+
+wc -l PE1_test_noadap3.fastq | awk '{print $1/4}' #28845563
+wc -l PE2_test_noadap3.fastq | awk '{print $1/4}' #33115713
+
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+#! /bin/sh
+
+#SBATCH --job-name=pro_processing_two_cutadapt.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 32                  
+#SBATCH -p himem           
+#SBATCH --qos=himem     
+#SBATCH --mem=68G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o pro_processing_two_cutadapt.sh_%j.out
+#SBATCH -e pro_processing_two_cutadapt.sh_%j.err
+
+hostname
+set -e
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+#directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/cutadapt/
+
+module load cutadapt/3.5
+module load seqtk/1.3
+#seqOutBias=/home/FCAM/mguertin/software/seqOutBias
+#fqdedup=/home/FCAM/mguertin/ZNF143_PRO/fqdedup-1.0.0/target/release/fqdedup
+#flash=/home/FCAM/mguertin/software/flash
+module load fastq-pair/1.0
+module load samtools/1.16.1
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+module load bowtie2
+module load bedtools
+
+sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+annotation_prefix=/home/FCAM/ssun/Annotation/Annotation_110/Homo_sapiens.GRCh38.110 
+UMI_length=8
+read_size=39
+cores=32
+genome=/home/FCAM/ssun/Genome_pro/hg38.fa
+genome_index=/home/FCAM/ssun/Genome_pro/hg38_bt2/hg38
+prealign_rdna_index=/home/FCAM/ssun/Genome_pro/human_rDNA_bt2/human_rDNA
+tallymer=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38.tal_${read_size}.gtTxt.gz
+table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
+
+
+#echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+echo 'removing short RNA insertions' 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap2.fastq > PE1_test_noadap2_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo 'removing PCR duplicates'
+fqdedup -i PE1_test_noadap2_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap2.fastq #pair FASTQ files
+
+
+echo 'calculating and plotting RNA insert sizes'
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap2.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo 'trimming off the UMI'
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - > PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap2.fastq | seqtk seq -r - > PE2_processed.fastq
+
+
+echo 'aligning to rDNA and removing aligned reads'
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2>test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo 'aligning to the genome'
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2>test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> QC_metrics.txt
+
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam > test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam > test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam > test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam > test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+fastq results shows that, by perform a second cutadapt with minumum overlap of 10bp, we no longer see overrepresented 5' adapters in mapped reads; but the PE2 unmapped reads still contains some 21bp 5'adapter. I suspect these adapter reads are come from the unexpected case where raw fastq PE2 reads has rc of 5' adapter.
+
+```{r engine='R', eval=F, echo=TRUE}
+#manually remove reversed opposite adapter
+cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC PE1_test_noadap1.fastq -o PE1_test_noadap4.fastq --too-short-output test_PE1_short4.fastq > PE1_test_cutadapt4.txt #0.1% reads with reversed 3' adapter at PE1
+cutadapt -m 18 -O 15 -a CCTTGGCACCCGAGAATTCCA PE2_test_noadap1.fastq -o PE2_test_noadap4.fastq --too-short-output test_PE2_short4.fastq > PE2_test_cutadapt4.txt #3.3% reads with reversed 5' adapter at PE2
+
+
+# align to genome
+
+#echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+echo 'removing short RNA insertions' 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap4.fastq > PE1_test_noadap4_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo 'removing PCR duplicates'
+fqdedup -i PE1_test_noadap4_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap4.fastq #pair FASTQ files
+
+
+echo 'calculating and plotting RNA insert sizes'
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap4.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo 'trimming off the UMI'
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - > PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap4.fastq | seqtk seq -r - > PE2_processed.fastq
+
+
+echo 'aligning to rDNA and removing aligned reads'
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2>test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo 'aligning to the genome'
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2>test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam > test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam > test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam > test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam > test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+
+```{r engine='R', eval=F, echo=TRUE}
+#manually remove reversed opposite adapter
+cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC ../PE1_test_noadap2.fastq -o PE1_test_noadap5.fastq --too-short-output test_PE1_short5.fastq > PE1_test_cutadapt5.txt #0.1% reads with reversed 3' adapter at PE1
+cutadapt -m 18 -O 15 -a CCTTGGCACCCGAGAATTCCA ../PE2_test_noadap2.fastq -o PE2_test_noadap5.fastq --too-short-output test_PE2_short5.fastq > PE2_test_cutadapt5.txt #3.3% reads with reversed 5' adapter at PE2
+
+
+# align to genome
+
+#echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+echo 'removing short RNA insertions' 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap5.fastq > PE1_test_noadap5_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo 'removing PCR duplicates'
+fqdedup -i PE1_test_noadap5_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap5.fastq #pair FASTQ files
+
+
+echo 'calculating and plotting RNA insert sizes'
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap5.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo 'trimming off the UMI'
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - > PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap5.fastq | seqtk seq -r - > PE2_processed.fastq
+
+
+echo 'aligning to rDNA and removing aligned reads'
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2>test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo 'aligning to the genome'
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2>test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam > test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam > test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam > test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam > test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
 ```
 
 ## BLAST to nt
