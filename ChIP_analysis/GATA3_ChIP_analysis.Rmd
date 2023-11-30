@@ -462,6 +462,43 @@ print(barchart(aligned_reads~ supp2|supp,
          #col=rep(c(rep("light blue",3),rep("#00AAFF",3), rep("#FF9999",4)),3))
 )
 dev.off()
+
+#231130
+#cd GATA3_ChIP_PRO_July2023/ChIP_final/sorted.bam_final/read_depth/
+module load R/4.1.2
+R 
+library("lattice") 
+df_GATA=read.csv('GATA_sorted_bam_reads.csv')
+df_IgG=read.csv('IgG_sorted_bam_reads.csv')
+
+df_sum=rbind(df_GATA[1:3,], df_IgG)
+df_sum$supp=c(rep("GATA",3), rep("IgG", 4))
+df_sum$rep=c(rep(c(1,2,3),2 ),4)
+df_sum$supp2=as.factor(paste(df_sum$treatment,df_sum$rep, sep = "_"))
+
+pdf('barplot_sorted_bam_GATA_IgG_reads1.pdf',width=6,height=8)
+print(barchart(aligned_reads~ supp,
+         group=treatment,
+         stack=T,
+         data = df_sum,
+         #auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         xlab = "libraries",
+         ylab = "post-alignment reads (sorted_bam)",
+))
+dev.off()
+
+pdf('barplot_sorted_bam_GATA_IgG_reads.pdf',width=10,height=8)
+print(barchart(aligned_reads~ supp2|supp,
+         group=treatment,
+         stack=T,
+         data = df_sum,
+         #auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         xlab = "libraries",
+         ylab = "post-alignment reads (sorted_bam)",
+))
+dev.off()
 ```
 
 # Genome Browser
@@ -2459,6 +2496,34 @@ percent peaks with or without GATA3 motif variant 1,2,3:
 #library(knitr)
 knitr::include_graphics("./png_images/1019 percent peaks with or without GATA3 motif variant.png") 
 ```
+
+## UPDATE: use a 2mer genome background file 
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+module load R/4.1.2
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+fasta-get-markov -m 2 $genome > hg38_bkgrnd_2mer.txt
+```
+
+**MEME-classic** \
+for top 10000 peaks without motif 1,2,3,4,5,6, 7, 8 (100bp central window), perform MEME-classic use the 2mer genome background file. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# select top 10000
+sort -nrk5,5 without_motifs_123456_78.bed | head -n 10000 > without_motifs_123456_78_top10000.bed
+fastaFromBed -fi $genome -bed without_motifs_123456_78_top10000.bed -fo without_motifs_123456_78_top10000.fasta
+# MEME-classic
+meme -p 32 -o  bkgrnd_2mer_GATA3_without_123456_78_top10000_output -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 3 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd_2mer.txt -maxsize 100000000 without_motifs_123456_78_top10000.fasta
+
+```
+
+**STREME** \
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
