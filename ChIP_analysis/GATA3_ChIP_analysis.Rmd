@@ -2497,7 +2497,7 @@ percent peaks with or without GATA3 motif variant 1,2,3:
 knitr::include_graphics("./png_images/1019 percent peaks with or without GATA3 motif variant.png") 
 ```
 
-## UPDATE: use a 2mer genome background file 
+## 23 November UPDATE: use a 2mer genome background file 
 
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
@@ -2523,7 +2523,33 @@ meme -p 32 -o  bkgrnd_2mer_GATA3_without_123456_78_top10000_output -nmotifs 1 -o
 
 ```
 
+The above MEME generates the top enriched motif using 2mer background, minwidth==3, and top 10000 peaks without 12345678 gives FOS::JUN-like motif. \
+
+try increase my nmotif search to 5: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# MEME-classic
+meme -p 32 -o  bkgrnd_2mer_GATA3_without_123456_78_top10000_output2 -nmotifs 5 -objfun classic -csites 20000 -searchsize 0 -minw 3 -maxw 20 -revcomp -dna -bfile hg38_bkgrnd_2mer.txt -maxsize 100000000 without_motifs_123456_78_top10000.fasta
+
+```
+
+the top 5 enriched motif found by MEME have no GATA3-like motif. \
+
 **STREME** \
+
+1) all peak without 12345678 at central 100bp window \
+Here I am using the Markov 2mer background file. \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+#streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
+# perform STREME on peaks (without motif 1,2,3,4,5,6) (100bp window)
+streme --o bkgrnd_2mer_GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd_2mer.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78.fasta
+
+```
+
+
+2) increase width \
 
 <!--
 ```{r, engine='R', eval=F, echo=TRUE}
