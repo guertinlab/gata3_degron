@@ -2417,11 +2417,21 @@ Here I am using the Markov 2mer background file. \
 ```{r, engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
 #streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
-# perform STREME on peaks (without motif 1,2,3,4,5,6) (100bp window)
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7,8) (100bp window)
 streme --o bkgrnd_2mer_GATA3_without_123456_78_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd_2mer.txt --dna --minw 4 --maxw 15 --p without_motifs_123456_78.fasta
 
 ```
 
+
+try minw 3, maxw 20: \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+#streme -oc ZNF143_no_12345.streme_output --maxw 29 --nmotifs 10 --p without_motifs_12345_wide_NNN.fasta
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7,8) (100bp window)
+streme --o bkgrnd_2mer_GATA3_without_123456_78_streme_output2 --nmotifs 10 --objfun de --bfile hg38_bkgrnd_2mer.txt --dna --minw 3 --maxw 20 --p without_motifs_123456_78.fasta
+```
+
+(no GATA3-like motifs found) \
 
 2) perfrom STREME on the flanking region \
 ```{r, engine='R', eval=F, echo=TRUE}
@@ -2472,6 +2482,14 @@ module load meme/5.4.1
 # perform STREME on peaks (without motif 1,2,3,4,5,6, 7, 8, 9) on flanking region
 streme --oc bkgrnd_2mer_GATA3_without_123456_789_200bp_60NNN_streme_output --nmotifs 10 --objfun de --bfile hg38_bkgrnd_2mer.txt --dna --minw 3 --maxw 15 --p without_motifs_123456_789_200bpwindow_60NNN.fasta
 ```
+
+try maxw=20 \
+```{r, engine='R', eval=F, echo=TRUE}
+module load meme/5.4.1
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7, 8, 9) on flanking region
+streme --oc bkgrnd_2mer_GATA3_without_123456_789_200bp_60NNN_streme_output2 --nmotifs 10 --objfun de --bfile hg38_bkgrnd_2mer.txt --dna --minw 3 --maxw 20 --p without_motifs_123456_789_200bpwindow_60NNN.fasta
+```
+
 
 At this point, STREME no longer found GATA-like motifs. **41.14% peaks do not contain GATA3 binding motifs reported by both MEME-classic and STREME** \
 
