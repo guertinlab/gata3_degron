@@ -173,5 +173,6 @@ wc -l mast_GATA3_PSWM_in_peaks_round8.bed #1636
 intersectBed -v -a without_motifs_1234567.bed -b mast_GATA3_PSWM_in_peaks_round8.bed > without_motifs_12345678.bed #22358
 fastaFromBed -fi $genome -bed without_motifs_12345678.bed -fo without_motifs_12345678.fasta
 
-
+# MEME-round9:
+meme -p 4 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
 
