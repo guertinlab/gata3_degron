@@ -176,3 +176,7 @@ fastaFromBed -fi $genome -bed without_motifs_12345678.bed -fo without_motifs_123
 # MEME-round9:
 meme -p 4 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
 
+# MEME-round10:
+meme -oc GATA3_without_mot123456789_81bp_top4000_min_10_max_14_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 14 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 ../without_motifs_123456789_81win_top4000.fasta -mpi
+
+
