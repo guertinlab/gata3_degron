@@ -24,7 +24,7 @@ available. Controls are important. An IgG (or mock) IP is superior to input as a
 # ChIP-seq experiments design
 
 MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped media (ER deprived) are treated under 3 conditions: 1) CC: null+null; 2) CE: null+ E2; 3) dE: dTAG+E2. \
-Cells are ChIPed with IgG, CTCF, GATA3, ER, respectively; plus an parallel-ChiP of CTCF and ER. \
+Cells are ChIPed with IgG, CTCF, GATA3, ER, individually; plus an parallel-ChiP of CTCF and ER. \
 
 IgG ChIP is an control for background signals. \
 

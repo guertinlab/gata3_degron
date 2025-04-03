@@ -769,6 +769,8 @@ rm tmpPlus${pair}.bg
 rm tmpMinus${pair}.bg
 ```
 
+
+
 ### Input for TSS
 get the merged plus and minus for TSS inference (PE2 data) \
 
@@ -959,6 +961,26 @@ bw.minus = load.bigWig(minus.file)
 obtain gene annotations use get.largest.interval(); \
 count reads for each transcripts use read.count.transcript().\
 ```{r engine='R', eval=F, echo=TRUE}
+RSAT_df <- function(file_path) {
+  # Read the file
+  data <- read.table(file_path, header = FALSE, sep = "\t")
+
+  # Split the first column into components using strsplit
+  components_list <- strsplit(data$V1, "n\\{|\\}")
+
+  # Extract components from the list
+  data$first <- sapply(components_list, function(x) x[1])  # "gat"
+  data$Number <- as.numeric(sapply(components_list, function(x) x[2])) + 10  # Add 10 to the Number
+  data$second <- sapply(components_list, function(x) x[3])  # "atc"
+
+  return(data)
+}
+
+# Example usage
+file_path <- "your_file.txt"
+result <- extract_and_create_columns(file_path)
+print(result)
+
 # Get the largest interval for each gene, given multiple TSS and TTS annotations
 largest.interval.bed = get.largest.interval(bed=gencode.transcript)
 # Evaluate reads and compute densities for each transcript of each gene.
@@ -3763,6 +3785,20 @@ cutadapt -m 18 -O 10 --rc -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -
 wc -l PE1_test_noadap3.fastq | awk '{print $1/4}' #28845563
 wc -l PE2_test_noadap3.fastq | awk '{print $1/4}' #33115713
 
+for i in *noadap2.fastq
+do
+ fastqc $i
+ echo $i
+ echo "fastqc complete"
+done
+
+for i in *noadap3.fastq
+do
+ fastqc $i
+ echo $i
+ echo "fastqc complete"
+done
+
 ```
 
 ```{r engine='R', eval=F, echo=TRUE}
@@ -3885,6 +3921,7 @@ done
 
 fastq results shows that, by perform a second cutadapt with minumum overlap of 10bp, we no longer see overrepresented 5' adapters in mapped reads; but the PE2 unmapped reads still contains some 21bp 5'adapter. I suspect these adapter reads are come from the unexpected case where raw fastq PE2 reads has rc of 5' adapter.
 
+<!--
 ```{r engine='R', eval=F, echo=TRUE}
 #manually remove reversed opposite adapter
 cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC PE1_test_noadap1.fastq -o PE1_test_noadap4.fastq --too-short-output test_PE1_short4.fastq > PE1_test_cutadapt4.txt #0.1% reads with reversed 3' adapter at PE1
@@ -3963,9 +4000,10 @@ do
   echo "fastqc complete"
 done
 ```
-
+-->
 
 ```{r engine='R', eval=F, echo=TRUE}
+#set5
 #manually remove reversed opposite adapter
 cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC ../PE1_test_noadap2.fastq -o PE1_test_noadap5.fastq --too-short-output test_PE1_short5.fastq > PE1_test_cutadapt5.txt #0.1% reads with reversed 3' adapter at PE1
 cutadapt -m 18 -O 15 -a CCTTGGCACCCGAGAATTCCA ../PE2_test_noadap2.fastq -o PE2_test_noadap5.fastq --too-short-output test_PE2_short5.fastq > PE2_test_cutadapt5.txt #3.3% reads with reversed 5' adapter at PE2
@@ -4043,6 +4081,246 @@ do
   echo "fastqc complete"
 done
 ```
+
+fastq results shows that, by perform a second cutadapt, then trimming the revrse complement adapter sequences with minumum overlap of 10bp, we no longer see overrepresented 5' adapters in the final reads (mapped and unmapped). \
+
+There are overrepresented RNA primer index, also trim these \
+```{r engine='R', eval=F, echo=TRUE}
+#set6
+
+module load cutadapt/3.5
+# manually remove RPI adapter(reversed)
+cutadapt -m 10 -O 18 -a CTCGGGTGCCAAGGAACTCCAGTCAC ../set5/PE1_test_noadap5.fastq -o PE1_test_noadap6.fastq --too-short-output test_PE1_short6.fastq > PE1_test_cutadapt6.txt #0.3% reads with RPI adapter(reversed)
+
+# align to genome
+
+#echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+echo 'removing short RNA insertions' 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap6.fastq > PE1_test_noadap6_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo 'removing PCR duplicates'
+fqdedup -i PE1_test_noadap6_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq ../set5/PE2_test_noadap5.fastq #pair FASTQ files
+
+
+echo 'calculating and plotting RNA insert sizes'
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        ../set5/PE2_test_noadap5.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo 'trimming off the UMI'
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - > PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} ../set5/PE2_test_noadap5.fastq | seqtk seq -r - > PE2_processed.fastq
+
+
+echo 'aligning to rDNA and removing aligned reads'
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2>test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo 'aligning to the genome'
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2>test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam > test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam > test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam > test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam > test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+module load samtools/1.16.1
+map_pe2=$(samtools view -c -f 0x82 test.bam)
+pre_alignment=$(wc -l PE2_processed.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe2 / $pre_alignment" | bc)
+
+#aligning PE2 gives same 74% alignment rate --expected
+```
+
+**unmapped reads**
+```{r engine='R', eval=F, echo=TRUE}
+20162145 reads; of these:
+  20162145 (100.00%) were paired; of these:
+    5070062 (25.15%) aligned concordantly 0 times
+    9970755 (49.45%) aligned concordantly exactly 1 time
+    5121328 (25.40%) aligned concordantly >1 times
+    ----
+    5070062 pairs aligned concordantly 0 times; of these:
+      264187 (5.21%) aligned discordantly 1 time
+    ----
+    4805875 pairs aligned 0 times concordantly or discordantly; of these:
+      9611750 mates make up the pairs; of these:
+        4883292 (50.81%) aligned 0 times
+        2490603 (25.91%) aligned exactly 1 time
+        2237855 (23.28%) aligned >1 times
+87.89% overall alignment rate
+
+#set6
+module load samtools/1.16.1
+samtools view -c test.bam  #40324290
+samtools view -b -F 2 test.bam > test_nca.bam
+
+# 1) discordantly aligned as pairs (994847*2)
+samtools view -c -f 161 -F 28 test_nca.bam #PE2                #203679   
+samtools view -c -f 81 -F 44 test_nca.bam #PE1 reverse strand   
+
+samtools view -c -f 145  -F 44 test_nca.bam #PE2 reverse strand. #427148  
+samtools view -c -f 97  -F 28 test_nca.bam #PE1                  
+
+samtools view -c -f 177 -F 12 test_nca.bam #PE2 reverse strand   #364020 
+samtools view -c -f 113 -F 12 test_nca.bam #PE1 reverse strand
+
+# 2) read 1 in one locus & read2 in completely different locus (153520*2) --split reads
+samtools view -c -f 129 -F 60 test_nca.bam #PE2.        #153520
+samtools view -c -f 65 -F 60 test_nca.bam #PE1.         
+
+
+# 3) one mate aligned, the other mate not aligned (2960098*2)
+samtools view -c -f 165 -F 24 test_nca.bam #PE2 un-map               #1230983 
+samtools view -c -f 89 -F 36 test_nca.bam #PE1 reverse but map.      
+
+samtools view -c -f 153 -F 36 test_nca.bam #PE2 reverse but map.    # 308753
+samtools view -c -f 101 -F 24 test_nca.bam #PE1 un-map              
+
+samtools view -c -f 137 -F 52 test_nca.bam #PE2 map non-reverse           #157420
+samtools view -c -f 69 -F 56 test_nca.bam #PE1 un-map.                    
+
+samtools view -c -f 133 -F 56 test_nca.bam #PE2 un-map              # 1262942
+samtools view -c -f 73 -F 52 test_nca.bam #PE1. map non-reverse     
+
+
+# 4) not align at all
+samtools view -c -f 141 -F 48 test_nca.bam #PE2 un-map            #961597
+samtools view -c -f 77 -F 48 test_nca.bam #PE1 un-map            
+
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+#BLAST
+module load R/4.1.2 
+R 
+
+library("lattice") 
+bar=read.csv('MCF7_4adapt_unmapped_reads_bar.csv')
+bar$supp<- factor(bar$supp, levels = c("concordantly_aligned", "discordant_orientation", "split_reads"          , "only_one_mate_align", "not_align_at_all"))
+
+pdf('bar_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.pdf', width=5,height=6)
+print(barchart(fraction ~ supp,         
+         data = bar,
+         #groups = enriched_motif,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "fraction of reads",
+         xlab = "reads categories",
+         #par.settings = my.settings)
+))
+dev.off()
+
+bar=read.csv('compare_unmapped_reads_bar.csv')
+bar$supp<- factor(bar$supp, levels = c("concordantly_aligned", "discordant_orientation", "split_reads"          , "only_one_mate_align", "not_align_at_all"))
+
+pdf('bar_compare_unmapped.pdf', width=8,height=6)
+print(barchart(fraction ~ supp,         
+         data = bar,
+         groups = lib,
+         #stack = TRUE,
+         auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = "fraction of reads",
+         xlab = "reads categories",
+         #par.settings = my.settings)
+))
+dev.off()
+```
+
+```{r engine='R', eval=F, echo=TRUE}
+#set6
+# PE1 unmap, but PE2 map (test_setA)
+samtools fastq -f 153 -F 36 test_nca.bam > PE2_test1.fastq #PE2 reverse but map.
+samtools fastq -f 101 -F 24 test_nca.bam > PE1_test1.fastq #PE1 un-map  
+
+samtools fastq -f 137 -F 52 test_nca.bam > PE2_test2.fastq #PE2 map non-reverse    
+samtools fastq -f 69 -F 56 test_nca.bam > PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq > test_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq > test_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (test_setB)
+samtools fastq -f 165 -F 24 test_nca.bam > PE2_test3.fastq #PE2 un-map              
+samtools fastq -f 89 -F 36 test_nca.bam > PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 test_nca.bam > PE2_test4.fastq #PE2 un-map               
+samtools fastq -f 73 -F 52 test_nca.bam > PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq > test_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq > test_setB_unmap_PE2.fastq
+
+# PE1 unmap, and PE2 unmap (test_setC)
+samtools fastq -f 141 -F 48 test_nca.bam > test_setC_unmap_PE2.fastq #PE2 un-map            
+samtools fastq -f 77 -F 48 test_nca.bam > test_setC_unmap_PE1.fastq #PE1 un-map
+
+module load fastqc 
+for i in *set*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+
+get read length from file
+```{r engine='R', eval=F, echo=TRUE}
+for i in *set*.fastq
+do
+ name=$(echo $i | awk -F".fastq" '{print $1}')
+ echo $name
+ #convert from fastq to fasta
+ sed -n '1~4s/^@/>/p;2~4p' $i > ${name}.fasta
+ #get read length
+ cat ${name}.fasta | awk '$0 ~ ">" {print c;c=0} $0 !~ ">" {c+=length($0);} END { print c; }' | sed '/^$/d' | sort | uniq -c | awk '{print $1,$2}' > ${name}_read_length.txt
+done
+```
+
 
 ## BLAST to nt
 **BLAST on web**
