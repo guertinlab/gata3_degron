@@ -12,7 +12,7 @@
 <meta name="author" content="Siyu Sun" />
 <meta name="author" content="Michael J. Guertin" />
 
-<meta name="date" content="2023-11-15" />
+<meta name="date" content="2025-04-03" />
 
 <title>PRO-seq analysis</title>
 
@@ -704,7 +704,7 @@ function toggle_visibility(id1) {
 
 <h1 class="title toc-ignore">PRO-seq analysis</h1>
 <p class="author-name">Siyu Sun and Michael J. Guertin</p>
-<h4 class="date">2023-11-15</h4>
+<h4 class="date">2025-04-03</h4>
 
 </div>
 
@@ -1640,7 +1640,27 @@ obtain gene annotations use get.largest.interval();<br />
 count reads for each transcripts use read.count.transcript().<br />
 </li>
 </ol>
-<pre class="r"><code># Get the largest interval for each gene, given multiple TSS and TTS annotations
+<pre class="r"><code>RSAT_df &lt;- function(file_path) {
+  # Read the file
+  data &lt;- read.table(file_path, header = FALSE, sep = &quot;\t&quot;)
+
+  # Split the first column into components using strsplit
+  components_list &lt;- strsplit(data$V1, &quot;n\\{|\\}&quot;)
+
+  # Extract components from the list
+  data$first &lt;- sapply(components_list, function(x) x[1])  # &quot;gat&quot;
+  data$Number &lt;- as.numeric(sapply(components_list, function(x) x[2])) + 10  # Add 10 to the Number
+  data$second &lt;- sapply(components_list, function(x) x[3])  # &quot;atc&quot;
+
+  return(data)
+}
+
+# Example usage
+file_path &lt;- &quot;your_file.txt&quot;
+result &lt;- extract_and_create_columns(file_path)
+print(result)
+
+# Get the largest interval for each gene, given multiple TSS and TTS annotations
 largest.interval.bed = get.largest.interval(bed=gencode.transcript)
 # Evaluate reads and compute densities for each transcript of each gene.
 transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
@@ -2143,7 +2163,7 @@ Figure 5: <span class="caption-title">PCA dTAG sub</span><br>
 **Call DESeq2 (without interactions)** \
 Now lets track down the gene expression changes by extracting the 2-factor effects first: \
 
-```r
+``` r
 inferred.coords=read.table('../PTA/MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/seqoutbias_bw", file.prefix = "MCF"))
 
@@ -2164,7 +2184,7 @@ counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_
 ```
 
 
-```r
+``` r
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
                            levels=c("control_E2","control_NoE2","dTAGV1_E2", "dTAGV1_NoE2"))
 deseq.df = DESeqDataSetFromMatrix(counts.df, 
@@ -2185,7 +2205,7 @@ dds = DESeq(deseq.df)
 Two results we want to extract from the dds results: 1) control_E2 vs. control_NoE2   2)  dTAGV1_E2 vs. control_E2 \
 Make bw plot, and also notice the p-value. \
 
-```r
+``` r
 res1 = results(dds, contrast=c("sample.conditions","control_E2","control_NoE2"))
 #compare res1 with res2 (called by DESeq2 with interaction: res2 = results(dds, contrast=c("supp.condition1","E2","noE2")))
 supp.condition1 =factor(rep(rep(c("E2","noE2"),each=3),2), levels=c("noE2","E2"))
@@ -2212,7 +2232,7 @@ dev.off()
 ```
 
 
-```r
+``` r
 res2 = results(dds, contrast=c("sample.conditions","dTAGV1_E2","control_E2"))
 #compare res2 with res1 (called by DESeq2 with interaction with my reference level set to E2:
 
@@ -2268,7 +2288,7 @@ conclusion: DESeq2 interaction can be used to extract comparison between dTAGV1_
 
 2) subset the comparisons
 
-```r
+``` r
 counts.df1=counts.df[,1:6] #+/- E2 under ctrl
 #counts.df2=counts.df[, c(1:3, 7:9)] #+/- dTAG under E2
 #counts.df3=counts.df[,c(4:6, 10:12)] # +/- dTAG under control
@@ -2861,7 +2881,7 @@ If GATA3 directly regulate ER-activated genes:</p>
 Taking the E2 activated genes (which confirmed by CDF that these are directly regulated by ER), extract these genes' log2FoldChange value from DESeq2 results of "+/- E2 genes + dTAG treatment". \
 
 
-```r
+``` r
 ER_activated =as.data.frame(activated)[,c(2,7)] #277
 res_E2_dTAG = as.data.frame(results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))) #13090
 
@@ -2889,7 +2909,7 @@ ER_dTAG_df=as.data.frame(rbind(activated, repressed)) #277
 1) ER-activated genes change expression status from active to repress upon GATA3 degradation
 
 
-```r
+``` r
 temp1=ER_dTAG_df[ER_dTAG_df$treatment=="Repressed", ][,c(2,7)] #21
 temp1$treatment="E2_plus_dTAG"
 temp2=ER_activated[rownames(ER_activated) %in% rownames(temp1),] #21
@@ -2909,7 +2929,7 @@ bw.plot.lattice(shift_exp, filename = 'ER-activated_genes_upon_dTAG_change_statu
 2) ER-activated genes increase activation upon GATA3 degradation
 
 
-```r
+``` r
 temp3=ER_dTAG_df[ER_dTAG_df$treatment=="Activated", ][,c(2,7)] #256
 temp3$treatment="E2_plus_dTAG"
 temp4=ER_activated[rownames(ER_activated) %in% rownames(temp3),] #256
@@ -2920,7 +2940,7 @@ change_exp$treatment = ifelse(change_exp$log2FoldChange.x > change_exp$log2FoldC
 ```
 
 
-```r
+``` r
 inc_exp=change_exp[change_exp$treatment=="increase_activation",] #72
 
 x=inc_exp[,2:3]
@@ -2937,7 +2957,7 @@ bw.plot.lattice(inc_exp2, filename = 'ER-activated_genes_upon_dTAG_inhcrease_act
 
 3) ER-activated genes decrease activation upon GATA3 degradation
 
-```r
+``` r
 dec_exp=change_exp[change_exp$treatment=="decrease_activation",] #184
 
 x=dec_exp[,2:3]
@@ -2958,7 +2978,7 @@ bw.plot.lattice(dec_exp2, filename = 'ER-activated_genes_upon_dTAG_decrease_acti
 ### bw plot for different condition (priority)
 1) bw plot for +/- E2, activated vs. repressed
 
-```r
+``` r
 # load('230901_GATA3_pro_DEA_interaction.Rdata')
 # res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res3$padj < 0.1 & !is.na(res3$padj))
@@ -3002,7 +3022,7 @@ repressed$treatment = "Repressed"
 ```
 
 
-```r
+``` r
 # bw plot
 df.bw1=as.data.frame(rbind(activated, repressed))
 df.bw1$treatment=as.factor(df.bw1$treatment)
@@ -3015,7 +3035,7 @@ bw.plot.png.lattice(df.bw1, filename = 'control_E2_vs_control_NoE2',
 
 2) bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed
 
-```r
+``` r
 #res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
 sum(res4$padj < 0.1 & !is.na(res4$padj))
 #261
@@ -3054,7 +3074,7 @@ repressed$treatment = "Repressed"
 ```
 
 
-```r
+``` r
 # bw plot
 df.bw2=as.data.frame(rbind(activated, repressed))
 df.bw2$treatment=as.factor(df.bw2$treatment)
@@ -3068,7 +3088,7 @@ bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG',
 
 3) bw plot for genes that reappear to be significantly changed after adding dTAG
 
-```r
+``` r
 nrow(df.bw1) # +/-E2
 #198
 nrow(df.bw2) # +/-E2 +dTAG
@@ -3119,7 +3139,7 @@ bw.plot.png.lattice(df, filename = 'same gene',
 
 4) bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)
 
-```r
+``` r
 new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
 new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
 
@@ -3133,7 +3153,7 @@ bw.plot.png.lattice(new.gene.bw2, filename = 'new_gene',
 5) if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be "significant" in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:
 
 
-```r
+``` r
 # not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
 
 #load('230914_GATA3_pro_DEA_interaction.Rdata')
@@ -3160,7 +3180,7 @@ bw.plot.png.lattice(df.bw5, filename = 'changes_of_significant_genes_(+-E2)_afte
 6) For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)
 
 
-```r
+``` r
 #df.bw1
 #df.bw5
 df.bw5$chr = sapply(strsplit(rownames(df.bw5), ':'), '[', 1)
@@ -3177,7 +3197,7 @@ df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,"
 
 7) what is the change for genes that are activated in E2 treatment
 
-```r
+``` r
 #E2_activate=df.bw1[df.bw1$treatment=="Activated",] #187
 E2_activate=df.bw6[df.bw6$E2_ctrl_treatment=="Activated",] #187
 
@@ -3203,7 +3223,7 @@ bw.plot.png.lattice(df2, filename = 'E2_activated_gene',
 8) what is the change for genes that are repressed in E2 treatment
 
 
-```r
+``` r
 E2_repress=df.bw6[df.bw6$E2_ctrl_treatment=="Repressed",] #11
 #unique(E2_repress$treatment)
 #[1] "increase_activation"
@@ -3245,7 +3265,7 @@ if we consider only one varaible at a time, in other words, if we only care abou
 if we want to compare things more complicated, for instances, I want to know if my genes up-regulated in E2 treatment change when degrading GATA3 compared to not degrading GATA3, I need to add the interaction term in the deseq2 design matrix (see the DESeq2 design2 part). \
 
 
-```r
+``` r
 rep = factor(sapply(strsplit(colnames(counts.df), 'rep'), '[', 2))
 # [1] "1" "2" "3" "1" "2" "3" "1" "2" "3" "1" "2" "3"
 sample.conditions = factor(c("control_E2","control_E2","control_E2","control_NoE2","control_NoE2","control_NoE2","dTAGV1_E2","dTAGV1_E2", "dTAGV1_E2", "dTAGV1_NoE2", "dTAGV1_NoE2","dTAGV1_NoE2"), 
@@ -3268,7 +3288,7 @@ we want to compare: \
 Here we use `contrast` to extract comparisons between "control_E2" and "control_NoE2"; \
 we want to try a few p-value cutoff and see how many coordinates fall into the range.
 
-```r
+``` r
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
 
@@ -3323,7 +3343,7 @@ df.x = rbind(df.x, repressed)
 MA plot \
 Using a padj cutoff of 0.1, we got 4 repressed genes and 127 activated genes under E2 treatment (control_E2_vs_control_NoE2). This is expected because we know that ER is an activator and induce ER activity will result in ER-regulated gene activation. \
 
-```r
+``` r
 ma.df=df.x
 ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
 ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
@@ -3345,7 +3365,7 @@ ma.plot.png.lattice(ma.df, filename='control_E2_vs_control_NoE2', title.main="Di
 
 ### 2) dTAGV1_E2_vs_dTAGV1_NoE2 \   
 
-```r
+``` r
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
 
@@ -3400,7 +3420,7 @@ df.x = rbind(df.x, repressed)
 
 MA plot \
 
-```r
+``` r
 ma.df=df.x
 ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
 ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
@@ -3422,7 +3442,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_dTAGV1_NoE2', title.main="Diff
 
 ### 3) dTAGV1_E2_vs_control_E2 \ 
 
-```r
+``` r
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
 
@@ -3475,7 +3495,7 @@ df.x = rbind(df.x, repressed)
 
 MA plot \
 
-```r
+``` r
 ma.df=df.x
 ma.df[ma.df$treatment == "Matched to Activated",]$treatment = "Unchanged"
 ma.df[ma.df$treatment == "Matched to Repressed",]$treatment = "Unchanged"
@@ -3498,7 +3518,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_E2_vs_control_E2', title.main="Diffe
 
 ### 4) dTAGV1_NoE2_vs_control_NoE2 \ 
 
-```r
+``` r
 #levels(sample.conditions)
 #[1] "control_E2"   "control_NoE2" "dTAGV1_E2"    "dTAGV1_NoE2" 
 
@@ -3562,7 +3582,7 @@ df.x = rbind(df.x, repressed)
 MA plot \
 GATA3 is an activator, when we treat the cells with the GATA3 degrader dTAG, we would expect to see genes that is regulated by GATA3 been repressed. \
 
-```r
+``` r
 # padj: 0.05 activated:637 repressed:528
 # padj: 0.01 activated:461 repressed:402
 # Unchanged is the combine matched genes.
@@ -3589,7 +3609,7 @@ ma.plot.png.lattice(ma.df, filename='dTAGV1_NoE2_vs_control_NoE2', title.main="D
 ## DESeq2 design2
 not using rep in DeSeq2 design df.
 
-```r
+``` r
 inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
 
@@ -3608,7 +3628,7 @@ deseq.df.norep = DESeq(deseq.df.norep)
 Here we use `contrast` to extract comparisons between "control_E2" and "control_NoE2"; \
 we want to try a few p-value cutoff and see how many coordinates fall into the range.
 
-```r
+``` r
 res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "control_E2", "control_NoE2")) #compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj))
 #198 (with rep we have ~131)
@@ -3662,7 +3682,7 @@ df.x = rbind(df.x, repressed)
 
 Determine if we need to include "rep"in our design 
 
-```r
+``` r
 E2_activated_norep=read.table('norep_control_E2_vs_control_NoE2_activated_genes.bed', header =FALSE)
 E2_activated=read.table('../DEA_new/control_E2_vs_control_NoE2_activated_genes.bed', header =FALSE)
 noreponly_activated=E2_activated_norep[!(E2_activated_norep$V4 %in% E2_activated$V4),]
@@ -3707,7 +3727,7 @@ conclusion: rep is not necessary. \
 scatter plot to see if including interactions in DESeq2 calling can still get similar results for DESeq2 not using interaction (in both DESeq2 formula, `rep` are not included); if the log2FC fall onto/close to the diagonal, the two set of data are similar. \
 
 
-```r
+``` r
 load('230828_GATA3_pro_DEA_norep.Rdata')
 res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "control_E2", "control_NoE2"))
 de.gene= as.data.frame(res.deseq.norep[res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj),])
@@ -3758,7 +3778,7 @@ dev.off()
 
 ###  dTAGV1_NoE2_vs_control_NoE2
 
-```r
+``` r
 res.deseq.norep = results(deseq.df.norep, contrast = c("sample.conditions", "dTAGV1_NoE2" , "control_NoE2")) #compare any two groups: contrast = c("Condition", "Treatment", "Control")
 sum(res.deseq.norep$padj < 0.1 & !is.na(res.deseq.norep$padj))
 #1814
@@ -3772,7 +3792,7 @@ we want to compare: \
 2) if genes (up-regulated when degrading GATA3) will change when activated ER \
 3) if genes (down-regulated when degrading GATA3) will change when activated ER \
 
-```r
+``` r
 inferred.coords=read.table('MCF7_GATA3_gene_annotations.bed', header =FALSE)
 counts.df = abs(get.raw.counts.interval(inferred.coords, "/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ProDep1_Sathyan_MCF7_GATAPROSeq_09June23/bw/", file.prefix = "MCF"))
 
@@ -3821,7 +3841,7 @@ sum(res5$padj < 0.1 & !is.na(res5$padj))
 ### bw plot for different condition (priority)
 1) bw plot for +/- E2, activated vs. repressed
 
-```r
+``` r
 # load('230901_GATA3_pro_DEA_interaction.Rdata')
 # res3 = results(dds, contrast=c("supp.condition1","E2","noE2"))
 sum(res3$padj < 0.1 & !is.na(res3$padj))
@@ -3865,7 +3885,7 @@ repressed$treatment = "Repressed"
 ```
 
 
-```r
+``` r
 # bw plot
 df.bw1=as.data.frame(rbind(activated, repressed))
 df.bw1$treatment=as.factor(df.bw1$treatment)
@@ -3878,7 +3898,7 @@ bw.plot.png.lattice(df.bw1, filename = 'control_E2_vs_control_NoE2',
 
 2) bw plot for +/- E2 genes + dTAG treatment, activated vs. repressed
 
-```r
+``` r
 #res4 = results(dds, list(c("supp.condition1_E2_vs_noE2","supp.condition1E2.supp.condition2dTAG")))
 sum(res4$padj < 0.1 & !is.na(res4$padj))
 #261
@@ -3917,7 +3937,7 @@ repressed$treatment = "Repressed"
 ```
 
 
-```r
+``` r
 # bw plot
 df.bw2=as.data.frame(rbind(activated, repressed))
 df.bw2$treatment=as.factor(df.bw2$treatment)
@@ -3931,7 +3951,7 @@ bw.plot.png.lattice(df.bw2, filename = 'withorwithoutE2_dTAG',
 
 3) bw plot for genes that reappear to be significantly changed after adding dTAG
 
-```r
+``` r
 nrow(df.bw1) # +/-E2
 #198
 nrow(df.bw2) # +/-E2 +dTAG
@@ -3982,7 +4002,7 @@ bw.plot.png.lattice(df, filename = 'same gene',
 
 4) bw plot for new genes that changes expression after dTAG treatment (that are newly activated, or newly repressed)
 
-```r
+``` r
 new.gene.bw2= df.bw2[!(rownames(df.bw2) %in% rownames(df.bw1)),] #155
 new.gene.bw2$treatment=as.factor(new.gene.bw2$treatment)
 
@@ -3996,7 +4016,7 @@ bw.plot.png.lattice(new.gene.bw2, filename = 'new_gene',
 5) if we only want to study the set of genes that are found to be differentially expressed (FDR=0.1) in +/- E2 condition, and willing to accept the fact that some gene will have an FDR rate higher than 0.1, and might not be considered to be "significant" in other conditions (i.e., +/-E2 with dTAG), we can took all 198 genes from condition1, and make some bw plots:
 
 
-```r
+``` r
 # not consider the pvalue in condition (+/-E2 +dTAG), but extract log2foldchange for all 198 genes under condition (+/- E2)
 
 #load('230914_GATA3_pro_DEA_interaction.Rdata')
@@ -4023,7 +4043,7 @@ bw.plot.png.lattice(df.bw5, filename = 'changes_of_significant_genes_(+-E2)_afte
 6) For these 198 genes (that are significant in +/-E2), how many genes changes expression? (increase activation, decrease activation, activate change to repress, or repress change to activate)
 
 
-```r
+``` r
 #df.bw1
 #df.bw5
 df.bw5$chr = sapply(strsplit(rownames(df.bw5), ':'), '[', 1)
@@ -4040,7 +4060,7 @@ df.bw6$treatment = ifelse(df.bw6$E2_ctrl_treatment != df.bw6$E2_dTAG_treatment,"
 
 7) what is the change for genes that are activated in E2 treatment
 
-```r
+``` r
 #E2_activate=df.bw1[df.bw1$treatment=="Activated",] #187
 E2_activate=df.bw6[df.bw6$E2_ctrl_treatment=="Activated",] #187
 
@@ -4066,7 +4086,7 @@ bw.plot.png.lattice(df2, filename = 'E2_activated_gene',
 8) what is the change for genes that are repressed in E2 treatment
 
 
-```r
+``` r
 E2_repress=df.bw6[df.bw6$E2_ctrl_treatment=="Repressed",] #11
 #unique(E2_repress$treatment)
 #[1] "increase_activation"
@@ -4277,16 +4297,528 @@ file_PE2=/labs/Guertin/siyu/Sathyan_GATA3_PRO_final/final_raw/MCF7_dTAGGATAClone
 # 1st cutadapt: we have used  -m $((UMI_length+2)) and $((UMI_length+10)) to filter any sequences that are shorter than 10; -O sets the minimum overlap parameters 
 module load cutadapt/3.5
 cutadapt -m 10 -O 1 -a TGGAATTCTCGGGTGCCAAGG $file_PE1 -o PE1_test_noadap1.fastq --too-short-output test_PE1_short1.fastq &gt; PE1_test_cutadapt1.txt
-cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq &gt; PE1_test_cutadapt1.txt
+cutadapt -m 18 -O 1 -a GATCGTCGGACTGTAGAACTCTGAAC $file_PE2 -o PE2_test_noadap1.fastq --too-short-output test_PE2_short1.fastq &gt; PE2_test_cutadapt1.txt
 
+# 2nd cutadapt
 cutadapt -m 10 -O 10 -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap2.fastq --too-short-output test_PE1_short2.fastq &gt; PE1_test_cutadapt2.txt
-cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq &gt; PE1_test_cutadapt2.txt
+cutadapt -m 18 -O 10 -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap2.fastq --too-short-output test_PE2_short2.fastq &gt; PE2_test_cutadapt2.txt
 
 
-wc -l PE1_test_noadap1.fastq | awk &#39;{print $1/4}&#39;
-wc -l PE2_test_noadap1.fastq | awk &#39;{print $1/4}&#39;
-wc -l PE1_test_noadap2.fastq | awk &#39;{print $1/4}&#39;
-wc -l PE2_test_noadap2.fastq | awk &#39;{print $1/4}&#39;</code></pre>
+wc -l PE1_test_noadap1.fastq | awk &#39;{print $1/4}&#39; #29473968
+wc -l PE2_test_noadap1.fastq | awk &#39;{print $1/4}&#39; #33116654
+wc -l PE1_test_noadap2.fastq | awk &#39;{print $1/4}&#39; #28845586
+wc -l PE2_test_noadap2.fastq | awk &#39;{print $1/4}&#39; #33115759
+
+cutadapt -m 10 -O 10 --rc -a TGGAATTCTCGGGTGCCAAGG PE1_test_noadap1.fastq -o PE1_test_noadap3.fastq --too-short-output test_PE1_short3.fastq &gt; PE1_test_cutadapt3.txt
+cutadapt -m 18 -O 10 --rc -a GATCGTCGGACTGTAGAACTCTGAAC PE2_test_noadap1.fastq -o PE2_test_noadap3.fastq --too-short-output test_PE2_short3.fastq &gt; PE2_test_cutadapt3.txt
+
+wc -l PE1_test_noadap3.fastq | awk &#39;{print $1/4}&#39; #28845563
+wc -l PE2_test_noadap3.fastq | awk &#39;{print $1/4}&#39; #33115713
+
+for i in *noadap2.fastq
+do
+ fastqc $i
+ echo $i
+ echo &quot;fastqc complete&quot;
+done
+
+for i in *noadap3.fastq
+do
+ fastqc $i
+ echo $i
+ echo &quot;fastqc complete&quot;
+done</code></pre>
+<pre class="r"><code>#! /bin/sh
+
+#SBATCH --job-name=pro_processing_two_cutadapt.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 32                  
+#SBATCH -p himem           
+#SBATCH --qos=himem     
+#SBATCH --mem=68G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o pro_processing_two_cutadapt.sh_%j.out
+#SBATCH -e pro_processing_two_cutadapt.sh_%j.err
+
+hostname
+set -e
+export PATH=$PATH:/home/FCAM/ssun/packages/://home/FCAM/ssun/scripts
+#directory=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/Pro_final/final_processed/unmap/cutadapt/
+
+module load cutadapt/3.5
+module load seqtk/1.3
+#seqOutBias=/home/FCAM/mguertin/software/seqOutBias
+#fqdedup=/home/FCAM/mguertin/ZNF143_PRO/fqdedup-1.0.0/target/release/fqdedup
+#flash=/home/FCAM/mguertin/software/flash
+module load fastq-pair/1.0
+module load samtools/1.16.1
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+module load bowtie2
+module load bedtools
+
+sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+annotation_prefix=/home/FCAM/ssun/Annotation/Annotation_110/Homo_sapiens.GRCh38.110 
+UMI_length=8
+read_size=39
+cores=32
+genome=/home/FCAM/ssun/Genome_pro/hg38.fa
+genome_index=/home/FCAM/ssun/Genome_pro/hg38_bt2/hg38
+prealign_rdna_index=/home/FCAM/ssun/Genome_pro/human_rDNA_bt2/human_rDNA
+tallymer=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38.tal_${read_size}.gtTxt.gz
+table=/home/FCAM/ssun/Genome_pro/seqOutbias_hg38/hg38_${read_size}.4.2.2.tbl
+
+
+#echo &#39;removing dual adapter ligations and calculating the fraction of adapter/adapters in&#39; $name
+echo &#39;removing short RNA insertions&#39; 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap2.fastq &gt; PE1_test_noadap2_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo &#39;removing PCR duplicates&#39;
+fqdedup -i PE1_test_noadap2_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk &#39;{print $1/4}&#39;) #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap2.fastq #pair FASTQ files
+
+
+echo &#39;calculating and plotting RNA insert sizes&#39;
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap2.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo &#39;trimming off the UMI&#39;
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - &gt; PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap2.fastq | seqtk seq -r - &gt; PE2_processed.fastq
+
+
+echo &#39;aligning to rDNA and removing aligned reads&#39;
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2&gt;test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - &gt; PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo &#39;aligning to the genome&#39;
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2&gt;test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk &#39;{print $1/4}&#39;)
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+total_rDNA=$(echo &quot;$(($PE1_prior_rDNA-$PE1_post_rDNA))&quot;) 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo &quot;$(($concordant_pe1+$total_rDNA))&quot;)
+#rDNA alignment rate
+rDNA_alignment=$(echo &quot;scale=2 ; $total_rDNA / $total&quot; | bc)
+echo -e &quot;$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate&quot; &gt;&gt; QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk &#39;{print $1/4}&#39;)
+alignment_rate=$(echo &quot;scale=2 ; $map_pe1 / $pre_alignment&quot; | bc)
+echo -e &quot;$alignment_rate\t$name\t0.80\tAlignment Rate&quot; &gt;&gt; QC_metrics.txt</code></pre>
+<pre class="r"><code>#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam &gt; test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam &gt; test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam &gt; test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam &gt; test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *.fastq
+do 
+  echo $i
+  fastqc $i
+  echo &quot;fastqc complete&quot;
+done</code></pre>
+<p>fastq results shows that, by perform a second cutadapt with minumum overlap of 10bp, we no longer see overrepresented 5’ adapters in mapped reads; but the PE2 unmapped reads still contains some 21bp 5’adapter. I suspect these adapter reads are come from the unexpected case where raw fastq PE2 reads has rc of 5’ adapter.</p>
+<!--
+
+``` r
+#manually remove reversed opposite adapter
+cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC PE1_test_noadap1.fastq -o PE1_test_noadap4.fastq --too-short-output test_PE1_short4.fastq > PE1_test_cutadapt4.txt #0.1% reads with reversed 3' adapter at PE1
+cutadapt -m 18 -O 15 -a CCTTGGCACCCGAGAATTCCA PE2_test_noadap1.fastq -o PE2_test_noadap4.fastq --too-short-output test_PE2_short4.fastq > PE2_test_cutadapt4.txt #3.3% reads with reversed 5' adapter at PE2
+
+
+# align to genome
+
+#echo 'removing dual adapter ligations and calculating the fraction of adapter/adapters in' $name
+echo 'removing short RNA insertions' 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap4.fastq > PE1_test_noadap4_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo 'removing PCR duplicates'
+fqdedup -i PE1_test_noadap4_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk '{print $1/4}') #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap4.fastq #pair FASTQ files
+
+
+echo 'calculating and plotting RNA insert sizes'
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap4.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo 'trimming off the UMI'
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - > PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap4.fastq | seqtk seq -r - > PE2_processed.fastq
+
+
+echo 'aligning to rDNA and removing aligned reads'
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2>test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - > PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo 'aligning to the genome'
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2>test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk '{print $1/4}')
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk '{print $1/4}')
+total_rDNA=$(echo "$(($PE1_prior_rDNA-$PE1_post_rDNA))") 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo "$(($concordant_pe1+$total_rDNA))")
+#rDNA alignment rate
+rDNA_alignment=$(echo "scale=2 ; $total_rDNA / $total" | bc)
+echo -e "$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate" >> QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk '{print $1/4}')
+alignment_rate=$(echo "scale=2 ; $map_pe1 / $pre_alignment" | bc)
+echo -e "$alignment_rate\t$name\t0.80\tAlignment Rate" >> QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam > test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam > test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam > test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam > test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo "fastqc complete"
+done
+```
+-->
+<pre class="r"><code>#set5
+#manually remove reversed opposite adapter
+cutadapt -m 10 -O 15 -a GTTCAGAGTTCTACAGTCCGACGATC ../PE1_test_noadap2.fastq -o PE1_test_noadap5.fastq --too-short-output test_PE1_short5.fastq &gt; PE1_test_cutadapt5.txt #0.1% reads with reversed 3&#39; adapter at PE1
+cutadapt -m 18 -O 15 -a CCTTGGCACCCGAGAATTCCA ../PE2_test_noadap2.fastq -o PE2_test_noadap5.fastq --too-short-output test_PE2_short5.fastq &gt; PE2_test_cutadapt5.txt #3.3% reads with reversed 5&#39; adapter at PE2
+
+
+# align to genome
+
+#echo &#39;removing dual adapter ligations and calculating the fraction of adapter/adapters in&#39; $name
+echo &#39;removing short RNA insertions&#39; 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap5.fastq &gt; PE1_test_noadap5_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo &#39;removing PCR duplicates&#39;
+fqdedup -i PE1_test_noadap5_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk &#39;{print $1/4}&#39;) #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq PE2_test_noadap5.fastq #pair FASTQ files
+
+
+echo &#39;calculating and plotting RNA insert sizes&#39;
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        PE2_test_noadap5.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo &#39;trimming off the UMI&#39;
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - &gt; PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} PE2_test_noadap5.fastq | seqtk seq -r - &gt; PE2_processed.fastq
+
+
+echo &#39;aligning to rDNA and removing aligned reads&#39;
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2&gt;test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - &gt; PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo &#39;aligning to the genome&#39;
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2&gt;test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk &#39;{print $1/4}&#39;)
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+total_rDNA=$(echo &quot;$(($PE1_prior_rDNA-$PE1_post_rDNA))&quot;) 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo &quot;$(($concordant_pe1+$total_rDNA))&quot;)
+#rDNA alignment rate
+rDNA_alignment=$(echo &quot;scale=2 ; $total_rDNA / $total&quot; | bc)
+echo -e &quot;$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate&quot; &gt;&gt; QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk &#39;{print $1/4}&#39;)
+alignment_rate=$(echo &quot;scale=2 ; $map_pe1 / $pre_alignment&quot; | bc)
+echo -e &quot;$alignment_rate\t$name\t0.80\tAlignment Rate&quot; &gt;&gt; QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam &gt; test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam &gt; test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam &gt; test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam &gt; test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo &quot;fastqc complete&quot;
+done</code></pre>
+<p>fastq results shows that, by perform a second cutadapt, then trimming the revrse complement adapter sequences with minumum overlap of 10bp, we no longer see overrepresented 5’ adapters in the final reads (mapped and unmapped).<br />
+</p>
+<p>There are overrepresented RNA primer index, also trim these<br />
+</p>
+<pre class="r"><code>#set6
+
+module load cutadapt/3.5
+# manually remove RPI adapter(reversed)
+cutadapt -m 10 -O 18 -a CTCGGGTGCCAAGGAACTCCAGTCAC ../set5/PE1_test_noadap5.fastq -o PE1_test_noadap6.fastq --too-short-output test_PE1_short6.fastq &gt; PE1_test_cutadapt6.txt #0.3% reads with RPI adapter(reversed)
+
+# align to genome
+
+#echo &#39;removing dual adapter ligations and calculating the fraction of adapter/adapters in&#39; $name
+echo &#39;removing short RNA insertions&#39; 
+seqtk seq -L $((UMI_length+10)) PE1_test_noadap6.fastq &gt; PE1_test_noadap6_trimmed.fastq # removes inserts that are shorter than 10 bases
+
+echo &#39;removing PCR duplicates&#39;
+fqdedup -i PE1_test_noadap6_trimmed.fastq -o PE1_test_dedup.fastq #remove PCR duplicates
+PE1_noAdapter=$(wc -l PE1_test_dedup.fastq | awk &#39;{print $1/4}&#39;) #this variable is a near-optimal table size value for fastq_pair
+fastq_pair -t $PE1_noAdapter PE1_test_dedup.fastq ../set5/PE2_test_noadap5.fastq #pair FASTQ files
+
+
+echo &#39;calculating and plotting RNA insert sizes&#39;
+# measure RNA degradation by searching for overlap between paired end reads with flash and plotting the resultant histogram output with insert_size.R
+flash -q --compress-prog=gzip --suffix=gz PE1_test_dedup.fastq.paired.fq \
+        ../set5/PE2_test_noadap5.fastq.paired.fq -o test
+insert_size.R test.hist ${UMI_length}
+
+
+echo &#39;trimming off the UMI&#39;
+# removes the UMI and reverse complements from paired end reads
+seqtk trimfq -b ${UMI_length} PE1_test_dedup.fastq | seqtk seq -r - &gt; PE1_processed.fastq
+seqtk trimfq -e ${UMI_length} ../set5/PE2_test_noadap5.fastq | seqtk seq -r - &gt; PE2_processed.fastq
+
+
+echo &#39;aligning to rDNA and removing aligned reads&#39;
+    bowtie2 -p $((cores-2)) -x $prealign_rdna_index -U PE1_processed.fastq 2&gt;test_bowtie2_rDNA.log | \
+        samtools sort -n - | samtools fastq -f 0x4 - &gt; PE1.rDNA.fastq
+# removes PE2-aligned reads with a rDNA-aligned mate
+reads=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+fastq_pair -t $reads PE1.rDNA.fastq PE2_processed.fastq
+
+
+echo &#39;aligning to the genome&#39;
+bowtie2 -p $((cores-2)) --maxins 1000 -x $genome_index --rf -1 PE1.rDNA.fastq.paired.fq \
+        -2 PE2_processed.fastq.paired.fq 2&gt;test_bowtie2.log | samtools view -b - | \
+        samtools sort - -o test.bam # align to the genome;  --rf flag is to account for the fact that we reverse complemented both reads; samtools convert the file to BAM and sort the reads. 
+        
+
+#calculate the total number of rDNA-aligned reads
+PE1_prior_rDNA=$(wc -l PE1_processed.fastq | awk &#39;{print $1/4}&#39;)
+PE1_post_rDNA=$(wc -l PE1.rDNA.fastq | awk &#39;{print $1/4}&#39;)
+total_rDNA=$(echo &quot;$(($PE1_prior_rDNA-$PE1_post_rDNA))&quot;) 
+#calculate the total that concordantly align to hg38 and/or rDNA
+concordant_pe1=$(samtools view -c -f 0x42 test.bam)
+total=$(echo &quot;$(($concordant_pe1+$total_rDNA))&quot;)
+#rDNA alignment rate
+rDNA_alignment=$(echo &quot;scale=2 ; $total_rDNA / $total&quot; | bc)
+echo -e &quot;$rDNA_alignment\t$name\t0.10\trDNA Alignment Rate&quot; &gt;&gt; QC_metrics.txt
+
+#Mappability rate (expect an alignment rate above 80% for high quality libraries)
+map_pe1=$(samtools view -c -f 0x42 test.bam)
+pre_alignment=$(wc -l PE1.rDNA.fastq.paired.fq | awk &#39;{print $1/4}&#39;)
+alignment_rate=$(echo &quot;scale=2 ; $map_pe1 / $pre_alignment&quot; | bc)
+echo -e &quot;$alignment_rate\t$name\t0.80\tAlignment Rate&quot; &gt;&gt; QC_metrics.txt
+
+
+#test.bam
+module load samtools/1.16.1
+samtools fastq -F 0x82 test.bam &gt; test_unmapped_PE1.fastq
+samtools fastq -F 0x42 test.bam &gt; test_unmapped_PE2.fastq
+samtools fastq -f 0x82 test.bam &gt; test_mapped_PE2.fastq
+samtools fastq -f 0x42 test.bam &gt; test_mapped_PE1.fastq
+
+module load fastqc 
+for i in *map*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo &quot;fastqc complete&quot;
+done</code></pre>
+<pre class="r"><code>module load samtools/1.16.1
+map_pe2=$(samtools view -c -f 0x82 test.bam)
+pre_alignment=$(wc -l PE2_processed.fastq.paired.fq | awk &#39;{print $1/4}&#39;)
+alignment_rate=$(echo &quot;scale=2 ; $map_pe2 / $pre_alignment&quot; | bc)
+
+#aligning PE2 gives same 74% alignment rate --expected</code></pre>
+<p><strong>unmapped reads</strong></p>
+<pre class="r"><code>20162145 reads; of these:
+  20162145 (100.00%) were paired; of these:
+    5070062 (25.15%) aligned concordantly 0 times
+    9970755 (49.45%) aligned concordantly exactly 1 time
+    5121328 (25.40%) aligned concordantly &gt;1 times
+    ----
+    5070062 pairs aligned concordantly 0 times; of these:
+      264187 (5.21%) aligned discordantly 1 time
+    ----
+    4805875 pairs aligned 0 times concordantly or discordantly; of these:
+      9611750 mates make up the pairs; of these:
+        4883292 (50.81%) aligned 0 times
+        2490603 (25.91%) aligned exactly 1 time
+        2237855 (23.28%) aligned &gt;1 times
+87.89% overall alignment rate
+
+#set6
+module load samtools/1.16.1
+samtools view -c test.bam  #40324290
+samtools view -b -F 2 test.bam &gt; test_nca.bam
+
+# 1) discordantly aligned as pairs (994847*2)
+samtools view -c -f 161 -F 28 test_nca.bam #PE2                #203679   
+samtools view -c -f 81 -F 44 test_nca.bam #PE1 reverse strand   
+
+samtools view -c -f 145  -F 44 test_nca.bam #PE2 reverse strand. #427148  
+samtools view -c -f 97  -F 28 test_nca.bam #PE1                  
+
+samtools view -c -f 177 -F 12 test_nca.bam #PE2 reverse strand   #364020 
+samtools view -c -f 113 -F 12 test_nca.bam #PE1 reverse strand
+
+# 2) read 1 in one locus &amp; read2 in completely different locus (153520*2) --split reads
+samtools view -c -f 129 -F 60 test_nca.bam #PE2.        #153520
+samtools view -c -f 65 -F 60 test_nca.bam #PE1.         
+
+
+# 3) one mate aligned, the other mate not aligned (2960098*2)
+samtools view -c -f 165 -F 24 test_nca.bam #PE2 un-map               #1230983 
+samtools view -c -f 89 -F 36 test_nca.bam #PE1 reverse but map.      
+
+samtools view -c -f 153 -F 36 test_nca.bam #PE2 reverse but map.    # 308753
+samtools view -c -f 101 -F 24 test_nca.bam #PE1 un-map              
+
+samtools view -c -f 137 -F 52 test_nca.bam #PE2 map non-reverse           #157420
+samtools view -c -f 69 -F 56 test_nca.bam #PE1 un-map.                    
+
+samtools view -c -f 133 -F 56 test_nca.bam #PE2 un-map              # 1262942
+samtools view -c -f 73 -F 52 test_nca.bam #PE1. map non-reverse     
+
+
+# 4) not align at all
+samtools view -c -f 141 -F 48 test_nca.bam #PE2 un-map            #961597
+samtools view -c -f 77 -F 48 test_nca.bam #PE1 un-map            </code></pre>
+<pre class="r"><code>#BLAST
+module load R/4.1.2 
+R 
+
+library(&quot;lattice&quot;) 
+bar=read.csv(&#39;MCF7_4adapt_unmapped_reads_bar.csv&#39;)
+bar$supp&lt;- factor(bar$supp, levels = c(&quot;concordantly_aligned&quot;, &quot;discordant_orientation&quot;, &quot;split_reads&quot;          , &quot;only_one_mate_align&quot;, &quot;not_align_at_all&quot;))
+
+pdf(&#39;bar_MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.pdf&#39;, width=5,height=6)
+print(barchart(fraction ~ supp,         
+         data = bar,
+         #groups = enriched_motif,
+         #stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = &quot;fraction of reads&quot;,
+         xlab = &quot;reads categories&quot;,
+         #par.settings = my.settings)
+))
+dev.off()
+
+bar=read.csv(&#39;compare_unmapped_reads_bar.csv&#39;)
+bar$supp&lt;- factor(bar$supp, levels = c(&quot;concordantly_aligned&quot;, &quot;discordant_orientation&quot;, &quot;split_reads&quot;          , &quot;only_one_mate_align&quot;, &quot;not_align_at_all&quot;))
+
+pdf(&#39;bar_compare_unmapped.pdf&#39;, width=8,height=6)
+print(barchart(fraction ~ supp,         
+         data = bar,
+         groups = lib,
+         #stack = TRUE,
+         auto.key=list(space=&quot;right&quot;),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         ylab = &quot;fraction of reads&quot;,
+         xlab = &quot;reads categories&quot;,
+         #par.settings = my.settings)
+))
+dev.off()</code></pre>
+<pre class="r"><code>#set6
+# PE1 unmap, but PE2 map (test_setA)
+samtools fastq -f 153 -F 36 test_nca.bam &gt; PE2_test1.fastq #PE2 reverse but map.
+samtools fastq -f 101 -F 24 test_nca.bam &gt; PE1_test1.fastq #PE1 un-map  
+
+samtools fastq -f 137 -F 52 test_nca.bam &gt; PE2_test2.fastq #PE2 map non-reverse    
+samtools fastq -f 69 -F 56 test_nca.bam &gt; PE1_test2.fastq #PE1 un-map.   
+
+cat PE1_test1.fastq PE1_test2.fastq &gt; test_setA_unmap_PE1.fastq
+cat PE2_test1.fastq PE2_test2.fastq &gt; test_setA_map_PE2.fastq
+
+# PE1 map, but PE2 unmap (test_setB)
+samtools fastq -f 165 -F 24 test_nca.bam &gt; PE2_test3.fastq #PE2 un-map              
+samtools fastq -f 89 -F 36 test_nca.bam &gt; PE1_test3.fastq #PE1 reverse but map. 
+
+samtools fastq -f 133 -F 56 test_nca.bam &gt; PE2_test4.fastq #PE2 un-map               
+samtools fastq -f 73 -F 52 test_nca.bam &gt; PE1_test4.fastq #PE1. map non-reverse
+
+cat PE1_test3.fastq PE1_test4.fastq &gt; test_setB_map_PE1.fastq
+cat PE2_test3.fastq PE2_test4.fastq &gt; test_setB_unmap_PE2.fastq
+
+# PE1 unmap, and PE2 unmap (test_setC)
+samtools fastq -f 141 -F 48 test_nca.bam &gt; test_setC_unmap_PE2.fastq #PE2 un-map            
+samtools fastq -f 77 -F 48 test_nca.bam &gt; test_setC_unmap_PE1.fastq #PE1 un-map
+
+module load fastqc 
+for i in *set*.fastq
+do 
+  echo $i
+  fastqc $i
+  echo &quot;fastqc complete&quot;
+done</code></pre>
+<p>get read length from file</p>
+<pre class="r"><code>for i in *set*.fastq
+do
+ name=$(echo $i | awk -F&quot;.fastq&quot; &#39;{print $1}&#39;)
+ echo $name
+ #convert from fastq to fasta
+ sed -n &#39;1~4s/^@/&gt;/p;2~4p&#39; $i &gt; ${name}.fasta
+ #get read length
+ cat ${name}.fasta | awk &#39;$0 ~ &quot;&gt;&quot; {print c;c=0} $0 !~ &quot;&gt;&quot; {c+=length($0);} END { print c; }&#39; | sed &#39;/^$/d&#39; | sort | uniq -c | awk &#39;{print $1,$2}&#39; &gt; ${name}_read_length.txt
+done</code></pre>
 </div>
 <div id="blast-to-nt" class="section level2" number="5.2">
 <h2><span class="header-section-number">5.2</span> BLAST to nt</h2>
@@ -4336,7 +4868,7 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.0000
 blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.00001 -db nt -out /Users/ssun/Desktop/unmapped_fasta/blastn_HEK_nt.all/Blast_nt.all_HEK.00001.txt -outfmt 18</code></pre>
 <!--
 
-```r
+``` r
 #num=( {000..114} )
 #for i in $num
 #do
@@ -4485,7 +5017,7 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split/split1/test1
 A HEK cell PRO-seq control: \
 
 
-```r
+``` r
 #HEK_CloneZD29_30min_control_rep2.bam
 #HEK_CloneZD29_30min_control_rep2_mapped.fasta
 #HEK_CloneZD29_30min_control_rep2_unmapped.fasta
@@ -4525,7 +5057,7 @@ blastn -task blastn -query /Users/ssun/Desktop/unmapped_fasta/split_HEK/HEK.0000
 <h3><span class="header-section-number">5.2.1</span> BLASTn results</h3>
 <!--
 
-```r
+``` r
 # megablast
 for i in *.txt
 do
@@ -4645,7 +5177,7 @@ blastn -query MCF7_dTAGGATAClone522_30min_control_E2_rep1_unmapped.fasta -db nt_
 </p>
 <!--
 
-```r
+``` r
 #https://www.ncbi.nlm.nih.gov/books/NBK52640/
 wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
 tar zxvpf ncbi-blast-2.14.1+-x64-linux.tar.gz
@@ -4655,7 +5187,7 @@ export PATH=$PATH:/home/FCAM/ssun/packages/ncbi-blast-2.14.1+/bin/://home/FCAM/s
 
 
 
-```r
+``` r
 #https://www.ncbi.nlm.nih.gov/books/NBK52640/
 wget https://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.14.1+-x64-linux.tar.gz
 tar zxvpf ncbi-blast-2.14.1+-x64-linux.tar.gz
