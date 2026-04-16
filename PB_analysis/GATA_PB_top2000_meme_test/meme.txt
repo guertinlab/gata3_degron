@@ -1,0 +1,141 @@
+********************************************************************************
+MEME - Motif discovery tool
+********************************************************************************
+MEME version 5.4.1 (Release date: Sat Aug 21 19:23:23 2021 -0700)
+
+For further information on how to interpret these results please access https://meme-suite.org/meme.
+To get a copy of the MEME Suite software please access https://meme-suite.org.
+
+********************************************************************************
+
+
+********************************************************************************
+REFERENCE
+********************************************************************************
+If you use this program in your research, please cite:
+
+Timothy L. Bailey and Charles Elkan,
+"Fitting a mixture model by expectation maximization to
+discover motifs in biopolymers",
+Proceedings of the Second International Conference on Intelligent Systems
+for Molecular Biology, pp. 28-36, AAAI Press, Menlo Park, California, 1994.
+********************************************************************************
+
+
+********************************************************************************
+TRAINING SET
+********************************************************************************
+PRIMARY SEQUENCES= GATA_PB_top2000_summit_100window.fasta
+CONTROL SEQUENCES= --none--
+ALPHABET= ACGT
+
+********************************************************************************
+
+********************************************************************************
+COMMAND LINE SUMMARY
+********************************************************************************
+This information can also be useful in the event you wish to report a
+problem with the MEME software.
+
+command: meme -oc GATA_PB_top2000_meme_test -nmotifs 1 -objfun classic -csites 20000 -searchsize 0 -minw 5 -maxw 15 -revcomp -dna -markov_order 3 -maxsize 100000000 GATA_PB_top2000_summit_100window.fasta -mpi 
+
+model:  mod=         zoops    nmotifs=         1    evt=           inf
+objective function:           em=       E-value of product of p-values
+                              starts=   E-value of product of p-values
+strands: + -
+width:  minw=            5    maxw=           15
+nsites: minsites=        2    maxsites=     2000    wnsites=       0.8
+theta:  spmap=         uni    spfuzz=        0.5
+em:     prior=   dirichlet    b=            0.01    maxiter=        50
+        distance=    1e-05
+trim:   wg=             11    ws=              1    endgaps=       yes
+data:   n=          202000    N=            2000
+sample: seed=            0    hsfrac=          0
+        searchsize= 202000    norand=         no    csites=      20000
+Letter frequencies in dataset:
+A 0.347 C 0.153 G 0.153 T 0.347 
+Background letter frequencies (from file dataset with add-one prior applied):
+A 0.347 C 0.153 G 0.153 T 0.347 
+Background model order: 3
+********************************************************************************
+
+
+********************************************************************************
+MOTIF ANAGATAAG MEME-1	width =   9  sites = 2000  llr = 12467  E-value = 3.1e-726
+********************************************************************************
+--------------------------------------------------------------------------------
+	Motif ANAGATAAG MEME-1 Description
+--------------------------------------------------------------------------------
+Simplified        A  829:a:983
+pos.-specific     C  :2::::::1
+probability       G  12:9:::16
+matrix            T  131::a11:
+
+         bits    2.7          
+                 2.4          
+                 2.2    *     
+                 1.9    *     
+Relative         1.6    *     
+Entropy          1.4    ***   
+(9.0 bits)       1.1    ***  *
+                 0.8   *******
+                 0.5 * *******
+                 0.3 * *******
+                 0.0 ---------
+
+Multilevel           ATAGATAAG
+consensus             G      A
+sequence              A       
+                              
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif ANAGATAAG MEME-1 position-specific scoring matrix
+--------------------------------------------------------------------------------
+log-odds matrix: alength= 4 w= 9 n= 186000 bayes= 6.52356 E= 3.1e-726 
+   114   -169    -94   -169 
+   -56     30     68     -7 
+   131  -1761   -726   -133 
+  -585   -259    261   -339 
+   147   -270   -345   -744 
+  -943   -264   -387    148 
+   131   -164   -494   -198 
+   121   -426    -32   -236 
+   -22   -115    202   -468 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif ANAGATAAG MEME-1 position-specific probability matrix
+--------------------------------------------------------------------------------
+letter-probability matrix: alength= 4 w= 9 nsites= 2000 E= 3.1e-726 
+ 0.765000  0.047500  0.080000  0.107500 
+ 0.235000  0.188000  0.245500  0.331500 
+ 0.861000  0.000000  0.001000  0.138000 
+ 0.006000  0.025500  0.935500  0.033000 
+ 0.960500  0.023500  0.014000  0.002000 
+ 0.000500  0.024500  0.010500  0.964500 
+ 0.858000  0.049000  0.005000  0.088000 
+ 0.802000  0.008000  0.122500  0.067500 
+ 0.297000  0.069000  0.620500  0.013500 
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+	Motif ANAGATAAG MEME-1 regular expression
+--------------------------------------------------------------------------------
+A[TGA]AGATAA[GA]
+--------------------------------------------------------------------------------
+
+
+
+
+Time 842.56 secs.
+
+********************************************************************************
+
+********************************************************************************
+Stopped because requested number of motifs (1) found.
+********************************************************************************
+
+CPU: xanadu-22
+
+********************************************************************************
