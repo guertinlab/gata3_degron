@@ -359,7 +359,7 @@ meme -p 16 -oc ${name}_meme_test -nmotifs 1 -objfun classic -csites 20000 -searc
 ```
 
 By searching the top 2000 most significant GATA peaks (101bp window), we find the top motif match to the GATA3. \
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA3 motif"}
+```{r  out.width = "50%", echo=F, fig.align = "center", fig.cap="de novo identified motif matched to the GATA3 motif"}
 library(knitr)
 knitr::include_graphics("./GATA_PB_top2000_meme_test/logo1.png") 
 ```
@@ -563,7 +563,7 @@ print(barchart(FRiP ~ Sample,
 dev.off()
 ```
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="Frip"}
+```{r fig.width=8, fig.height=8, echo=F, fig.align = "center", fig.cap="Frip"}
 library(knitr)
 knitr::include_graphics("./barplot_GATA3_PBpeak_FRiP.pdf") 
 ```
