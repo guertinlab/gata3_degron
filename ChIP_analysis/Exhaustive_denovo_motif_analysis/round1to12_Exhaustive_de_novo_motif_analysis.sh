@@ -1,14 +1,14 @@
 # Load modules
 module load meme/5.4.1
 module load bedtools
-module load R/4.1.2
 genome=/home/FCAM/ssun/Genome/hg38.fa
 sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
 
 # First make this Background file:
 fasta-get-markov -m 3 $genome > hg38_bkgrnd.txt # 3-ordered Markov Background Model on hg38 genome file
 
-# GATA3 peak summit file ranked by peak Intensity (normalized via DESeq2)
+# Input file: GATA3 peak summit file ranked by peak Intensity (normalized within 400bp window via DESeq2)
 wc -l GATA_ChIP_summits_final_DESeq2_ranked_intensity.bed
 head GATA_ChIP_summits_final_DESeq2_ranked_intensity.bed
 
@@ -25,7 +25,7 @@ fastaFromBed -fi $genome -bed GATA_ChIP_top5000_161window.bed -fo GATA_ChIP_top5
 
 
 # MEME-Round1
-meme -p 72 GATA_ChIP_top5000_161window.fasta -oc GATA_ChIP_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 GATA_ChIP_top5000_161window.fasta -oc GATA_ChIP_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 
 wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
 python MEME_individual_from_db_python3.py -i GATA_ChIP_top5000_161window_meme_output/meme.txt
@@ -40,6 +40,7 @@ rm *meme.txt
 mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif1_meme.txt GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.fasta > mast_GATA3_PSWM_in_peaks_round1.txt #27756
 Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round1.txt #This updated_parse_mast_to_coordinates.R is included in the GitHub folder
 wc -l mast_GATA3_PSWM_in_peaks_round1.bed #27753
+
 # Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
 intersectBed -v -a GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.bed -b mast_GATA3_PSWM_in_peaks_round1.bed > without_motifs_1.bed #69112
 fastaFromBed -fi $genome -bed without_motifs_1.bed -fo without_motifs_1.fasta
@@ -49,7 +50,7 @@ fastaFromBed -fi $genome -bed without_motifs_1.bed -fo without_motifs_1.fasta
 # MEME-round2:
 sort -nrk4,4 without_motifs_1.bed | head -n 5000 > without_motifs_1_top5000.bed # select top 5000
 fastaFromBed -fi $genome -bed without_motifs_1_top5000.bed -fo without_motifs_1_top5000.fasta
-meme -p 72 without_motifs_1_top5000.fasta -oc GATA_ChIP_without_motifs_1_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_1_top5000.fasta -oc GATA_ChIP_without_motifs_1_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_1_top5000_161window_meme_output/meme.txt
 #AGATBYTTATC_meme.txt -- top enriched GATA-like motif in round2 (E-value: 3.9e-629)
 cp AGATBYTTATC_meme.txt individual_meme/GATAmotif2_meme.txt
@@ -58,6 +59,7 @@ rm *meme.txt
 mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif2_meme.txt without_motifs_1.fasta > mast_GATA3_PSWM_in_peaks_round2.txt #16778
 Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round2.txt
 wc -l mast_GATA3_PSWM_in_peaks_round2.bed #16775
+
 # From peaks without motif1 exclude peaks with motif2
 intersectBed -v -a without_motifs_1.bed -b mast_GATA3_PSWM_in_peaks_round2.bed > without_motifs_12.bed #52334
 fastaFromBed -fi $genome -bed without_motifs_12.bed -fo without_motifs_12.fasta
@@ -67,7 +69,7 @@ fastaFromBed -fi $genome -bed without_motifs_12.bed -fo without_motifs_12.fasta
 # MEME-round3:
 sort -nrk4,4 without_motifs_12.bed | head -n 5000 > without_motifs_12_top5000.bed # select top 5000
 fastaFromBed -fi $genome -bed without_motifs_12_top5000.bed -fo without_motifs_12_top5000.fasta
-meme -p 72 without_motifs_12_top5000.fasta -oc GATA_ChIP_without_motifs_12_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_12_top5000.fasta -oc GATA_ChIP_without_motifs_12_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_12_top5000_161window_meme_output/meme.txt
 #AGATDDDNAGATAAD_meme.txt -- top enriched GATA-like motif in round3 (E-value: 3.6e-259)
@@ -76,6 +78,7 @@ rm *meme.txt
 mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif3_meme.txt without_motifs_12.fasta > mast_GATA3_PSWM_in_peaks_round3.txt #9430
 Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round3.txt
 wc -l mast_GATA3_PSWM_in_peaks_round3.bed #9427
+
 intersectBed -v -a without_motifs_12.bed -b mast_GATA3_PSWM_in_peaks_round3.bed > without_motifs_123.bed #42904
 fastaFromBed -fi $genome -bed without_motifs_123.bed -fo without_motifs_123.fasta
 
@@ -83,7 +86,7 @@ fastaFromBed -fi $genome -bed without_motifs_123.bed -fo without_motifs_123.fast
 # MEME-round4:
 sort -nrk4,4 without_motifs_123.bed | head -n 5000 > without_motifs_123_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_123_top5000.bed -fo without_motifs_123_top5000.fasta
-meme -p 72 without_motifs_123_top5000.fasta -oc GATA_ChIP_without_motifs_123_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_123_top5000.fasta -oc GATA_ChIP_without_motifs_123_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_123_top5000_161window_meme_output/meme.txt
 #TTATCTBYNNVATCT_meme.txt -- top enriched GATA-like motif in round4 (E-value:5.3e-232)
@@ -100,7 +103,7 @@ fastaFromBed -fi $genome -bed without_motifs_1234.bed -fo without_motifs_1234.fa
 # MEME-round5
 sort -nrk4,4 without_motifs_1234.bed | head -n 5000 > without_motifs_1234_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_1234_top5000.bed -fo without_motifs_1234_top5000.fasta
-meme -p 72 without_motifs_1234_top5000.fasta -oc GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output -nmotifs 20 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_1234_top5000.fasta -oc GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output -nmotifs 20 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output/meme.txt
 #NCTTATCWGAT_meme.txt -- top enriched GATA-like motif in round5 (E-value: 1.2e-065)
@@ -117,7 +120,7 @@ fastaFromBed -fi $genome -bed without_motifs_12345.bed -fo without_motifs_12345.
 # MEME-round6:
 sort -nrk4,4 without_motifs_12345.bed | head -n 5000 > without_motifs_12345_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_12345_top5000.bed -fo without_motifs_12345_top5000.fasta
-meme -p 72 without_motifs_12345_top5000.fasta -oc GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 10 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_12345_top5000.fasta -oc GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 10 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output/meme.txt
 #AGATBNNNNNNVNWGATAA_meme.txt -- top enriched GATA-like motif in round6 (E-value:2.7e-218)
@@ -134,7 +137,7 @@ fastaFromBed -fi $genome -bed without_motifs_123456.bed -fo without_motifs_12345
 # MEME-round7:
 sort -nrk4,4 without_motifs_123456.bed | head -n 5000 > without_motifs_123456_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_123456_top5000.bed -fo without_motifs_123456_top5000.fasta
-meme -p 72 without_motifs_123456_top5000.fasta -oc try16_72_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 15 -maxw 30 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000 -wg 1 -ws 0.1
+meme -p 64 without_motifs_123456_top5000.fasta -oc try16_72_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 15 -maxw 30 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000 -wg 1 -ws 0.1
 # MAST
 python MEME_individual_from_db_python3.py -i try16_72_meme_output/meme.txt
 #NAGATBNNARNNVWGATA_meme.txt -- top enriched GATA-like motif in round7 (E-value:7.2e-075)
@@ -150,15 +153,15 @@ fastaFromBed -fi $genome -bed without_motifs_1234567.bed -fo without_motifs_1234
 
 # MEME-round8:
 sort -nrk4,4 without_motifs_1234567.bed | head -n 2000 > without_motifs_1234567_top2000.bed #select top 2000 #161win
+# make a 81bp window top2000 peak file 
+awk 'BEGIN{OFS="\t"}{
+    summit=int(($2+$3)/2)
+    start=summit-40
+    end=summit+41
+    if (start < 0) start=0
+    print $1, start, end, $4
+}' without_motifs_1234567_top2000.bed > without_motifs_1234567_81win_top2000.bed
 
-# make a 81bp window top2000 peak file (in R)
-module load R/4.1.2
-R
-library(bigWig)
-options(scipen = 999)
-GATA3_peak_summits=center.bed(read.table("without_motifs_1234567_top2000.bed", header=FALSE), upstreamWindow = 0, downstreamWindow = 0)
-GATA3_peak_81win=center.bed(GATA3_peak_summits, upstreamWindow = 40, downstreamWindow = 40)
-write.table(GATA3_peak_81win,file= "without_motifs_1234567_81win_top2000.bed", quote=F,sep="\t",col.names=F,row.names=F)
 # Convert to FASTA
 fastaFromBed -fi $genome -bed without_motifs_1234567_81win_top2000.bed -fo without_motifs_1234567_81win_top2000.fasta
 meme -oc GATA3_without_mot_81bp_top2000_ws_0.5_wg_11_classic_zoops_input3_meme_output -nmotifs 20 -evt 0.05 -objfun classic -csites 20000 -searchsize 0 -minw 4 -maxw 20 -ws 0.5 -wg 11 -revcomp -dna -markov_order 3 -maxsize 100000000 without_motifs_1234567_81win_top2000.fasta
@@ -173,10 +176,103 @@ wc -l mast_GATA3_PSWM_in_peaks_round8.bed #1636
 intersectBed -v -a without_motifs_1234567.bed -b mast_GATA3_PSWM_in_peaks_round8.bed > without_motifs_12345678.bed #22358
 fastaFromBed -fi $genome -bed without_motifs_12345678.bed -fo without_motifs_12345678.fasta
 
+
 # MEME-round9:
-meme -p 4 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
+sort -nrk4,4 without_motifs_12345678.bed | head -n 2000 > without_motifs_12345678_top2000.bed #sort and select top 2000 from peaks without motif 1, 2, 3, 4, 5, 6, 7, 8. (161bp win)
+# make a 81bp window top2000 peak file 
+awk 'BEGIN{OFS="\t"}{
+    summit=int(($2+$3)/2)
+    start=summit-40
+    end=summit+41
+    if (start < 0) start=0
+    print $1, start, end, $4
+}' without_motifs_12345678_top2000.bed > without_motifs_12345678_81win_top2000.bed
+
+
+fastaFromBed -fi $genome -bed without_motifs_12345678_81win_top2000.bed -fo without_motifs_12345678_81win_top2000.fasta
+meme -p 64 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
+python MEME_individual_from_db_python3.py -i GATA3_without_mot12345678_81bp_top2000_meme_output2/meme.txt
+#TATCTBNNDDMVATCT_meme.txt -- top enriched GATA-like motif in round9 (E-value: 1.7e-013) 
+cp TATCTBNNDDMVATCT_meme.txt individual_meme/GATAmotif9_meme.txt
+rm *meme.txt
+# MAST-against the 161bp peaks
+mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif9_meme.txt without_motifs_12345678.fasta > mast_GATA3_PSWM_in_peaks_round9.txt #1657
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round9.txt
+wc -l mast_GATA3_PSWM_in_peaks_round9.bed #1654
+intersectBed -v -a without_motifs_12345678.bed -b mast_GATA3_PSWM_in_peaks_round9.bed > without_motifs_123456789.bed #20704
+fastaFromBed -fi $genome -bed without_motifs_123456789.bed -fo without_motifs_123456789.fasta
 
 # MEME-round10:
-meme -oc GATA3_without_mot123456789_81bp_top4000_min_10_max_14_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 14 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 ../without_motifs_123456789_81win_top4000.fasta -mpi
+sort -nrk4,4 without_motifs_123456789.bed | head -n 4000 > without_motifs_123456789_top4000.bed # 161win
+awk 'BEGIN{OFS="\t"}{
+    summit=int(($2+$3)/2)
+    start=summit-40
+    end=summit+41
+    if (start < 0) start=0
+    print $1, start, end, $4
+}' without_motifs_123456789_top4000.bed > without_motifs_123456789_81win_top4000.bed
+
+fastaFromBed -fi $genome -bed without_motifs_123456789_81win_top4000.bed -fo without_motifs_123456789_81win_top4000.fasta
+
+meme -oc GATA3_without_mot123456789_81bp_top4000_min_10_max_14_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 14 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_123456789_81win_top4000.fasta -mpi
+python MEME_individual_from_db_python3.py -i GATA3_without_mot123456789_81bp_top4000_min_10_max_14_meme_output/meme.txt
+#AGATGRVAGATAA_meme.txt -- top enriched GATA-like motif in round10 (E-value: 3.4e-005) 
+cp AGATGRVAGATAA_meme.txt individual_meme/GATAmotif10_meme.txt
+rm *meme.txt
+mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif10_meme.txt without_motifs_123456789.fasta > mast_GATA3_PSWM_in_peaks_round10.txt #2141
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round10.txt
+wc -l mast_GATA3_PSWM_in_peaks_round10.bed #2138
+intersectBed -v -a without_motifs_123456789.bed -b mast_GATA3_PSWM_in_peaks_round10.bed > without_motifs_12345678910.bed #18566
+fastaFromBed -fi $genome -bed without_motifs_12345678910.bed -fo without_motifs_12345678910.fasta
+
+# MEME-round11
+
+# Making a 71bp window file for top 3600 peaks without motif 1 to 10
+awk 'BEGIN{OFS="\t"}{
+    summit=int(($2+$3)/2)
+    start=summit-35
+    end=summit+36
+    if (start < 0) start=0
+    print $1, start, end, $4
+}' without_motifs_12345678910.bed | sort -nrk4,4 | head -n 3600 > without_motifs_12345678910_35halfwin_top3600.bed
+fastaFromBed -fi $genome -bed without_motifs_12345678910_35halfwin_top3600.bed -fo without_motifs_12345678910_35halfwin_top3600.fasta
 
 
+meme -p 64 -oc GATA3_without_mot12345678910_min_9_max_11_win_35_top3600_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 9 -maxw 11 -ws 0.1 -wg 0.1 -revcomp -dna -maxsize 100000000 without_motifs_12345678910_35halfwin_top3600.fasta
+
+python MEME_individual_from_db_python3.py -i GATA3_without_mot12345678910_min_9_max_11_win_35_top3600_meme_output/meme.txt
+#RATCWWGATAA_meme.txt -- GATA-like motif in round11 (E-value: 3.8E+03) 
+cp RATCWWGATAA_meme.txt individual_meme/GATAmotif11_meme.txt
+rm *meme.txt
+mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif11_meme.txt without_motifs_12345678910.fasta > mast_GATA3_PSWM_in_peaks_round11.txt #
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round11.txt #609
+wc -l mast_GATA3_PSWM_in_peaks_round11.bed #606
+intersectBed -v -a without_motifs_12345678910.bed -b mast_GATA3_PSWM_in_peaks_round11.bed > without_motifs_1234567891011.bed #17960
+fastaFromBed -fi $genome -bed without_motifs_1234567891011.bed -fo without_motifs_1234567891011.fasta
+
+
+# MEME-round12:
+## Making a 81bp window file for peaks without motif 1 to 11
+awk 'BEGIN{OFS="\t"}{
+    summit=int(($2+$3)/2)
+    start=summit-40
+    end=summit+41
+    if (start < 0) start=0
+    print $1, start, end, $4
+}' without_motifs_1234567891011.bed > without_motifs_1234567891011_40halfwin.bed
+
+fastaFromBed -fi $genome -bed without_motifs_1234567891011_40halfwin.bed -fo without_motifs_1234567891011_40halfwin.fasta
+
+
+# perform STREME on peaks (without motif 1,2,3,4,5,6, 7, 8, 9 10, 11) (81bp window)
+streme --oc GATA3_without_1234567891011_81win_test_streme_maxw10_output --nmotifs 30 --dna --minw 4 --maxw 10 --p without_motifs_1234567891011_40halfwin.fasta
+
+python MEME_individual_from_db_python3.py -i GATA3_without_1234567891011_81win_test_streme_maxw10_output/streme.txt
+#STREME-21_meme.txt -- GATA single motif in round12 (E-value: 4.6e+000) 
+
+cp STREME-21_meme.txt individual_meme/GATAmotif12_streme_meme.txt
+rm *meme.txt
+mast -mt 0.0005 -hit_list -best individual_meme/GATAmotif12_streme_meme.txt without_motifs_1234567891011.fasta > mast_GATA3_PSWM_in_peaks_round12.txt #644
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_peaks_round12.txt #641
+wc -l mast_GATA3_PSWM_in_peaks_round12.bed #641
+intersectBed -v -a without_motifs_1234567891011.bed -b mast_GATA3_PSWM_in_peaks_round12.bed > without_motifs_123456789101112.bed #17960
