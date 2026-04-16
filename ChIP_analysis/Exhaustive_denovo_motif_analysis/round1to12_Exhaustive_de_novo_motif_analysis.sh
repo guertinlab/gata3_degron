@@ -25,7 +25,7 @@ fastaFromBed -fi $genome -bed GATA_ChIP_top5000_161window.bed -fo GATA_ChIP_top5
 
 
 # MEME-Round1
-meme -p 72 GATA_ChIP_top5000_161window.fasta -oc GATA_ChIP_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 GATA_ChIP_top5000_161window.fasta -oc GATA_ChIP_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 
 wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
 python MEME_individual_from_db_python3.py -i GATA_ChIP_top5000_161window_meme_output/meme.txt
@@ -50,7 +50,7 @@ fastaFromBed -fi $genome -bed without_motifs_1.bed -fo without_motifs_1.fasta
 # MEME-round2:
 sort -nrk4,4 without_motifs_1.bed | head -n 5000 > without_motifs_1_top5000.bed # select top 5000
 fastaFromBed -fi $genome -bed without_motifs_1_top5000.bed -fo without_motifs_1_top5000.fasta
-meme -p 72 without_motifs_1_top5000.fasta -oc GATA_ChIP_without_motifs_1_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_1_top5000.fasta -oc GATA_ChIP_without_motifs_1_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_1_top5000_161window_meme_output/meme.txt
 #AGATBYTTATC_meme.txt -- top enriched GATA-like motif in round2 (E-value: 3.9e-629)
 cp AGATBYTTATC_meme.txt individual_meme/GATAmotif2_meme.txt
@@ -69,7 +69,7 @@ fastaFromBed -fi $genome -bed without_motifs_12.bed -fo without_motifs_12.fasta
 # MEME-round3:
 sort -nrk4,4 without_motifs_12.bed | head -n 5000 > without_motifs_12_top5000.bed # select top 5000
 fastaFromBed -fi $genome -bed without_motifs_12_top5000.bed -fo without_motifs_12_top5000.fasta
-meme -p 72 without_motifs_12_top5000.fasta -oc GATA_ChIP_without_motifs_12_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_12_top5000.fasta -oc GATA_ChIP_without_motifs_12_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_12_top5000_161window_meme_output/meme.txt
 #AGATDDDNAGATAAD_meme.txt -- top enriched GATA-like motif in round3 (E-value: 3.6e-259)
@@ -86,7 +86,7 @@ fastaFromBed -fi $genome -bed without_motifs_123.bed -fo without_motifs_123.fast
 # MEME-round4:
 sort -nrk4,4 without_motifs_123.bed | head -n 5000 > without_motifs_123_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_123_top5000.bed -fo without_motifs_123_top5000.fasta
-meme -p 72 without_motifs_123_top5000.fasta -oc GATA_ChIP_without_motifs_123_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_123_top5000.fasta -oc GATA_ChIP_without_motifs_123_top5000_161window_meme_output -nmotifs 10 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_123_top5000_161window_meme_output/meme.txt
 #TTATCTBYNNVATCT_meme.txt -- top enriched GATA-like motif in round4 (E-value:5.3e-232)
@@ -103,7 +103,7 @@ fastaFromBed -fi $genome -bed without_motifs_1234.bed -fo without_motifs_1234.fa
 # MEME-round5
 sort -nrk4,4 without_motifs_1234.bed | head -n 5000 > without_motifs_1234_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_1234_top5000.bed -fo without_motifs_1234_top5000.fasta
-meme -p 72 without_motifs_1234_top5000.fasta -oc GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output -nmotifs 20 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_1234_top5000.fasta -oc GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output -nmotifs 20 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output/meme.txt
 #NCTTATCWGAT_meme.txt -- top enriched GATA-like motif in round5 (E-value: 1.2e-065)
@@ -120,7 +120,7 @@ fastaFromBed -fi $genome -bed without_motifs_12345.bed -fo without_motifs_12345.
 # MEME-round6:
 sort -nrk4,4 without_motifs_12345.bed | head -n 5000 > without_motifs_12345_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_12345_top5000.bed -fo without_motifs_12345_top5000.fasta
-meme -p 72 without_motifs_12345_top5000.fasta -oc GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 10 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+meme -p 64 without_motifs_12345_top5000.fasta -oc GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 10 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
 # MAST
 python MEME_individual_from_db_python3.py -i GATA_ChIP_without_motifs_12345_top5000_161window_25_meme_output/meme.txt
 #AGATBNNNNNNVNWGATAA_meme.txt -- top enriched GATA-like motif in round6 (E-value:2.7e-218)
@@ -137,7 +137,7 @@ fastaFromBed -fi $genome -bed without_motifs_123456.bed -fo without_motifs_12345
 # MEME-round7:
 sort -nrk4,4 without_motifs_123456.bed | head -n 5000 > without_motifs_123456_top5000.bed
 fastaFromBed -fi $genome -bed without_motifs_123456_top5000.bed -fo without_motifs_123456_top5000.fasta
-meme -p 72 without_motifs_123456_top5000.fasta -oc try16_72_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 15 -maxw 30 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000 -wg 1 -ws 0.1
+meme -p 64 without_motifs_123456_top5000.fasta -oc try16_72_meme_output -nmotifs 25 -csites 20000 -objfun classic -searchsize 0 -minw 15 -maxw 30 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000 -wg 1 -ws 0.1
 # MAST
 python MEME_individual_from_db_python3.py -i try16_72_meme_output/meme.txt
 #NAGATBNNARNNVWGATA_meme.txt -- top enriched GATA-like motif in round7 (E-value:7.2e-075)
@@ -190,7 +190,7 @@ awk 'BEGIN{OFS="\t"}{
 
 
 fastaFromBed -fi $genome -bed without_motifs_12345678_81win_top2000.bed -fo without_motifs_12345678_81win_top2000.fasta
-meme -p 72 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
+meme -p 64 -oc GATA3_without_mot12345678_81bp_top2000_meme_output2 -nmotifs 25 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 without_motifs_12345678_81win_top2000.fasta
 python MEME_individual_from_db_python3.py -i GATA3_without_mot12345678_81bp_top2000_meme_output2/meme.txt
 #TATCTBNNDDMVATCT_meme.txt -- top enriched GATA-like motif in round9 (E-value: 1.7e-013) 
 cp TATCTBNNDDMVATCT_meme.txt individual_meme/GATAmotif9_meme.txt
@@ -238,7 +238,7 @@ awk 'BEGIN{OFS="\t"}{
 fastaFromBed -fi $genome -bed without_motifs_12345678910_35halfwin_top3600.bed -fo without_motifs_12345678910_35halfwin_top3600.fasta
 
 
-meme -p 72 -oc GATA3_without_mot12345678910_min_9_max_11_win_35_top3600_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 9 -maxw 11 -ws 0.1 -wg 0.1 -revcomp -dna -maxsize 100000000 without_motifs_12345678910_35halfwin_top3600.fasta
+meme -p 64 -oc GATA3_without_mot12345678910_min_9_max_11_win_35_top3600_meme_output -nmotifs 20 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 9 -maxw 11 -ws 0.1 -wg 0.1 -revcomp -dna -maxsize 100000000 without_motifs_12345678910_35halfwin_top3600.fasta
 
 python MEME_individual_from_db_python3.py -i GATA3_without_mot12345678910_min_9_max_11_win_35_top3600_meme_output/meme.txt
 #RATCWWGATAA_meme.txt -- GATA-like motif in round11 (E-value: 3.8E+03) 
