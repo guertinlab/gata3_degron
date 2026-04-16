@@ -516,7 +516,7 @@ echo 'aligning' $name 'to rDNA and removing aligned reads'
         samtools sort -n - | samtools fastq -f 0x4 - > ${name}_PE1.rDNA.fastq
 # removes PE2-aligned reads with a rDNA-aligned mate
 reads=$(wc -l ${name}_PE1.rDNA.fastq | awk '{print $1/4}')
-fastq_pair -t $reads ${name}_PE1.rDNA.fastqc ${name}_PE2_processed.fastq
+fastq_pair -t $reads ${name}_PE1.rDNA.fastq ${name}_PE2_processed.fastq
 
 
 echo 'aligning' $name 'to the genome'
