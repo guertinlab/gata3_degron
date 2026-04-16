@@ -7,3 +7,8 @@ https://guertinlab.github.io/gata3_degron/ChIP_analysis/GATA3_ChIP_analysis.html
 GATA3 dTAG13 degradation PRO-seq analysis
 
 https://guertinlab.github.io/gata3_degron/PRO_analysis/GATA3_PRO_analysis.html
+
+GATA3 PB-seq analysis
+
+https://guertinlab.github.io/gata3_degron/PB_analysis/GATA3_PB_analysis.html
+
