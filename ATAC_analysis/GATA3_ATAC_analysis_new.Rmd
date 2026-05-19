@@ -1,0 +1,402 @@
+---
+title: "GATA3_ATAC_analysis"
+
+author:
+- Siyu Sun
+- Michael J. Guertin
+header-includes:
+- \usepackage{color}
+- \usepackage{float}
+- \DeclareUnicodeCharacter{2212}{-}
+date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    toc: true
+fontsize: 14pt
+geometry: margin=1in
+---
+
+
+# Install required packages
+Install `bigWig` and `latticeExtra` package \
+```{r engine='R', eval=F, echo=T}
+install.packages("devtools", quiet = TRUE)
+library(devtools)
+devtools::install_github('andrelmartins/bigWig',
+              subdir='bigWig')
+library(bigWig)
+
+install.packages("DESeq2", quiet = TRUE)
+install.packages("dplyr", quiet = TRUE)
+```
+
+Install `bedtools` \
+```{r engine='bash', eval=F, echo=T}
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install bedtools
+```
+
+Install `Biostrings` \
+```{r engine='R', eval=F, echo=T}
+if (!requireNamespace("Biostrings", quietly = TRUE)) {
+  if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+  BiocManager::install("Biostrings")
+}
+```
+
+Install `latticeExtra` \
+```{r engine='R', eval=TRUE, echo=T}
+install.packages("latticeExtra", quiet = TRUE)
+```
+
+# Renaming
+```{r engine='bash', eval=TRUE, echo=T}
+for i in *R1_001.fastq.gz
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    cat ${name}*R1_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_PE1.fastq.gz
+    cat ${name}*R2_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_PE2.fastq.gz    
+done
+```
+
+# Cut off the adapter with `cutadapt`
+
+`-j`: the number of cores; \
+`-m` specifies the minimal length of a read to keep after adapter sequence removal; \
+`-O` is the number of bases to trim off the end of the read if it overlaps with the adapter sequence. \
+`-a` and `-A` options are the adapter sequences of the PE1 and PE2 reads. (Tn5 mosaic end sequence: CTGTCTCTTATACACATCT). \
+`-o` (PE1) and `-p` (PE2) specfies the output file. \
+The last two positional areguments are the input fastq files. We save the output to a log file. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+#! /bin/sh
+#SBATCH --job-name=GATA_atac_cutadapt.sh    
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 8
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o cutadapt.sh_%j.out
+#SBATCH -e cutadapt.sh_%j.err
+
+hostname
+module load cutadapt/3.5
+
+for i in ../raw_fastq_renamed/*PE1.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    echo unzipping $i
+    #gunzip $i
+    echo unzipping ${name}_PE2.fastq.gz
+    gunzip ../raw_fastq_renamed/${name}_PE2.fastq.gz
+    cutadapt -a CTGTCTCTTATACACATCT -A CTGTCTCTTATACACATCT -j 8 -m 10 -O 1 -o ${name}_PE1_no_adapt.fastq -p ${name}_PE2_no_adapt.fastq ../raw_fastq_renamed/${name}_PE1.fastq ../raw_fastq_renamed/${name}_PE2.fastq 2>&1 | tee ${name}_cutadapt.log
+
+done
+```
+
+
+# Alighment
+
+## Filter reads that align to the mitochondrial chromosome
+```{r engine='bash', eval=TRUE, echo=T}
+#! /bin/sh
+#SBATCH --job-name=humanchrM_bt2.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 4                 
+#SBATCH -p general           
+#SBATCH --qos=general     
+#SBATCH --mem=10G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o humanchrM_bt2.sh_%j.out
+#SBATCH -e humanchrM_bt2.sh_%j.err
+
+module load genometools/1.5.10
+module load bowtie2
+export PATH=$PATH:/home/FCAM/ssun/packages
+
+# build the mitochondrial genome
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/chromosomes/chrM.fa.gz
+gunzip chrM.fa.gz
+bowtie2-build chrM.fa chrM
+```
+
+Since mitochondrial DNA is preferentially targeted by transposase (more accessible), we first align to chrM and filter these aligned reads out before aligning to human geome. \
+We first align the PE1 and PE2 read to chrM, then we sort the file, use `samtools collate` to shuffle and group reads together with the same prefix, and use `samtools` and the `-f` option with the flag `0x4` to output the reads that do **NOT** align to the mitochondrial genome. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+#! /bin/sh
+#SBATCH --job-name=align_chrM.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 8                  
+#SBATCH -p general           
+#SBATCH --qos=general     
+#SBATCH --mem=60G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o align_chrM.sh_%j.out
+#SBATCH -e align_chrM.sh_%j.err
+
+hostname
+#export TMPDIR="${HOME}/temp" 
+
+module load samtools/1.9
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/humanchrM_bt2/chrM
+
+#Align to chrM first and remove aligned and unpaired reads
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    bowtie2 -p $ncore -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools sort -@ $ncore -n - | samtools collate -u - ${name} 2>&1 | tee ${name}_chrM_alignment.log
+    samtools fastq -f 0x4 -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq -0 /dev/null -s /dev/null -n ${name}.bam 
+    rm ${name}.bam # remove intermediate file
+done 
+```
+
+
+## Align to the human genome
+
+The filterred reads (that remoed reads align to ChrM) are now aligning to the hg38.fa genome. \
+`-1` and `-2` options for the respective paired-end fastq files. \
+Then the output is piped to samtools to convert to bam, then sorted by name (`-n`) so paired end reads are adjacent in the file, then piped to `samtools fixmate` which adds information about the fragment length by comparing the PE1 and PE2 coordinates, then the files are sorted by coordinate, then piped to `samtools markdup` to remove duplicate reads. Duplicate reads have the same PE1 and PE2 ends. \
+The fixmate step is necessary to pipe to markdup. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+#! /bin/sh
+#SBATCH --job-name=align_hg38.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 8                  
+#SBATCH -p general           
+#SBATCH --qos=general     
+#SBATCH --mem=60G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o align_hg38.sh_%j.out
+#SBATCH -e align_hg38.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp" 
+
+module load samtools/1.16.1
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/hg38_bt2/hg38
+
+#Align to the hg38 genome and remove duplicates
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    bowtie2 -p $ncore --maxins 800 -x $genome_index -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq | samtools view -bS -f 0x2 - | samtools sort -@ $ncore -n - | samtools fixmate -m - - | samtools sort - | samtools markdup -s -r - ${name}.hg38.bam 2>&1 | tee ${name}_bowtie2_hg38.log #samtools view -bS -f 0x2 - keep only reads that are: properly paired and both reads are mapped
+    #gzip ${name}_*.fastq
+done
+```
+
+```{bash}
+#250506 modification: get the unmapped sequences
+
+#! /bin/sh
+#SBATCH --job-name=align_hg38_unmapped.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 8                  
+#SBATCH -p general           
+#SBATCH --qos=general     
+#SBATCH --mem=60G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o align_hg38_unmapped.sh_%j.out
+#SBATCH -e align_hg38_unmapped.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp" 
+
+module load samtools/1.16.1
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/hg38_bt2/hg38
+
+gunzip *DMSO*chrM.fastq.gz
+for i in *DMSO*PE1.chrM.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+bowtie2 -p $ncore --maxins 800 -x $genome_index \
+  -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq | \
+samtools view -bS - | tee ${name}_all_reads.bam | \
+samtools view -b -f 4 - > ${name}_unmapped.bam
+ gzip ${name}_*.fastq
+done
+```
+
+
+zip the intermediate files. \
+```{r engine='bash', eval=TRUE, echo=T}
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    gzip ${name}_*.fastq
+done
+```
+
+
+## Convert aligned data to a bed file
+
+`seqOutBias` mappability files generation: \
+```{r engine='bash', eval=TRUE, echo=T}
+#!/bin/bash
+#SBATCH --job-name=seq_map.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 8                  
+#SBATCH -p general         
+#SBATCH --qos=general     
+#SBATCH --mem=68G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o seq_map.sh_%j.out
+#SBATCH -e seq_map.sh_%j.err
+
+hostname
+
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+export PATH=$PATH:/home/FCAM/ssun/packages/
+export TMPDIR="${HOME}/temp" 
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+seqOutBias seqtable ${genome} --read-size=40 2>&1 | tee seqOutBias_40.log
+```
+
+Convert BAM to bed for counting (previously created the tallymer with seqOutBias seqtable) \
+
+```{r engine='bash', eval=TRUE, echo=T}
+#!/bin/bash
+#SBATCH --job-name=bamtobed.sh     
+#SBATCH -N 1                  
+#SBATCH -n 1                 
+#SBATCH -c 8                  
+#SBATCH -p general         
+#SBATCH --qos=general     
+#SBATCH --mem=68G               
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o bamtobed.sh_%j.out
+#SBATCH -e bamtobed.sh_%j.err
+
+hostname
+
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+export PATH=$PATH:/home/FCAM/ssun/packages/
+export TMPDIR="${HOME}/temp" 
+
+read_size=40
+tallymer=/home/FCAM/ssun/seqoutbias/hg38_rs40/hg38.tal_${read_size}.gtTxt.gz
+table=/home/FCAM/ssun/seqoutbias/hg38_rs40/hg38_${read_size}.4.2.2.tbl
+
+for i in *.hg38.bam
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    echo $name
+    seqOutBias scale $table ${name}.hg38.bam --tallymer=$tallymer --no-scale --custom-shift=4,-4 --read-size=${read_size} 2>&1 | tee ${name}_seqOutBias.log
+    grep -v "random" ${name}.hg38_not_scaled.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "alt" | sort -k1,1 -k2,2n > ${name}_tmp.txt && mv ${name}_tmp.txt ${name}_not_scaled.bed 
+    rm ${name}.hg38_not_scaled.bed
+done
+```
+
+## normalize to read depth
+
+[normalize with scale factor or Deseq2 size factor] \
+
+# Normalization & Genome Browser
+
+Usually we combine replicates into a single track for visualization
+and we compare the tracks between conditions. It is important that we
+**read-depth normalize** (we are currently trying to change from read-depth 
+normalize to deseq2 size-factor normalize) before we combine the signal from each
+replicate. Otherwise, we would be weighting replicates differently;
+for example, if a library is sequenced to twice the read depth and we
+combine first then read depth normalize, then the more high coverage
+data is weighted twice as much in the final visualization. All the
+relevant track files are here: \
+
+```{r}
+#/home/FCAM/ssun/GATA3_ATAC_July2024/normalization
+
+module load bedtools
+module load samtools
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+
+ncore=8
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+
+export TMPDIR="${HOME}/temp"
+for i in ../cutadapt/*.hg38.bam
+do
+    name=$(echo $i | awk -F"dTAGGATA522_" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    prename=$(echo $i | awk -F"/" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    echo $name  
+    #bowtie2 -p $ncore --maxins 800 -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools view -bS -f 0x2 - | samtools sort -@ $ncore -n | samtools fixmate -m - - | samtools sort - | samtools markdup -s -r - ${name}.hg38.bam 2>&1 | tee ${name}_bowtie2_hg38.log
+    #seqOutFBias scale $table ${name}.hg38.bam --tallymer=$tallymer --shift-counts --no-scale --bw=${name}.bigWig --read-size=${readLength} 2>&1 | tee ${name}_seqOutBias.log
+    samtools sort -@ $ncore -n $i -o ${name}.sorted.hg38.bam
+    bedtools bamtobed -i ${name}.sorted.hg38.bam -bedpe > ${name}_bed12.bed
+    awk '$1==$4 {print $0}' ${name}_bed12.bed | awk '{OFS="\t";} {print $1, $2, $6}' | awk '$1!="." && $3>$2 && (($3 - $2)<2000) {print $0}' | sort -k1,1 -k2,2n > ${name}_read_span.bed
+    genomeCoverageBed -bg -i ${name}_read_span.bed -g $sizes > ${name}.bedGraph
+    depth=`awk -F'\t' '{sum+=$5;}END{print sum;}' ../cutadapt/${prename}_not_scaled.bed`
+    scaled=$(bc <<< "scale=3 ; 10000000 / $depth")
+    echo $scaled
+    awk -v scaled="$scaled" '{OFS="\t";} {print $1, $2, $3, $4*scaled}' ${name}.bedGraph > ${name}_normalized.bedGraph
+    awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,125,0 windowingFunction=maximum"}  { print $0}' ${name}_normalized.bedGraph > ${name}_ucsc.bedGraph
+    wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+done
+
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+for i in ../cutadapt/*rep1.hg38.bam
+do
+    name=$(echo $i | awk -F"dTAGGATA522_" '{print $NF}' | awk -F"_rep1" '{print $1}')
+    echo $name
+    reps=$(ls ${name}_rep*normalized.bigWig | wc -w | bc)
+    echo $reps
+    files=$(ls ${name}_rep*normalized.bigWig)
+    echo $files
+    bigWigMerge ${name}_rep*normalized.bigWig tmp.bg
+    scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
+    echo scale:
+    echo $scaleall
+    awk -v scaleall="$scaleall" '{OFS="\t";} {print $1, $2, $3, $4*scaleall}' tmp.bg > ${name}_normalized.bedGraph
+    rm tmp.bg
+    wigToBigWig ${name}_normalized.bedGraph $sizes ${name}.bigWig
+    awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,0,0"}  { print $0}' ${name}_normalized.bedGraph > ${name}_header_normalized.bedGraph
+    gzip ${name}_header_normalized.bedGraph
+done
+
+wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+```
+
+
+## Single library (normalized) 
+
+UCSC Genome Browser trackhub link for non-merged, normalized bigWig files: http://guertinlab.cam.uchc.edu/GATA3_ATAC_hub/hub.txt \
+
+
