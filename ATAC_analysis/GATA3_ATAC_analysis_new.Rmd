@@ -16,8 +16,19 @@ fontsize: 14pt
 geometry: margin=1in
 ---
 
+# ATAC-seq experiments
 
-# Install required packages
+ATAC-seq measures genome-wide chromatin accessibility. 
+
+# ATAC-seq experiments design
+
+MCF7 cells with the dTAG-GATA3 (clone522) grow in full medium are treated under 2 conditions: 1) DMSO; 2) 30min dTAG-v1. \
+MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped medium (ER deprived) are treated under 2 conditions: 1) DMSO; 2) 30min dTAG-v1. \
+
+
+# Raw Data Processing 
+
+## Install required packages
 Install `bigWig` and `latticeExtra` package \
 ```{r engine='R', eval=F, echo=T}
 install.packages("devtools", quiet = TRUE)
@@ -50,7 +61,8 @@ Install `latticeExtra` \
 install.packages("latticeExtra", quiet = TRUE)
 ```
 
-# Renaming
+## Renaming
+
 ```{r engine='bash', eval=TRUE, echo=T}
 for i in *R1_001.fastq.gz
 do
@@ -60,7 +72,7 @@ do
 done
 ```
 
-# Cut off the adapter with `cutadapt`
+## Cut off the adapter with `cutadapt`
 
 `-j`: the number of cores; \
 `-m` specifies the minimal length of a read to keep after adapter sequence removal; \
@@ -127,7 +139,7 @@ gunzip chrM.fa.gz
 bowtie2-build chrM.fa chrM
 ```
 
-Since mitochondrial DNA is preferentially targeted by transposase (more accessible), we first align to chrM and filter these aligned reads out before aligning to human geome. \
+Since mitochondrial DNA is preferentially targeted by transposase (more accessible), we first align to chrM and filter these aligned reads out before aligning to human genome. \
 We first align the PE1 and PE2 read to chrM, then we sort the file, use `samtools collate` to shuffle and group reads together with the same prefix, and use `samtools` and the `-f` option with the flag `0x4` to output the reads that do **NOT** align to the mitochondrial genome. \
 
 ```{r engine='bash', eval=TRUE, echo=T}
@@ -167,7 +179,7 @@ done
 
 ## Align to the human genome
 
-The filterred reads (that remoed reads align to ChrM) are now aligning to the hg38.fa genome. \
+The filterred reads (that have removed reads align to ChrM) are now aligning to the hg38.fa genome. \
 `-1` and `-2` options for the respective paired-end fastq files. \
 Then the output is piped to samtools to convert to bam, then sorted by name (`-n`) so paired end reads are adjacent in the file, then piped to `samtools fixmate` which adds information about the fragment length by comparing the PE1 and PE2 coordinates, then the files are sorted by coordinate, then piped to `samtools markdup` to remove duplicate reads. Duplicate reads have the same PE1 and PE2 ends. \
 The fixmate step is necessary to pipe to markdup. \
@@ -257,6 +269,8 @@ done
 
 ## Convert aligned data to a bed file
 
+We used `seqOutBias` to convert the data into BED format. The `--no-scale` flag was included to prevent correction for enzymatic sequence bias in chromatin accessibility assays, and `--custom-shift=4,-4` was used to specify the center of the transposase interaction site. The `grep` step removes incomplete contigs and the Epstein-Barr virus genome. \
+
 `seqOutBias` mappability files generation: \
 ```{r engine='bash', eval=TRUE, echo=T}
 #!/bin/bash
@@ -322,9 +336,6 @@ do
 done
 ```
 
-## normalize to read depth
-
-[normalize with scale factor or Deseq2 size factor] \
 
 # Normalization & Genome Browser
 
@@ -337,6 +348,11 @@ for example, if a library is sequenced to twice the read depth and we
 combine first then read depth normalize, then the more high coverage
 data is weighted twice as much in the final visualization. All the
 relevant track files are here: \
+
+## normalize to read depth
+
+[normalize with scale factor or Deseq2 size factor] \
+
 
 ```{r}
 #/home/FCAM/ssun/GATA3_ATAC_July2024/normalization
@@ -398,5 +414,858 @@ wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
 ## Single library (normalized) 
 
 UCSC Genome Browser trackhub link for non-merged, normalized bigWig files: http://guertinlab.cam.uchc.edu/GATA3_ATAC_hub/hub.txt \
+
+
+# Call peaks
+
+## MACS2
+
+We use `macs2` to call peaks using all the `*.hg38.bam` files. \
+We already removed replicate duplicates, so any true duplicates arose independently. We could call peaks in individual replicates and take the union or intersect or there are many other ways to call peaks. Since we don’t have an input or control file (we don't have input DNA or DNA pulled down with an unspecific antibody as in ChIP-seq; The only proper control would probably be to use the Tn on "naked" genomic DNA. But then you need quiet many reads to get a proper signal due to the size of mammalian genomes, so the cost/effect ratio is simply not economic so nobody routinely does it...) and most biologically relevant peaks will be found by most peak callers,we should find the important peaks where we have the power to detect changes in accessibility. \
+
+*the early ATAC papers (maybe the original one and the one on the NucleoATAC software). They show that the intrinsic cutting preference/bias of the transposon is minimal if I remember correctly. \
+ 
+`--nomodel` \
+While on, MACS will bypass building the shifting model. \
+`--extsize` \
+While '--nomodel' is set, MACS uses this parameter to extend reads in 5'->3' direction to fix-sized fragments. For example, if the size of binding region for your transcription factor is 200 bp, and you want to bypass the model building by MACS, this parameter can be set as 200. This option is only valid when --nomodel is set or when MACS fails to build model and --fix-bimodal is on. \
+`--shift` \
+Note, this is NOT the legacy --shiftsize option which is replaced by --extsize! You can set an arbitrary shift in bp here. Please Use discretion while setting it other than default value (0). When --nomodel is set, MACS will use this value to move cutting ends (5') then apply --extsize from 5' to 3' direction to extend them to fragments. When this value is negative, ends will be moved toward 3'->5' direction, otherwise 5'->3' direction. Recommended to keep it as default 0 for ChIP-Seq datasets, or -1 * half of EXTSIZE together with --extsize option for detecting enriched cutting loci such as certain DNAseI-Seq datasets. Note, you can't set values other than 0 if format is BAMPE or BEDPE for paired-end data. Default is 0. `
+
+```{r engine='bash', eval=F, echo=TRUE}
+#! /bin/sh
+#SBATCH --job-name=gata3_atac_peak_calling.sh    
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 8
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=32G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o gata3_atac_pesk_calling.sh_%j.out
+#SBATCH -e gata3_atac_peak_calling.sh_%j.err
+
+hostname
+module load macs2
+
+mkdir temp_macs
+directory=/home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/
+# call peaks with MACS2
+macs2 callpeak --call-summits -t ${directory}*.hg38.bam -n GATA3_degron_ATAC -g hs -q 0.01 --keep-dup all -f BAM --nomodel --shift -100 --extsize 200 --tempdir temp_macs
+
+#wc -l GATA3_degron_ATAC_summits.bed
+#259635 
+```
+
+
+
+## Removing peaks on contigs and within blacklisted regions
+
+```{r engine='bash', eval=F, echo=TRUE}
+wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+gunzip hg38-blacklist.v2.bed.gz
+blacklist=hg38-blacklist.v2.bed
+sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+name=GATA3_degron_ATAC
+
+module load bedtools
+grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a stdin -b $blacklist > ${name}_tmp.txt #247838
+mv ${name}_tmp.txt ${name}_summits.bed
+
+slopBed -b 200 -i ${name}_summits.bed -g $sizes > ${name}_summit_400window.bed #247838
+```
+
+
+# Differential reads counts with mapBed & FRip 
+
+`mapBed` from bedtools counts reads in regions with two bed file inputs. We will counts reads in the 400 base window summit file and merge these into a file with experiment name columns and genomic interval named rows. \
+
+FRiP (Fraction of Reads in Peaks), is a common quality measurement for ChIP-seq experiment. It calculates the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+module load samtools/1.12
+peaks=/home/FCAM/ssun/GATA3_ATAC_July2024/peak_call/GATA3_degron_ATAC_summit_400window.bed
+
+sort -k1,1 -k2,2n $peaks > GATA3_degron_ATAC_summit_400window_sorted.bed
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    echo $nm
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a GATA3_degron_ATAC_summit_400window_sorted.bed -b ${nm}_sorted.bed > ${nm}_peak_counts.txt #count 400bp window sum reads
+done
+
+#head MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep1_peak_counts.txt
+#chr1	804681	805082	GATA3_degron_ATAC_peak_78	892.55103	27
+#chr1	820107	820508	GATA3_degron_ATAC_peak_79	11.52228	7
+#chr1	826823	827224	GATA3_degron_ATAC_peak_80a	99.70275	41
+#chr1	827482	827883	GATA3_degron_ATAC_peak_80b	537.96899	89
+#chr1	832118	832519	GATA3_degron_ATAC_peak_81	12.95156	11
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x2 /home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/${name}.hg38.bam) # count the total aligned reads (-f 0x2: read mapped in proper pair)
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - GATA3_degron_ATAC_summit_400window_sorted.bed | paste -d'\t' - *peak_counts.txt > Combined_GATA_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *FRiP.txt > Combined_GATA_FRiP.txt
+rm rowname.txt
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+frip.df=read.csv("GATA_ATAC_peak_FRiP.csv")
+frip.df$supp=sapply(strsplit(frip.df$library, '_r'), '[', 1)
+
+frip.df$supp=factor(frip.df$supp, levels=c("CS_DMSO", "CS_dTAG", "Full_DMSO", "Full_dTAG"))
+
+pdf('barplot_GATA3_ATAC_peak_FRiP.pdf',width=8,height=8)
+print(barchart(library~FRiP,
+         group=supp,
+         stack=T,
+         data = frip.df,
+         xlim=c(0,1),
+         #auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylab = "ATAC-seq libraries",
+         xlab = "FRiP",
+         main ="MCF7 GATA3 ATAC peak FRiP",
+         par.settings = list(superpose.polygon=list(col=c("pink","lightgreen", "lightblue","violet"), border="grey")),
+         col=c("pink","lightgreen", "lightblue","violet")
+))
+dev.off()
+```
+
+
+
+
+
+# Differential accessibility
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#cd /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/240718_deseq2
+
+cp ../../FRIP/Combined_GATA_peak_counts.txt .
+# head Combined_GATA_peak_counts.txt
+
+#chr	start	end	name	qvalue	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep4
+#chr1	804681	805082	GATA3_degron_ATAC_peak_78	892.55103	27	56	31	39	93	29	43	18	80	35	66	67	65	77	29	74
+#chr1	820107	820508	GATA3_degron_ATAC_peak_79	11.52228	7	31	4	10	7	17	13	16	19	17	18	22
+```
+
+load required libraries and functions: \
+```{r, engine='R', eval=F, echo=TRUE}
+# libraries
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(MatchIt)
+```
+
+## full data sets (16 libraries)
+
+```{r, engine='R', eval=F, echo=TRUE}
+# data processing and plotting
+x = read.table('Combined_GATA_peak_counts.txt', sep = "\t", check.names=FALSE, header=TRUE)
+rownames(x) = paste0(x[,1], ":", x[,2], "-", x[,3])
+peak_name = x[,4]
+peak_qvalue = x[,5]
+x = x[,-c(1:5)]
+
+colnames(x) = sapply(strsplit(colnames(x), "dTAGGATA522_"), "[", 2)
+
+#head(x)
+#                   CS_DMSO_rep1 CS_DMSO_rep2 CS_DMSO_rep3 CS_DMSO_rep4 ...
+#chr1:804681-805082           27           56           31           39 ...
+#chr1:820107-820508            7            6            7            8 ...
+#chr1:826823-827224           41          109           64           93 ...
+#chr1:827482-827883           89          194          129          146 ...
+#chr1:832118-832519           11           16            6           16 ...
+#chr1:845620-846021          152          350          238          272 ...
+```
+
+
+## DESeq2 on full-medium samples (8)
+
+```{r, engine='R', eval=F, echo=TRUE}
+x_full=x[, 9:16]
+sample.conditions = factor(sapply(strsplit(colnames(x_full), '_r'), '[', 1), levels=c("Full_DMSO", "Full_dTAG"))
+#rep = factor(sapply(strsplit(colnames(x_full), 'rep'), '[', 2)) 
+#deseq.counts.table = DESeqDataSetFromMatrix(countData = x_full,
+#                colData = cbind.data.frame(sample.conditions, rep), 
+#                design = ~ rep + sample.conditions)
+deseq.counts.table = DESeqDataSetFromMatrix(countData = x_full,
+                                            colData = DataFrame(sample.conditions), 
+                                            design = ~ sample.conditions)
+deseq.counts.table 
+
+dds = DESeq(deseq.counts.table)
+dds
+resultsNames(dds)
+#[1] "Intercept"                               
+#[2] "sample.conditions_Full_dTAG_vs_Full_DMSO"
+save(dds, file = "GATA3_ATAC_Full_dds.Rdata")
+
+normalized.counts = counts(dds, normalized=TRUE)
+rld = rlog(dds, blind=TRUE)
+save(rld, file = "GATA3_ATAC_Full_rld.Rdata")
+```
+
+### plot principle components 
+```{r, engine='R', eval=F, echo=TRUE}
+pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
+pca.plot 
+plotPCAlattice(pca.plot, file = 'ATAC_PCA_plot_Full_30min_GATA3_degradation.pdf')
+```
+
+### MA plot
+
+
+```{r engine='R', eval=F, echo=TRUE}
+#load("GATA3_ATAC_Full_dds.Rdata")
+res_test = results(dds)
+sum(res_test$padj < 0.1 & !is.na(res_test$padj))
+#35002
+sum(res_test$padj < 0.01 & !is.na(res_test$padj))
+#18475
+```
+
+When we have many genes/regions to match, matchit generates error: `Error in `matchit()`: ! (from optmatch) result would exceed 2^31-1 bytes`. Thus, we need to modify the function to get around of it. \
+
+**function2** (solve the matchit capacity): \
+```{r, engine='R', eval=F, echo=TRUE}
+# here we add a div parameter to the function to help subset large data to accelerate matchit performance
+categorize.DEseq.df.mod <- function(DE.results, unchanged.padj = 0.25, changed.padj = 0.1, div=15, match.method="optimal") {
+    DE.results.lattice = DE.results
+    DE.results.lattice$category = "All Other Genes"
+    
+    #find genes/regions match to activated
+    activated = DE.results.lattice[DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange > 0,]
+    #subset the data
+    df=activated
+    rows_per_subset=ceiling(nrow(df) / div)
+    split_df <- lapply(1:div, function(i) {start_row <- (i - 1) * rows_per_subset + 1
+    end_row <- min(i * rows_per_subset, nrow(df))
+    df[start_row:end_row, ]
+})
+    for (i in 1:div) {
+      activated_subset=split_df[[i]]
+      unchanged.act = DE.results.lattice[!is.na(DE.results.lattice$padj) & DE.results.lattice$padj > 0.1 & abs(DE.results.lattice$log2FoldChange) < unchanged.padj & DE.results.lattice$category == "All Other Genes",]
+      unchanged.act$treatment = 0
+      activated_subset$treatment = 1
+      set.seed(123) # for reproducibility
+      unchanged.act_subset=unchanged.act[sample(nrow(unchanged.act), 1000), ]  # randomly select 1000 unchanged.act data to match 
+      df.deseq.effects.lattice = rbind(unchanged.act_subset, activated_subset)
+      out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = match.method, ratio = 1)
+      unchanged.act = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+      matching_rows <- intersect(rownames(DE.results.lattice), rownames(unchanged.act))
+      for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] <- "Matched to Up"
+    }
+    }
+    
+    #find genes/regions match to repressed
+    repressed = DE.results.lattice[DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange < 0,]
+    #subset the data
+    df=repressed
+    rows_per_subset=ceiling(nrow(df) / div)
+    split_df <- lapply(1:div, function(i) {start_row <- (i - 1) * rows_per_subset + 1
+    end_row <- min(i * rows_per_subset, nrow(df))
+    df[start_row:end_row, ]
+})
+    for (i in 1:div) {
+      repressed_subset=split_df[[i]]
+      unchanged.rep = DE.results.lattice[!is.na(DE.results.lattice$padj) & DE.results.lattice$padj > 0.1 & abs(DE.results.lattice$log2FoldChange) < unchanged.padj & DE.results.lattice$category == "All Other Genes",]
+      unchanged.rep$treatment = 0
+      repressed_subset$treatment = 1
+      set.seed(123) # for reproducibility
+      unchanged.rep_subset=unchanged.rep[sample(nrow(unchanged.rep), 1000), ]  # randomly select 1000 unchanged.act data to match 
+      df.deseq.effects.lattice = rbind(unchanged.rep_subset, repressed_subset)
+      out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = match.method, ratio = 1)
+      unchanged.rep = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+      matching_rows <- intersect(rownames(DE.results.lattice), rownames(unchanged.rep))
+      for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] <- "Matched to Down"
+    }
+    }
+    
+      # determine genes/regions that are activated or repressed
+      DE.results.lattice$category <- ifelse(
+        DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange > 0,
+        "Up",
+        DE.results.lattice$category
+        )
+      DE.results.lattice$category <- ifelse(
+        DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange < 0,
+        "Down",
+        DE.results.lattice$category
+        )
+    
+
+    return(DE.results.lattice)
+}
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+#load("GATA3_ATAC_Full_dds.Rdata")
+DE.results = results(dds)
+head(DE.results)
+
+DE.results.lattice = categorize.DEseq.df.mod(DE.results, unchanged.padj = 0.03, changed.padj = 0.01, div=50, match.method= "optimal")
+nrow(DE.results.lattice)
+#[1] 247838
+nrow(DE.results.lattice[DE.results.lattice$category=="Up",])
+#[1] 4418
+nrow(DE.results.lattice[DE.results.lattice$category=="Down",])
+#[1] 14057
+
+
+save.image('240718_GATA3_ATAC_Full_DE_results.Rdata')
+```
+
+
+draw MA plot: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+ma.plot.lattice <- function(ma.df, filename = 'file.name', 
+                            title.main = "Differential ATAC-seq Accessibility",
+                            col = c("grey80", "grey20" , "grey20", "#2290cf", "#ce228e")){
+    desired_order <- c("All Other Genes", "Matched to UP", "Matched to Down", "Down", "Up")
+    ma.df$category <- factor(ma.df$category, levels = desired_order)
+  pdf(paste("MA_plot_", filename, ".pdf", sep=''), 
+      useDingbats = FALSE, width=3.83, height=3.83);
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$category,
+               col= col,
+                main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylab=expression("log"[2]~"ATAC-seq change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+}
+
+ma.plot.lattice(DE.results.lattice, filename = "ATAC_GATA3_MCF7_in_Full_medium_30min_dTAG_accessiblity_MA")
+```
+
+**get example ATAC-seq decreased region** \
+
+```{r}
+#/home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/240718_deseq2
+load("240718_GATA3_ATAC_Full_DE_results.Rdata")
+
+head(DE.results.lattice)
+
+DE.results.lattice[DE.results.lattice$log2FoldChange < -1.7 & log10(DE.results.lattice$baseMean) > 3.4 & DE.results.lattice$category=="Down", ]
+#chr17:61219408-61219809
+```
+
+
+### Save differential peaks and matched peaks to .bed file
+
+```{r, engine='R', eval=F, echo=TRUE}
+options(scipen = 99) #avoid scientific notation when writing output
+matched.all = DE.results.lattice[DE.results.lattice$category == 
+                                 'Matched to Down' |
+                                DE.results.lattice$category == 
+                                 'Matched to Up',]
+
+repressed.all = DE.results.lattice[DE.results.lattice$category == 
+                                             'Down',]
+
+activated.all = DE.results.lattice[DE.results.lattice$category == 
+                                             'Up',]
+
+chr = sapply(strsplit(rownames(activated.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(activated.all), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100 
+
+write.table(cbind(chr, start, end), file = "Full_GATA3_degron_ATAC_up_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+
+chr = sapply(strsplit(rownames(repressed.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(repressed.all), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100
+
+write.table(cbind(chr, start, end), file = "Full_GATA3_degron_ATAC_down_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+chr = sapply(strsplit(rownames(matched.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(matched.all), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100
+
+
+matched.file = cbind(chr, start, end)
+matched.file = unique(matched.file)
+
+write.table(matched.file, file = "Full_GATA3_degron_ATAC_matched_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+```
+
+
+# Overlapped ChIP-seq and ATAC-seq peaks
+
+We can use `intersectBed` to find ATAC-seq peaks (up/down/match) that overlap with ChIP-seq peaks. \
+## GATA3 ChIP-peaks
+```{r, engine='bash', eval=F, echo=TRUE}
+#cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+slopBed -b 100 -i GATA_ChIP_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_ChIP_summit_200window.bed
+```
+
+## GATA3 ATAC-peaks
+did not use these:
+CS_GATA3_degron_ATAC_down_200bp.bed
+CS_GATA3_degron_ATAC_matched_200bp.bed
+CS_GATA3_degron_ATAC_up_200bp.bed
+
+used these:
+Full_GATA3_degron_ATAC_down_200bp.bed
+Full_GATA3_degron_ATAC_matched_200bp.bed
+Full_GATA3_degron_ATAC_up_200bp.bed
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+ChIP_file=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/GATA_ChIP_summit_200window.bed
+
+touch overlap_peak.txt
+echo -e "medium\tsupp\toverlap_peaks\tfraction" > overlap_peak.txt
+
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/240718_deseq2/Full*200bp.bed
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F".bed" '{print $1}')
+  echo $nm
+  sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+  name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"Full_GATA3_degron_ATAC_" '{print $2}' | awk -F"_200bp.bed" '{print $1}')
+  atac_peak=$(wc -l $i | awk '{print $1}')
+  nonoverlap_peak=$(intersectBed -v -a $i -b $ChIP_file | wc -l | awk '{print $1}')
+  overlap_peak=$(echo "scale=2 ; $atac_peak - $nonoverlap_peak" | bc)
+  fraction=$(echo "scale=2 ; $overlap_peak / $atac_peak" | bc)
+  echo -e "Full\t$name\t$overlap_peak\t$fraction" >> overlap_peak.txt
+done
+
+#cd overlap2
+cat overlap_peak.txt 
+#medium	supp	overlap_peaks	fraction
+#CS	down	6741	.95
+#CS	matched_Down	2044	.29
+#CS	matched_Up	653	.41
+#CS	up	677	.42
+#Full	down	13025	.92
+#Full	matched_Down	3171	.22
+#Full	matched_Up	1652	.37
+#Full	up	1733	.39
+```
+
+## plot bar chart
+```{r, engine='R', eval=F, echo=TRUE}
+#module load R/4.1.2 
+#R 
+library("lattice") 
+bar=read.table("overlap_peak.txt", header = TRUE, sep = "\t")
+bar$medium<- factor(bar$medium, levels = c("Full", "CS"))
+bar$supp<- factor(bar$supp, levels = c("down", "up", "matched"))
+bar$group=paste0("ATAC-", bar$medium, "-", bar$supp)
+bar$group2=paste0("ATAC-",bar$supp)
+
+pdf('barchart_GATA3_ATAC_overlap_ChIP.pdf', width=10,height=6)
+print(barchart(fraction ~ group2 | medium,         
+         data = bar,
+         groups = supp,
+         #stack = TRUE,
+         #auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         col=c("lightblue", "pink", "white"),
+         ylab = "Fraction",
+         xlab = "Category",
+         main="fraction of the up/down/matched ATAC-seq peaks that overlap GATA3 ChIP peaks"
+         #par.settings = my.settings)
+))
+dev.off()
+
+
+library("lattice") 
+bar=read.table("overlap_peak.txt", header = TRUE, sep = "\t")
+bar$medium<- factor(bar$medium, levels = c("Full", "CS"))
+bar$supp<- factor(bar$supp, levels = c("down", "matched_Down", "up", "matched_Up"))
+bar$group=paste0("ATAC-", bar$medium, "-", bar$supp)
+bar$group2=paste0("ATAC-",bar$supp)
+
+pdf('barchart_GATA3_ATAC_overlap_ChIP.pdf', width=10,height=6)
+print(barchart(fraction ~ group2 | medium,         
+         data = bar,
+         groups = supp,
+         #stack = TRUE,
+         #auto.key=list(space="right"),
+         scales = list(x = list(rot = 45)),
+         ylim=c(0,1),
+         col=c("lightblue", "white", "pink", "white"),
+         ylab = "Fraction",
+         xlab = "Category",
+         main="fraction of the up/down/matched ATAC-seq peaks that overlap GATA3 ChIP peaks"
+         #par.settings = my.settings)
+))
+dev.off()
+
+
+# Plot the Full data set
+library("lattice") 
+bar=read.table("overlap_peak.txt", header = TRUE, sep = "\t")[5:8,]
+bar$fraction2=1-bar$fraction
+overlap_df=bar[, c(1,2,4)]
+overlap_df$supp2="overlap"
+nonoverlap_df=bar[, c(1,2,5)]
+nonoverlap_df$supp2="non-overlap"
+colnames(nonoverlap_df)=c("medium", "supp", "fraction", "supp2" )
+
+df=rbind(overlap_df, nonoverlap_df)
+df$supp=factor(df$supp, levels=c("down", "matched_Down", "up", "matched_Up"))
+df$supp2=factor(df$supp2, levels=c("overlap", "non-overlap"))
+df$supp3=rep(c("Decreased ATAC", "Matched with Decreased", "Matched with Increased", "Increased ATAC"), 2)
+df$supp3=factor(df$supp3, levels=c("Decreased ATAC", "Matched with Decreased", "Increased ATAC", "Matched with Increased"))
+
+pdf("stack_barchart_GATA3_Full_ATAC_overlap_ChIP.pdf", width=10, height=6)
+print(barchart(fraction ~ supp3, 
+               data = df, 
+               groups = supp2, 
+               scales = list(x = list(rot = 45, col=c("#2290cf", "grey20", "#ce228e", "grey20"), font=2)),
+               between=list(y=1.0, x = 1.0),
+               auto.key = list(points = FALSE, rectangles = TRUE, space = "right"),
+               aspect = 1,
+               stack = TRUE, 
+               col = c("black", "white"),
+               ylab = "Fraction of ATAC-seq overlapping ChIP", 
+               xlab = "",
+               main="Cell Cultured with Full Medium",
+               par.settings = list(superpose.polygon = list(col=c("black", "white"), pch=20, lwd=2), strip.background=list(col="grey85"))
+               )
+)
+dev.off()
+
+# plot the ChIP data set 
+library("lattice") 
+bar=read.table("overlap_peak.txt", header = TRUE, sep = "\t")[1:4,]
+bar$fraction2=1-bar$fraction
+overlap_df=bar[, c(1,2,4)]
+overlap_df$supp2="overlap"
+nonoverlap_df=bar[, c(1,2,5)]
+nonoverlap_df$supp2="nonoverlap"
+colnames(nonoverlap_df)=c("medium", "supp", "fraction", "supp2" )
+
+
+df=rbind(overlap_df, nonoverlap_df)
+df$supp=factor(df$supp, levels=c("down", "matched_Down", "up", "matched_Up"))
+df$supp2=factor(df$supp2, levels=c("overlap", "nonoverlap"))
+df$supp3=rep(c("Decreased ATAC", "Matched with Decreased", "Matched with Increased", "Increased ATAC"), 2)
+df$supp3=factor(df$supp3, levels=c("Decreased ATAC", "Matched with Decreased", "Increased ATAC", "Matched with Increased"))
+
+
+pdf("stack_barchart_GATA3_ATAC_CS_overlap_ChIP.pdf", width=10, height=6)
+print(barchart(fraction ~ supp3, 
+               data = df, 
+               groups = supp2, 
+               scales = list(x = list(rot = 45, col=c("#2290cf", "grey20", "#ce228e", "grey20"), font=2)),
+               between=list(y=1.0, x = 1.0),
+               auto.key = list(points = FALSE, rectangles = TRUE, space = "right"),
+               aspect = 1,
+               stack = TRUE, 
+               col = c("black", "white"),
+               ylab = "Fraction of ATAC-seq overlapping ChIP", 
+               xlab = "",
+               main="Cell Cultured with Charcoal-stripped Medium",
+               par.settings = list(superpose.polygon = list(col=c("black", "white"), pch=20, lwd=2), strip.background=list(col="grey85"))
+)
+)
+dev.off()
+
+```
+
+
+# youden Index (Y.I)
+
+The goal of this analysis is answer a question: Which GATA3 ChIP-seq peaks functionally regulate chromatin accessibility? \
+We can empirically determining a threshold that we can use that as the lower bound of a potentially functional peak. \
+
+Youden Index helps to find the optimal cut-off that maximizes the true positive rate (TPR) while minimizing the false positive rate (FPR), ultimately maximizing the Youden Index (Youden Index = TPR − FPR). \
+
+We can calculate the Youden Index by using the Receiver Operating Characteristic (ROC) curve: \
+
+1. For each possible cut-off point, calculate the true positive rate (TPR) and false positive rate (FPR). \
+2. The TPR is the proportion of Group 2 (positive class: intensity of ChIP-seq peaks overlapping with ATAC-seq decreased peaks) correctly identified as positive. \
+3. The FPR is the proportion of Group 1 (negative class: intensity of ChIP-seq peaks overlapping with "matched-ATAC-seq decreased" – unchanged ATAC-seq peaks) incorrectly identified as positive. \
+
+Receiver-operating characteristic curve (ROC): \
+
+1. The x-axis represents the False Positive Rate (FPR). \
+2. The y-axis represents the True Positive Rate (TPR). \
+3. A perfect classifier would have a curve that reaches the top-left corner of the plot, meaning a high TPR with a low FPR. \
+
+4. The diagonal line from the bottom-left to the top-right represents a random classifier (no predictive power). \
+The area under the ROC curve (AUC) is often used as a metric to summarize the model’s performance. An AUC of 1 represents a perfect model, while an AUC of 0.5 indicates a model with no discriminatory power (random guessing). \
+
+7023 CS_GATA3_degron_ATAC_down_200bp_sorted.bed
+7023 CS_GATA3_degron_ATAC_matched_down_200bp_sorted.bed
+  
+14057 Full_GATA3_degron_ATAC_down_200bp_sorted.bed
+14057 Full_GATA3_degron_ATAC_matched_down_200bp_sorted.bed
+
+## get ATAC-seq peaks (in different categories: down/matched-down) that overlap with GATA3 ChIP-seq peaks (with the ChIP-seq peak intensity). 
+
+We use the `intersectBed` tool to get overlapped peaks between 200bp window ATAC-seq regions and 200bp window ChIP-seq regions: \
+
+```{bash}
+module load bedtools
+ChIP_file=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/GATA_ChIP_summit_200window.bed #96868
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/overlap3_atac_overlap_with_chip/Full*down*_200bp_sorted.bed # down ATAC peaks and matched-down ATAC peaks, both 14057
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_200bp_sorted.bed" '{print $1}')
+  echo $nm
+  intersectBed -v -wa -a $ChIP_file -b $i | intersectBed -v -wa -a $ChIP_file -b - -f 1 > ${nm}_overlap_with_ChIP.bed
+done
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/overlap3_atac_overlap_with_chip/CS*down*_200bp_sorted.bed
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_200bp_sorted.bed" '{print $1}')
+  echo $nm
+  intersectBed -v -wa -a $ChIP_file -b $i | intersectBed -v -wa -a $ChIP_file -b - -f 1 > ${nm}_overlap_with_ChIP.bed
+done
+
+# These are ChIP-seq peaks!!!!!!!!!!!!!!!
+#6598 CS_GATA3_degron_ATAC_down_overlap_with_ChIP.bed
+#2114 CS_GATA3_degron_ATAC_matched_down_overlap_with_ChIP.bed
+#12751 Full_GATA3_degron_ATAC_down_overlap_with_ChIP.bed
+#3287 Full_GATA3_degron_ATAC_matched_down_overlap_with_ChIP.bed
+
+
+# below code similar to above except that without the '-f 1 ' flag -- this flag sets the minimum fraction of the A feature that must be overlapped by B
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/overlap3_atac_overlap_with_chip/Full*down*_200bp_sorted.bed
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_200bp_sorted.bed" '{print $1}')
+  echo $nm
+  intersectBed -v -wa -a $ChIP_file -b $i | intersectBed -v -wa -a $ChIP_file -b - > ${nm}_overlap_with_ChIP.bed
+done
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/overlap3_atac_overlap_with_chip/CS*down*_200bp_sorted.bed
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_200bp_sorted.bed" '{print $1}')
+  echo $nm
+  intersectBed -v -wa -a $ChIP_file -b $i | intersectBed -v -wa -a $ChIP_file -b - > ${nm}_overlap_with_ChIP.bed
+done
+
+# below are coherence check
+ChIP_file=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/GATA_ChIP_summit_200window.bed
+i=Full_GATA3_degron_ATAC_down_200bp_sorted.bed
+intersectBed -v -wa -a $ChIP_file -b $i | wc -l #84117 --- ChIP that do not overlap with ATAC
+intersectBed -v -wa -a $i -b $ChIP_file | wc -l #1032 --- ATAC that do not overlap with ChIP
+
+intersectBed -v -wa -a $ChIP_file -b $i | intersectBed -v -wa -a $ChIP_file -b - -f 1 | wc -l #12751 (96868-84117)
+
+intersectBed -v -wa -wb -a $i -b $ChIP_file | intersectBed -v -wa -wb -a $i -b - -f 1 | wc -l #13025 # ATAC-seq
+
+intersectBed -v -a $i -b $ChIP_file | intersectBed -v -a $i -b - -f 1 | intersectBed -wa -a $ChIP_file -b - | wc -l #13118 # ChIP-seq
+intersectBed -v -a $i -b $ChIP_file | intersectBed -v -a $i -b - -f 1 | intersectBed -wa -wb -a $ChIP_file -b - | uniq | wc -l #13118 there are more than 1 atac seq peaks overlap with the same chip seq peaks
+intersectBed -v -a $i -b $ChIP_file | intersectBed -v -a $i -b - -f 1 | intersectBed -wa -a $ChIP_file -b - | uniq | wc -l #12751
+intersectBed -v -a $i -b $ChIP_file | intersectBed -v -a $i -b - -f 1 | intersectBed -wa -wb -a - -b $ChIP_file | uniq
+
+
+# coherence check
+intersectBed -v -a $i -b $ChIP_file | intersectBed -v -a $i -b - -f 1 | intersectBed -wa -a $ChIP_file -b - | sort -k1,1 -k2,2n | uniq --count --repeated | wc -l # 367
+#13118-12751 # ChiP-seq peaks that overlap with duplicated ATAC
+#[1] 367
+
+
+intersectBed -v -a $ChIP_file -b $i  | intersectBed -v -a $ChIP_file -b - -f 1 | intersectBed -wa -a $i -b - | sort -k1,1 -k2,2n | uniq --count --repeated | wc -l # ATAC-seq peaks that overlap with the same ChIP-seq peaks
+# 13118-13025
+#[1] 93
+
+
+intersectBed -a $ChIP_file -b $i | sort -k1,1 -k2,2n | uniq --count --repeated | wc -l
+#13025-12751  
+# 367-93
+#[1] 274
+
+```
+
+
+6598 CS_GATA3_degron_ATAC_down_overlap_with_ChIP.bed
+2114 CS_GATA3_degron_ATAC_matched_down_overlap_with_ChIP.bed
+
+12751 Full_GATA3_degron_ATAC_down_overlap_with_ChIP.bed
+3287 Full_GATA3_degron_ATAC_matched_down_overlap_with_ChIP.bed
+
+## plot violin plot of the four categories
+
+```{r}
+#module load R/4.1.2
+#R
+path.to.bed="/home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/overlap3_atac_overlap_with_chip/"
+df.overlap.peak = data.frame()     
+for (bed in Sys.glob(file.path(paste0(path.to.bed, "*_overlap_with_ChIP.bed")))) {
+        factor.name = strsplit(strsplit(bed, "/")[[1]][length(strsplit(bed, "/")[[1]])], '_GATA3_')[[1]][1]
+        factor.name1= strsplit((strsplit(strsplit(bed, "/")[[1]][length(strsplit(bed, "/")[[1]])], 'GATA3_degron_')[[1]][2]), "_with_ChIP.bed")[[1]][1]
+        print(factor.name)
+        print(factor.name1)
+        temp = read.table(bed, header=F, comment.char='', col.names=c("V1", "V2", "V3", "V4", "intensity"))
+        temp$group=paste0(factor.name, "_", factor.name1)
+        df.overlap.peak = rbind(df.overlap.peak, temp)
+}
+
+colnames(df.overlap.peak)=c("chr", "start", "end", "V4", "Intensity", "group")
+
+df.overlap.peak$group=factor(df.overlap.peak$group, levels=c( "Full_ATAC_down_overlap", "Full_ATAC_matched_down_overlap", "CS_ATAC_down_overlap", "CS_ATAC_matched_down_overlap"))      
+
+library(lattice)
+library(latticeExtra)
+
+pdf('violinplot_ChIP_intensity_overlap_with_ATACdown_or_matcheddown_peaks.pdf',width=10,height=6)
+print(bwplot((log(Intensity, base = 10)) ~ group,
+             groups = df.overlap.peak$group,
+             horizontal = F,
+             do.out=FALSE,
+             data=df.overlap.peak,
+             #ylim=c(-2, 8),
+             #groups = motif, 
+             #layout=c(1,2),
+             #pch="|",
+             #col=c("grey", "lightgrey", "lightpink", "lightgrey", "lightpink"),
+             panel = function(x, y, ...) {
+                                       #panel.stripplot(x, y, jitter.data = TRUE, amount = 0.4, col = adjustcolor("grey", alpha.f = 0.3), pch = 16, cex = 0.3, ...)
+                                       panel.violin(x,y, col = "transparent",...)
+                                       #panel.abline(h = c(1.98, 1.91), col = "red", lty = 2) # 95 and 82
+       },
+             #lty = 1,
+             
+             scales=list(x=list(cex=1,relation = "free", rot = 45), 
+                         y =list(cex=1, relation="free")),
+             #par.settings = list(superpose.line = list(col=c("grey", "lightgrey", "lightpink", "lightgrey", "lightpink"), lwd=3), strip.background=list(col="grey85")),
+             main = "Intensity of ChIP-seq peaks overlapping ATAC-seq down /matched_down peaks",
+             ylab = "log10 Intensity"
+             )
+)
+dev.off()
+```
+
+## Determine the intensity cut-off for ChIP-seq peaks overlapping with significantly decreased or matched decreased peaks from Full ATAC-seq
+
+```{r}
+library(pROC)
+library(lattice)
+
+#head(df.overlap.peak) #[1] 24750
+full_intensity=rbind(df.overlap.peak[df.overlap.peak$group=="Full_ATAC_down_overlap", ], df.overlap.peak[df.overlap.peak$group=="Full_ATAC_matched_down_overlap", ]) #[1] 16038
+full_intensity$group=factor(full_intensity$group, levels=c("Full_ATAC_matched_down_overlap", "Full_ATAC_down_overlap"))
+roc_curve <- roc(full_intensity$group, full_intensity$Intensity) #the first level of the factor as the "negative" class (0) and the second level as the "positive" class
+
+#calculate youden index
+youden_index <- roc_curve$sensitivities + roc_curve$specificities - 1
+
+# Find the optimal threshold
+optimal_idx <- which.max(youden_index)
+optimal_threshold <- roc_curve$thresholds[optimal_idx]
+
+cat("Optimal Cut-Off Threshold:", optimal_threshold, "\n")
+#Optimal Cut-Off Threshold: 27.5928 
+```
+
+```{r}
+roc_data <- data.frame(
+  FPR = 1 - roc_curve$specificities,
+  TPR = roc_curve$sensitivities
+)
+
+# Get the optimal FPR and TPR
+optimal_FPR <- 1 - roc_curve$specificities[optimal_idx]
+optimal_TPR <- roc_curve$sensitivities[optimal_idx]
+
+pdf("Full_ROC_curve.pdf")
+print(
+  xyplot(TPR ~ FPR, data = roc_data, type = "o", col = "blue",
+         xlab = "False Positive Rate (1 - Specificity)",
+         ylab = "True Positive Rate (Sensitivity)",
+         main = "ROC Curve with Optimal Cut-Off Point (Full)",
+         panel = function(x, y, ...) {
+           # Plot the ROC curve
+           panel.xyplot(x, y, ...)
+           
+           # Add the optimal point (red dot)
+           panel.points(optimal_FPR, optimal_TPR, col = "red", pch = 19, cex = 1.5)
+           
+           # Add label for the threshold at the optimal point
+           panel.text(optimal_FPR, optimal_TPR, labels = round(optimal_threshold, 2), pos = 3, col = "red")
+           
+           # Add dashed vertical and horizontal lines at the optimal point
+           panel.abline(v = optimal_FPR, lty = 2, col = "darkgray")  # Vertical line
+           panel.abline(h = optimal_TPR, lty = 2, col = "darkgray")  # Horizontal line
+           
+           # Print the coordinates (FPR, TPR) next to the lines
+           panel.text(optimal_FPR, 0, labels = paste("FPR:", round(optimal_FPR, 2)), pos = 1, col = "darkgray")  # At the bottom of vertical line
+           panel.text(1, optimal_TPR, labels = paste("TPR:", round(optimal_TPR, 2)), pos = 2, col = "darkgray")  # At the end of horizontal line
+         })
+)
+dev.off()
+```
+
+```{r}
+youden_data <- data.frame(
+  Threshold = roc_curve$thresholds,
+  Youden_Index = youden_index
+)
+pdf("Full_YoudenIndex_vs_threshold_curve.pdf")
+print(
+xyplot(Youden_Index ~ Threshold, data = youden_data, type = "o", col = "green",
+       xlab = "Threshold",
+       ylab = "Youden Index",
+       main = "Youden Index vs. Threshold (Full)",
+       panel = function(x, y, ...) {
+         panel.xyplot(x, y, ...)
+         panel.points(optimal_threshold, youden_index[optimal_idx],
+                      col = "red", pch = 19, cex = 1.5)
+         panel.text(optimal_threshold, youden_index[optimal_idx],
+                    labels = round(optimal_threshold, 2),
+                    pos = 3, col = "red")
+       })
+)
+dev.off()
+```
+
+# get ChIP-seq coordinates overlaping Full sig.decreased ATAC-seq regions and filtered with Y.I. determined chip-seq intensity cut-off 
+
+## Full Optimal Cut-Off Threshold:  27.5928 ---Full dataset
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
