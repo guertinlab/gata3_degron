@@ -1251,14 +1251,413 @@ xyplot(Youden_Index ~ Threshold, data = youden_data, type = "o", col = "green",
 dev.off()
 ```
 
-# get ChIP-seq coordinates overlaping Full sig.decreased ATAC-seq regions and filtered with Y.I. determined chip-seq intensity cut-off 
 
-## Full Optimal Cut-Off Threshold:  27.5928 ---Full dataset
+# Plot the GATA3 binding regions' binding intensity (--filter with Y.I. determined cutoff)
+
+## Full cut-off
+Optimal Cut-Off Threshold:  27.5928 ---Full dataset
+
+```{bash}
+dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_Intensity/GATA_Deseq2/
+awk '$4 > 27.5928' ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity.bed > GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff.bed #89241 (filterred) of 96868 (raw)
+
+cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIPpeaks_with_ind_motif/compare_binding_intensity_101win_Fullfilter/
+awk '$4 < 27.5928' ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity.bed > GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_excluded.bed
+
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+
+
+# extend the ChIP-peak window size to 101bp
+module load bedtools
+slopBed -b 50 -i GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_100window.bed
+fastaFromBed -fi $genome -bed GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_100window.bed -fo GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_100window.fasta
+```
+
+```{bash}
+module load meme/5.4.1
+module load bedtools
+module load R/4.1.2
+for i in individual_meme/*_meme.txt # meme PWMs 
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_meme.txt" '{print $1}')
+    echo $name
+    mast -hit_list -best $i GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_100window.fasta > mast_${name}_in_peaks.txt
+    mot=`grep MOTIF $i | cut -f 2 `
+    echo $mot
+    Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_${name}_in_peaks.txt
+    awk -v nm="$name" '{OFS="\t";} {print $0, nm}' mast_${name}_in_peaks.bed | sort -k1,1 -k2,2n > mast_${name}_indiv.bed
+done
+
+intersectBed -C -names 10 11 12 1 2 3 4 5 6 7 8 9 -wa -wb -a GATA_ChIP_summits_final_DESeq2_ranked_intensity_Fullcutoff_100window.bed -b *_indiv.bed > x.bed
+```
+
+
+## compare the ChIP-seq peak intensity for regions have different motifs
+
+```{r}
+#module load R/4.1.2
+#R
+
+library(dplyr)
+library(MatchIt)
+
+x = read.table('x.bed', header=FALSE)
+
+result <- x %>%
+  group_by(V1, V2, V3) %>% # V2, V3, V4 represent the columns for chromosome, start, and end positions
+  summarise(cum_sum = sum(V6)) %>% # V6 represents the column to sum
+  filter(cum_sum == 1)  # Filter out groups where the cumulative sum is 1
+
+y <- x %>%
+  inner_join(result, by = c("V1" = "V1", "V2" = "V2", "V6" = "cum_sum"))
+#nrow(y)
+#[1] 30709
+
+
+colnames(y) = c('chr', 'start', 'end', 'intensity', 'motif', 'num', 'end2')
+head(y)
+#   chr   start     end intensity motif num    end2
+#1 chr1  845746  845847 530.34196    11   1  845847
+#2 chr1 1080506 1080607  29.14573     1   1 1080607
+#3 chr1 1238187 1238288  43.01128     1   1 1238288
+#4 chr1 1504971 1505072  51.35670     6   1 1505072
+#5 chr1 1686381 1686482  66.57065     1   1 1686482
+#6 chr1 1724297 1724398  34.52345     6   1 1724398
+```
+
+```{r}
+library(lattice)
+library(latticeExtra)
+# plot the log2 ChIP-seq intensity
+
+counts <- table(y$motif)
+motif_levels <- levels(factor(y$motif))
+
+# plot the ChIP-seq intensity (log scaled)
+pdf('bwviolinplot_ChIP_intensity_peaks_101win_with_single_motif_Fullcutoff.pdf', useDingbats = FALSE, width=7.5, height=4.4)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+    print(bwplot(log(y$intensity, base = 2) ~ y$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             ylim = c(3,12),
+             ylab =expression("log"[2]~"ChIP-seq Intensity"),
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = '#d9c8b1', 
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+                
+                  # Add the "n=xx" text above each violin
+               unique_x <- as.numeric(factor(motif_levels))  # Get positions for motif levels
+               panel.text(x = unique_x,  # Positions corresponding to the motif groups
+                          y = rep(9.5, length(motif_levels)),  # Adjust the y position above the violin
+                          labels = paste0("n=", counts), 
+                          pos = 3, cex = 0.8, col = 'black')
+             }))
+dev.off()
+
+# plot the ChIP-seq intensity
+pdf('bwviolinplot_ChIP_intensity_peaks_101win_with_single_motif_Fullcutoff2.pdf', useDingbats = FALSE, width=7.5, height=4.4)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="black", lwd=2),
+                box.rectangle = list(col = 'black', lwd=1.6),
+                plot.symbol = list(col='black', lwd=1.6, pch ='.'))
+
+    print(bwplot(y$intensity ~ y$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             #do.out=FALSE,
+             ylim = c(0,350),
+             ylab ="ChIP-seq Intensity",
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'black', lty = 2)
+                 #panel.violin(..., col = '#d9c8b1', 
+                 #             varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+```
 
 
 
+# Plot the GATA3 binding regions' binding intensity (--simple, and use peak stacks in motif stack bar plot)
+Instructions: \
+1) Take all the peaks from the barchart that have a motif.
+2) separate them by their motif category by literally just taking the peaks out of the stacked barplot. Some peaks may have multiple motifs, especially for the early identified motif-containing peaks. It doesn’t matter.
+3) take the left over 20% of peaks without motifs.
+4) BW plot the ChIP intensities of these categories.
+
+```{r}
+cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIPpeaks_with_motif
+dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/final_Exhaustive_denovomotif_analysis_240418/"
+cp ${dir}*without_motifs_*.bed .
+rm ${dir}*without_motifs_*_*.bed
+ls
+without_motifs_123456789101112.bed  without_motifs_123456.bed
+without_motifs_1234567891011.bed    without_motifs_12345.bed
+without_motifs_12345678910.bed      without_motifs_1234.bed
+without_motifs_123456789.bed        without_motifs_123.bed
+without_motifs_12345678.bed         without_motifs_12.bed
+without_motifs_1234567.bed          without_motifs_1.bed
+
+head without_motifs_1234567.bed  
+chr1	827300	827461	45.324686100056
+chr1	924773	924934	30.4468389666785
+chr1	966573	966734	26.8701605998383
+chr1	999428	999589	21.2245532255625
+chr1	1000456	1000617	24.342633538906
+chr1	1001811	1001972	25.5287170527213
+chr1	1013500	1013661	36.2692161076724
+chr1	1020107	1020268	20.6315114686548
+chr1	1021062	1021223	32.6995098507957
+chr1	1069469	1069630	31.4148299904389
 
 
+wc -l *.bed
+   17319 without_motifs_123456789101112.bed
+   17960 without_motifs_1234567891011.bed
+   18566 without_motifs_12345678910.bed
+   20704 without_motifs_123456789.bed
+   22358 without_motifs_12345678.bed
+   23994 without_motifs_1234567.bed
+   27014 without_motifs_123456.bed
+   30822 without_motifs_12345.bed
+   35473 without_motifs_1234.bed
+   42904 without_motifs_123.bed
+   52334 without_motifs_12.bed
+   69112 without_motifs_1.bed
+  378560 total
+
+head ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.bed
+chr1	827300	827461	45.324686100056
+chr1	845716	845877	530.34195637027
+chr1	869417	869578	18.626318257943
+chr1	916689	916850	36.6999257213148
+chr1	917454	917615	124.645017626695
+chr1	924773	924934	30.4468389666785
+chr1	966573	966734	26.8701605998383
+chr1	996069	996230	87.663247085683
+chr1	999428	999589	21.2245532255625
+chr1	1000456	1000617	24.342633538906
+wc -l ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.bed #96868 
+
+module load bedtools
+for i in ${dir}without_motifs_*.bed
+do
+  nm=$(echo $i | awk -F ${dir}without '{print $2}' | awk -F ".bed" '{print $1}')
+  bedtools intersect -a ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.bed -b without${nm}.bed -v > with${nm}_161win.bed
+done
+
+wc -l with_*.bed
+   27681 with_motifs_1_161win.bed
+   44430 with_motifs_12_161win.bed
+   53848 with_motifs_123_161win.bed
+   61279 with_motifs_1234_161win.bed
+   65933 with_motifs_12345_161win.bed
+   69738 with_motifs_123456_161win.bed
+   72763 with_motifs_1234567_161win.bed
+   74399 with_motifs_12345678_161win.bed
+   79448 with_motifs_123456789101112_161win.bed
+   78806 with_motifs_1234567891011_161win.bed
+   78199 with_motifs_12345678910_161win.bed
+   76051 with_motifs_123456789_161win.bed
+  782575 total
+
+
+
+for i in {2..12}; do
+    prev=$((i-1))
+
+    a_file="with_motifs_$(seq -s '' 1 $i)_161win.bed"
+    b_file="with_motifs_$(seq -s '' 1 $prev)_161win.bed"
+    out_file="with_motifs_${i}_161win.bed"
+    bedtools intersect -a "$a_file" -b "$b_file" -v > "$out_file"
+done
+
+# coherence check 1
+#bedtools intersect -a with_motifs_12_161win.bed -b with_motifs_1_161win.bed -v > with_motifs_2_161win.bed
+#bedtools intersect -a with_motifs_123_161win.bed -b with_motifs_12_161win.bed -v > with_motifs_3_161win.bed
+#bedtools intersect -a with_motifs_1234_161win.bed -b with_motifs_123_161win.bed -v > with_motifs_4_161win.bed
+#bedtools intersect -a with_motifs_12345_161win.bed -b with_motifs_1234_161win.bed -v > with_motifs_5_161win.bed
+#bedtools intersect -a with_motifs_123456_161win.bed -b with_motifs_12345_161win.bed -v > with_motifs_6_161win.bed
+#bedtools intersect -a with_motifs_1234567_161win.bed -b with_motifs_123456_161win.bed -v > with_motifs_7_161win.bed
+#bedtools intersect -a with_motifs_12345678_161win.bed -b with_motifs_1234567_161win.bed -v > with_motifs_8_161win.bed
+#bedtools intersect -a with_motifs_123456789_161win.bed -b with_motifs_12345678_161win.bed -v > with_motifs_9_161win.bed
+#bedtools intersect -a with_motifs_12345678910_161win.bed -b with_motifs_123456789_161win.bed -v > with_motifs_10_161win.bed
+#bedtools intersect -a with_motifs_1234567891011_161win.bed -b with_motifs_12345678910_161win.bed -v > with_motifs_11_161win.bed
+#bedtools intersect -a with_motifs_123456789101112_161win.bed -b with_motifs_1234567891011_161win.bed -v > with_motifs_12_161win.bed
+
+
+# coherence check 2 (17319 peaks without assigned motif)
+bedtools intersect -a ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity_161bpwindow.bed -b with_motifs_123456789101112_161win.bed -v > without_motifs_test_161win.bed
+
+#compare without_motifs_test_161win.bed vs. without_motifs_123456789101112.bed
+intersectBed -v -a without_motifs_test_161win.bed -b without_motifs_123456789101112.bed
+intersectBed -v -b without_motifs_test_161win.bed -a without_motifs_123456789101112.bed
+intersectBed -a without_motifs_test_161win.bed -b without_motifs_123456789101112.bed | wc -l
+
+cd /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/ChIPpeaks_with_motif/violin_binding_intensity
+wc -l *.bed
+   2148 with_motifs_10_161win.bed
+    607 with_motifs_11_161win.bed
+  27681 with_motifs_1_161win.bed
+    642 with_motifs_12_161win.bed
+  16749 with_motifs_2_161win.bed
+   9417 with_motifs_3_161win.bed
+   7431 with_motifs_4_161win.bed
+   4654 with_motifs_5_161win.bed
+   3805 with_motifs_6_161win.bed
+   3025 with_motifs_7_161win.bed
+   1636 with_motifs_8_161win.bed
+   1652 with_motifs_9_161win.bed
+  17419 without_motifs_test_161win.bed
+  96866 total
+
+```
+
+```{r}
+#module load R/4.1.2
+#R
+
+library(dplyr)
+library(data.table)
+library(stringr)
+
+files <- list.files(pattern = "^with_motifs_([0-9]+)_161win\\.bed$")
+
+dt_list <- lapply(files, function(f) {
+  idx <- as.integer(str_match(f, "^with_motifs_([0-9]+)_161win\\.bed$")[,2])
+  dt <- fread(f, header = FALSE, sep = "\t",
+              col.names = c("chr","start","end","score"))
+  dt[, motif := idx]
+  setcolorder(dt, c("chr","start","end","score","motif"))  # <- new order
+  dt
+})
+
+merged_dt <- rbindlist(dt_list)[order(motif, chr, start, end)]
+
+nomotif=read.table('without_motifs_test_161win.bed', header=FALSE)
+nomotif$motif="without_motifs"
+colnames(nomotif)=c("chr","start","end","score", "motif")
+
+y=rbind(merged_dt, nomotif)
+# fwrite(merged_dt, "with_motifs_merged.csv")
+
+head(y)
+    chr   start     end     score motif
+1: chr1  917454  917615 124.64502     1
+2: chr1 1080476 1080637  29.14573     1
+3: chr1 1238157 1238318  43.01128     1
+4: chr1 1505699 1505860  10.54281     1
+5: chr1 1686351 1686512  66.57065     1
+6: chr1 1741050 1741211  30.26410     1
+> nrow(y)
+[1] 96866
+
+```
+
+```{r}
+library(lattice)
+library(latticeExtra)
+# plot the log2 ChIP-seq intensity
+
+counts <- table(y$motif)
+motif_levels <- levels(factor(y$motif))
+
+num_levels <- sort(unique(as.integer(as.character(y$motif)[!y$motif %in% "without_motifs"])))
+# set the full order with "without_motifs" first
+lev <- c("without_motifs", as.character(num_levels))
+# re-factor with desired order
+y$motif <- factor(as.character(y$motif), levels = lev, ordered = TRUE)
+
+pdf('bwviolinplot_ChIP_intensity_peaks_161win_with_single_motif_250908.pdf', useDingbats = FALSE, width=7.5, height=4.4)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+    print(bwplot(log(y$score, base = 2) ~ y$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             ylim = c(3,12),
+             ylab =expression("log"[2]~"ChIP-seq Intensity"),
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = '#d9c8b1', 
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+                
+                  # Add the "n=xx" text above each violin
+               #unique_x <- as.numeric(factor(motif_levels))  # Get positions for motif levels
+               #panel.text(x = unique_x,  # Positions corresponding to the motif groups
+                          #y = rep(9.5, length(motif_levels)),  # Adjust the y position above the violin
+                          #labels = paste0("n=", counts), 
+                          #pos = 3, cex = 0.8, col = 'black')
+             }))
+dev.off()
+
+
+```
+
+# Plot the GATA3 binding regions' chromatin accessibility changes
+
+**Plot ATAC-accessibility differences between regions with matched binding intensity and contains different motifs.** \
+
+
+## find matched (in their chip intensity) ChIP-seq peaks with single motif
+
+### all 12 motifs
 
 
 
