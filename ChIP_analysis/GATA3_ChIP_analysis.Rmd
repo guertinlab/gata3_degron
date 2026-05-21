@@ -2287,7 +2287,7 @@ dev.off()
 
 ```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="stacked bar chart of GATA3 ChIP-seq peaks with/without motif"}
 #library(knitr)
-knitr::include_graphics("./png_images/240502_peak_number_with_or_without_GATA3_motif_variant_ai2.pdf") 
+knitr::include_graphics("./png_images/peak_number_with_or_without_GATA3_motif_variant_ai2.pdf") 
 ```
 
 
