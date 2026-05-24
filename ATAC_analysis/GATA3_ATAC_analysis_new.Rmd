@@ -552,7 +552,7 @@ dev.off()
 
 
 
-
+<!--
 # Differential accessibility
 
 ```{r, engine='bash', eval=F, echo=TRUE}
@@ -563,7 +563,7 @@ cp ../../FRIP/Combined_GATA_peak_counts.txt .
 
 #chr	start	end	name	qvalue	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_dTAG_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_DMSO_rep4	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep1	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep2	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep3	MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_Full_dTAG_rep4
 #chr1	804681	805082	GATA3_degron_ATAC_peak_78	892.55103	27	56	31	39	93	29	43	18	80	35	66	67	65	77	29	74
-#chr1	820107	820508	GATA3_degron_ATAC_peak_79	11.52228	7	31	4	10	7	17	13	16	19	17	18	22
+#chr1	820107	820508	GATA3_degron_ATAC_peak_79	11.52228	7	 31	 4	10	7	17	13	16	19	17	18	22
 ```
 
 load required libraries and functions: \
@@ -938,7 +938,7 @@ overlap_df=bar[, c(1,2,4)]
 overlap_df$supp2="overlap"
 nonoverlap_df=bar[, c(1,2,5)]
 nonoverlap_df$supp2="non-overlap"
-colnames(nonoverlap_df)=c("medium", "supp", "fraction", "supp2" )
+colnames(nonoverlap_df)=c("medium", "supp", "fraction", "supp2")
 
 df=rbind(overlap_df, nonoverlap_df)
 df$supp=factor(df$supp, levels=c("down", "matched_Down", "up", "matched_Up"))
@@ -1660,7 +1660,7 @@ dev.off()
 ### all 12 motifs
 
 
-
+-->
 
 
 
