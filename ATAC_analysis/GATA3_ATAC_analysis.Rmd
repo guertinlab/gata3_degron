@@ -1,8 +1,855 @@
 ---
 title: "GATA3_ATAC_analysis"
-output: html_document
-date: "2026-06-03"
+author:
+- Siyu Sun
+- Michael J. Guertin
+header-includes:
+- \usepackage{color}
+- \usepackage{float}
+- \DeclareUnicodeCharacter{2212}{-}
+date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    toc: true
+fontsize: 14pt
+geometry: margin=1in
 ---
+# ATAC-seq experiments
+
+ATAC-seq measures genome-wide chromatin accessibility. 
+
+# ATAC-seq experiments design
+
+MCF7 cells with the dTAG-GATA3 (clone522) grow in full medium are treated under 2 conditions: 1) DMSO; 2) 30min dTAG-v1. \
+MCF7 cells with the dTAG-GATA3 (clone522) grow in charcoal stripped medium (ER deprived) are treated under 2 conditions: 1) DMSO; 2) 30min dTAG-v1. \
+
+
+# Raw Data Processing 
+
+## Install required packages
+Install `bigWig` and `latticeExtra` package \
+```{r engine='R', eval=F, echo=T}
+install.packages("devtools", quiet = TRUE)
+library(devtools)
+devtools::install_github('andrelmartins/bigWig',
+              subdir='bigWig')
+library(bigWig)
+
+install.packages("DESeq2", quiet = TRUE)
+install.packages("dplyr", quiet = TRUE)
+```
+
+Install `bedtools` \
+```{r engine='bash', eval=F, echo=T}
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install bedtools
+```
+
+Install `Biostrings` \
+```{r engine='R', eval=F, echo=T}
+if (!requireNamespace("Biostrings", quietly = TRUE)) {
+  if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+  BiocManager::install("Biostrings")
+}
+```
+
+Install `latticeExtra` \
+```{r engine='R', eval=TRUE, echo=T}
+install.packages("latticeExtra", quiet = TRUE)
+```
+
+## Renaming
+
+```{r engine='bash', eval=TRUE, echo=T}
+for i in *R1_001.fastq.gz
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
+    cat ${name}*R1_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_PE1.fastq.gz
+    cat ${name}*R2_001.fastq.gz > MCF7_dTAGGATAClone522_30min_${name}_PE2.fastq.gz    
+done
+```
+
+## Cut off the adapter with `cutadapt`
+
+`-j`: the number of cores; \
+`-m` specifies the minimal length of a read to keep after adapter sequence removal; \
+`-O` is the number of bases to trim off the end of the read if it overlaps with the adapter sequence. \
+`-a` and `-A` options are the adapter sequences of the PE1 and PE2 reads. (Tn5 mosaic end sequence: CTGTCTCTTATACACATCT). \
+`-o` (PE1) and `-p` (PE2) specfies the output file. \
+The last two positional areguments are the input fastq files. We save the output to a log file. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+module load cutadapt/3.5
+
+for i in ../raw_fastq_renamed/*PE1.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    echo unzipping $i
+    #gunzip $i
+    echo unzipping ${name}_PE2.fastq.gz
+    gunzip ../raw_fastq_renamed/${name}_PE2.fastq.gz
+    cutadapt -a CTGTCTCTTATACACATCT -A CTGTCTCTTATACACATCT -j 8 -m 10 -O 1 -o ${name}_PE1_no_adapt.fastq -p ${name}_PE2_no_adapt.fastq ../raw_fastq_renamed/${name}_PE1.fastq ../raw_fastq_renamed/${name}_PE2.fastq 2>&1 | tee ${name}_cutadapt.log
+
+done
+```
+
+
+# Alighment
+
+## Filter reads that align to the mitochondrial chromosome
+```{r engine='bash', eval=TRUE, echo=T}
+module load genometools/1.5.10
+module load bowtie2
+
+# build the mitochondrial genome
+wget https://hgdownload.cse.ucsc.edu/goldenpath/hg38/chromosomes/chrM.fa.gz
+gunzip chrM.fa.gz
+bowtie2-build chrM.fa chrM
+```
+
+Since mitochondrial DNA is preferentially targeted by transposase (more accessible), we first align to chrM and filter these aligned reads out before aligning to human genome. \
+We first align the PE1 and PE2 read to chrM, then we sort the file, use `samtools collate` to shuffle and group reads together with the same prefix, and use `samtools` and the `-f` option with the flag `0x4` to output the reads that do **NOT** align to the mitochondrial genome. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+module load samtools/1.9
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/humanchrM_bt2/chrM
+
+#Align to chrM first and remove aligned and unpaired reads
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    bowtie2 -p $ncore -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools sort -@ $ncore -n - | samtools collate -u - ${name} 2>&1 | tee ${name}_chrM_alignment.log
+    samtools fastq -f 0x4 -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq -0 /dev/null -s /dev/null -n ${name}.bam 
+    rm ${name}.bam # remove intermediate file
+done 
+```
+
+
+## Align to the human genome
+
+The filterred reads (that have removed reads align to ChrM) are now aligning to the hg38.fa genome. \
+`-1` and `-2` options for the respective paired-end fastq files. \
+Then the output is piped to samtools to convert to bam, then sorted by name (`-n`) so paired end reads are adjacent in the file, then piped to `samtools fixmate` which adds information about the fragment length by comparing the PE1 and PE2 coordinates, then the files are sorted by coordinate, then piped to `samtools markdup` to remove duplicate reads. Duplicate reads have the same PE1 and PE2 ends. \
+The fixmate step is necessary to pipe to markdup. \
+
+```{r engine='bash', eval=TRUE, echo=T}
+module load samtools/1.16.1
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/hg38_bt2/hg38
+
+#Align to the hg38 genome and remove duplicates
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    bowtie2 -p $ncore --maxins 800 -x $genome_index -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq | samtools view -bS -f 0x2 - | samtools sort -@ $ncore -n - | samtools fixmate -m - - | samtools sort - | samtools markdup -s -r - ${name}.hg38.bam 2>&1 | tee ${name}_bowtie2_hg38.log #samtools view -bS -f 0x2 - keep only reads that are: properly paired and both reads are mapped
+    #gzip ${name}_*.fastq
+done
+```
+
+```{r engine='bash', eval=TRUE, echo=T}
+#250506 modification: get the unmapped sequences
+module load samtools/1.16.1
+module load bowtie2
+
+ncore=8
+genome_index=/home/FCAM/ssun/Genome/hg38_bt2/hg38
+
+gunzip *DMSO*chrM.fastq.gz
+for i in *DMSO*PE1.chrM.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+bowtie2 -p $ncore --maxins 800 -x $genome_index \
+  -1 ${name}_PE1.chrM.fastq -2 ${name}_PE2.chrM.fastq | \
+samtools view -bS - | tee ${name}_all_reads.bam | \
+samtools view -b -f 4 - > ${name}_unmapped.bam
+ gzip ${name}_*.fastq
+done
+```
+
+
+zip the intermediate files. \
+```{r engine='bash', eval=TRUE, echo=T}
+for i in *_PE1_no_adapt.fastq
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
+    echo $name
+    gzip ${name}_*.fastq
+done
+```
+
+
+## Convert aligned data to a bed file
+
+We used `seqOutBias` to convert the data into BED format. The `--no-scale` flag was included to prevent correction for enzymatic sequence bias in chromatin accessibility assays, and `--custom-shift=4,-4` was used to specify the center of the transposase interaction site. The `grep` step removes incomplete contigs and the Epstein-Barr virus genome. \
+
+`seqOutBias` mappability files generation: \
+```{r engine='bash', eval=TRUE, echo=T}
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+export PATH=$PATH:/home/FCAM/ssun/packages/
+export TMPDIR="${HOME}/temp" 
+
+genome=/home/FCAM/ssun/Genome/hg38.fa
+seqOutBias seqtable ${genome} --read-size=40 2>&1 | tee seqOutBias_40.log
+```
+
+Convert BAM to bed for counting (previously created the tallymer with seqOutBias seqtable) \
+
+```{r engine='bash', eval=TRUE, echo=T}
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+module load rust
+export PATH=$PATH:/home/FCAM/ssun/packages/
+export TMPDIR="${HOME}/temp" 
+
+read_size=40
+tallymer=/home/FCAM/ssun/seqoutbias/hg38_rs40/hg38.tal_${read_size}.gtTxt.gz
+table=/home/FCAM/ssun/seqoutbias/hg38_rs40/hg38_${read_size}.4.2.2.tbl
+
+for i in *.hg38.bam
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    echo $name
+    seqOutBias scale $table ${name}.hg38.bam --tallymer=$tallymer --no-scale --custom-shift=4,-4 --read-size=${read_size} 2>&1 | tee ${name}_seqOutBias.log
+    grep -v "random" ${name}.hg38_not_scaled.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "alt" | sort -k1,1 -k2,2n > ${name}_tmp.txt && mv ${name}_tmp.txt ${name}_not_scaled.bed 
+    rm ${name}.hg38_not_scaled.bed
+done
+```
+
+
+# Normalization & Genome Browser
+
+Usually we combine replicates into a single track for visualization
+and we compare the tracks between conditions. It is important that we
+**read-depth normalize** (we are currently trying to change from read-depth 
+normalize to deseq2 size-factor normalize) before we combine the signal from each
+replicate. Otherwise, we would be weighting replicates differently;
+for example, if a library is sequenced to twice the read depth and we
+combine first then read depth normalize, then the more high coverage
+data is weighted twice as much in the final visualization. All the
+relevant track files are here: \
+
+## normalize to read depth
+
+[normalize with scale factor or Deseq2 size factor] \
+
+
+```{r engine='bash', eval=TRUE, echo=T}
+module load bedtools
+module load samtools
+module load genometools/1.5.10
+module load ucsc_genome/2012.05.22
+
+ncore=8
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+
+export TMPDIR="${HOME}/temp"
+for i in ../cutadapt/*.hg38.bam
+do
+    name=$(echo $i | awk -F"dTAGGATA522_" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    prename=$(echo $i | awk -F"/" '{print $NF}' | awk -F".hg38.bam" '{print $1}')
+    echo $name  
+    #bowtie2 -p $ncore --maxins 800 -x $genome_index -1 ${name}_PE1_no_adapt.fastq -2 ${name}_PE2_no_adapt.fastq | samtools view -bS -f 0x2 - | samtools sort -@ $ncore -n | samtools fixmate -m - - | samtools sort - | samtools markdup -s -r - ${name}.hg38.bam 2>&1 | tee ${name}_bowtie2_hg38.log
+    #seqOutFBias scale $table ${name}.hg38.bam --tallymer=$tallymer --shift-counts --no-scale --bw=${name}.bigWig --read-size=${readLength} 2>&1 | tee ${name}_seqOutBias.log
+    samtools sort -@ $ncore -n $i -o ${name}.sorted.hg38.bam
+    bedtools bamtobed -i ${name}.sorted.hg38.bam -bedpe > ${name}_bed12.bed
+    awk '$1==$4 {print $0}' ${name}_bed12.bed | awk '{OFS="\t";} {print $1, $2, $6}' | awk '$1!="." && $3>$2 && (($3 - $2)<2000) {print $0}' | sort -k1,1 -k2,2n > ${name}_read_span.bed
+    genomeCoverageBed -bg -i ${name}_read_span.bed -g $sizes > ${name}.bedGraph
+    depth=`awk -F'\t' '{sum+=$5;}END{print sum;}' ../cutadapt/${prename}_not_scaled.bed`
+    scaled=$(bc <<< "scale=3 ; 10000000 / $depth")
+    echo $scaled
+    awk -v scaled="$scaled" '{OFS="\t";} {print $1, $2, $3, $4*scaled}' ${name}.bedGraph > ${name}_normalized.bedGraph
+    awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,125,0 windowingFunction=maximum"}  { print $0}' ${name}_normalized.bedGraph > ${name}_ucsc.bedGraph
+    wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+done
+
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+for i in ../cutadapt/*rep1.hg38.bam
+do
+    name=$(echo $i | awk -F"dTAGGATA522_" '{print $NF}' | awk -F"_rep1" '{print $1}')
+    echo $name
+    reps=$(ls ${name}_rep*normalized.bigWig | wc -w | bc)
+    echo $reps
+    files=$(ls ${name}_rep*normalized.bigWig)
+    echo $files
+    bigWigMerge ${name}_rep*normalized.bigWig tmp.bg
+    scaleall=$(bc <<< "scale=4 ; 1.0 / $reps")
+    echo scale:
+    echo $scaleall
+    awk -v scaleall="$scaleall" '{OFS="\t";} {print $1, $2, $3, $4*scaleall}' tmp.bg > ${name}_normalized.bedGraph
+    rm tmp.bg
+    wigToBigWig ${name}_normalized.bedGraph $sizes ${name}.bigWig
+    awk -v var="$name" 'BEGIN {  print "browser position chr11:5,289,521-5,291,937"; print "track type=bedGraph name=\"" var "\" description=\"" var "_bedGraph\" visibility=full autoScale=on alwaysZero=on color=0,0,0"}  { print $0}' ${name}_normalized.bedGraph > ${name}_header_normalized.bedGraph
+    gzip ${name}_header_normalized.bedGraph
+done
+
+wigToBigWig -clip ${name}_normalized.bedGraph $sizes ${name}_normalized.bigWig
+```
+
+
+## Single library (normalized) 
+
+UCSC Genome Browser trackhub link for non-merged, normalized bigWig files: http://guertinlab.cam.uchc.edu/GATA3_ATAC_hub/hub.txt \
+
+
+# Call peaks
+
+## MACS2
+
+We use `macs2` to call peaks using all the `*.hg38.bam` files. \
+We already removed replicate duplicates, so any true duplicates arose independently. We could call peaks in individual replicates and take the union or intersect or there are many other ways to call peaks. Since we don’t have an input or control file (we don't have input DNA or DNA pulled down with an unspecific antibody as in ChIP-seq; The only proper control would probably be to use the Tn on "naked" genomic DNA. But then you need quiet many reads to get a proper signal due to the size of mammalian genomes, so the cost/effect ratio is simply not economic so nobody routinely does it...) and most biologically relevant peaks will be found by most peak callers,we should find the important peaks where we have the power to detect changes in accessibility. \
+
+*the early ATAC papers (maybe the original one and the one on the NucleoATAC software). They show that the intrinsic cutting preference/bias of the transposon is minimal if I remember correctly. \
+ 
+`--nomodel` \
+While on, MACS will bypass building the shifting model. \
+`--extsize` \
+While '--nomodel' is set, MACS uses this parameter to extend reads in 5'->3' direction to fix-sized fragments. For example, if the size of binding region for your transcription factor is 200 bp, and you want to bypass the model building by MACS, this parameter can be set as 200. This option is only valid when --nomodel is set or when MACS fails to build model and --fix-bimodal is on. \
+`--shift` \
+Note, this is NOT the legacy --shiftsize option which is replaced by --extsize! You can set an arbitrary shift in bp here. Please Use discretion while setting it other than default value (0). When --nomodel is set, MACS will use this value to move cutting ends (5') then apply --extsize from 5' to 3' direction to extend them to fragments. When this value is negative, ends will be moved toward 3'->5' direction, otherwise 5'->3' direction. Recommended to keep it as default 0 for ChIP-Seq datasets, or -1 * half of EXTSIZE together with --extsize option for detecting enriched cutting loci such as certain DNAseI-Seq datasets. Note, you can't set values other than 0 if format is BAMPE or BEDPE for paired-end data. Default is 0. `
+
+```{r engine='bash', eval=F, echo=TRUE}
+hostname
+module load macs2
+
+mkdir temp_macs
+directory=/home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/
+# call peaks with MACS2
+macs2 callpeak --call-summits -t ${directory}*.hg38.bam -n GATA3_degron_ATAC -g hs -q 0.01 --keep-dup all -f BAM --nomodel --shift -100 --extsize 200 --tempdir temp_macs
+
+#wc -l GATA3_degron_ATAC_summits.bed
+#259635 
+```
+
+
+
+## Removing peaks on contigs and within blacklisted regions
+
+```{r engine='bash', eval=F, echo=TRUE}
+wget https://github.com/Boyle-Lab/Blacklist/raw/master/lists/hg38-blacklist.v2.bed.gz
+gunzip hg38-blacklist.v2.bed.gz
+blacklist=hg38-blacklist.v2.bed
+sizes=/home/FCAM/ssun/Genome_pro/hg38.chrom.sizes
+name=GATA3_degron_ATAC
+
+module load bedtools
+grep -v "random" ${name}_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | intersectBed -v -a stdin -b $blacklist > ${name}_tmp.txt #247838
+mv ${name}_tmp.txt ${name}_summits.bed
+
+slopBed -b 200 -i ${name}_summits.bed -g $sizes > ${name}_summit_400window.bed #247838
+```
+
+
+# Count reads with mapBed & FRip analysis
+
+`mapBed` from bedtools counts reads in regions with two bed file inputs. We will counts reads in the 400 base window summit file and merge these into a file with experiment name columns and genomic interval named rows. \
+
+FRiP (Fraction of Reads in Peaks), is a common quality measurement for ChIP-seq experiment. It calculates the percentage of all reads that fall in peak regions mapped to the genome. It is important that we always use a universal peak set to calculate the FRiP score for each replicates, then compare between replicates. Usually, we will use the peak set that we generated previously from MACS3, since in that step we have called peaks using all replicates in bam format for the same ChIP factor. \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+module load samtools/1.12
+peaks=/home/FCAM/ssun/GATA3_ATAC_July2024/peak_call/GATA3_degron_ATAC_summit_400window.bed
+
+sort -k1,1 -k2,2n $peaks > GATA3_degron_ATAC_summit_400window_sorted.bed
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/*_not_scaled.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_not_scaled.bed" '{print $1}')
+    echo $nm
+    sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a GATA3_degron_ATAC_summit_400window_sorted.bed -b ${nm}_sorted.bed > ${nm}_peak_counts.txt #count 400bp window sum reads
+done
+
+#head MCF7_dTAGGATAClone522_30min_MCF7_dTAGGATA522_CS_DMSO_rep1_peak_counts.txt
+#chr1	804681	805082	GATA3_degron_ATAC_peak_78	892.55103	27
+#chr1	820107	820508	GATA3_degron_ATAC_peak_79	11.52228	7
+#chr1	826823	827224	GATA3_degron_ATAC_peak_80a	99.70275	41
+#chr1	827482	827883	GATA3_degron_ATAC_peak_80b	537.96899	89
+#chr1	832118	832519	GATA3_degron_ATAC_peak_81	12.95156	11
+
+for i in *_peak_counts.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts.txt" '{print $1}')
+    echo $name > ${name}_FRiP.txt
+    awk '{print $NF}' ${name}_peak_counts.txt > ${name}_peak_counts_only.txt
+    RiP=$(awk '{sum+=$1;} END{print sum;}' ${name}_peak_counts_only.txt) # count the reads in each peak region (from the universal set)
+    echo $name | cat - ${name}_peak_counts_only.txt > ${name}_peak_counts.txt
+    aligned_reads=$(samtools view -c -f 0x2 /home/FCAM/ssun/GATA3_ATAC_July2024/cutadapt/${name}.hg38.bam) # count the total aligned reads (-f 0x2: read mapped in proper pair)
+    FRiP=$(echo "scale=2 ; $RiP / $aligned_reads" | bc)
+    echo $FRiP >> ${name}_FRiP.txt
+    rm ${name}_peak_counts_only.txt
+done
+
+echo -e "chr\tstart\tend\tname\tqvalue" | cat - GATA3_degron_ATAC_summit_400window_sorted.bed | paste -d'\t' - *peak_counts.txt > Combined_GATA_peak_counts.txt
+echo -e "Name" > rowname.txt
+echo -e "FrIP" >> rowname.txt
+paste -d'\t' rowname.txt *FRiP.txt > Combined_GATA_FRiP.txt
+rm rowname.txt
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+frip.df=read.csv("GATA_ATAC_peak_FRiP.csv")
+frip.df$supp=sapply(strsplit(frip.df$library, '_r'), '[', 1)
+
+frip.df$supp=factor(frip.df$supp, levels=c("CS_DMSO", "CS_dTAG", "Full_DMSO", "Full_dTAG"))
+
+pdf('barplot_GATA3_ATAC_peak_FRiP.pdf',width=8,height=8)
+print(barchart(library~FRiP,
+         group=supp,
+         stack=T,
+         data = frip.df,
+         xlim=c(0,1),
+         #auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylab = "ATAC-seq libraries",
+         xlab = "FRiP",
+         main ="MCF7 GATA3 ATAC peak FRiP",
+         par.settings = list(superpose.polygon=list(col=c("pink","lightgreen", "lightblue","violet"), border="grey")),
+         col=c("pink","lightgreen", "lightblue","violet")
+))
+dev.off()
+```
+
+
+
+# Differential analysis with DESeq2 (in R)
+
+
+load required libraries and functions: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load R/4.1.2
+# R
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(MatchIt)
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# data processing and plotting
+x = read.table('Combined_GATA_peak_counts.txt', sep = "\t", check.names=FALSE, header=TRUE)
+rownames(x) = paste0(x[,1], ":", x[,2], "-", x[,3])
+peak_name = x[,4]
+peak_qvalue = x[,5]
+x = x[,-c(1:5)]
+
+#head(x)
+#                   Full_DMSO_rep1 Full_DMSO_rep2 Full_DMSO_rep3 Full_DMSO_rep4
+#chr1:804681-805082             80             35             66             67
+#chr1:820107-820508             17             13             16             19
+#chr1:826823-827224            110             50             65             92
+#chr1:827482-827883            213             85            168            141
+#chr1:832118-832519             39             24             40             35
+#chr1:845620-846021            360            187            367            301
+#                   Full_dTAG_rep1 Full_dTAG_rep2 Full_dTAG_rep3 Full_dTAG_rep4
+#chr1:804681-805082             65             77             29             74
+#chr1:820107-820508             17             18              9             22
+#chr1:826823-827224            101             91             52             85
+#chr1:827482-827883            263            190             96            172
+#chr1:832118-832519             58             36             35             54
+#chr1:845620-846021            200            184            115            259
+```
+
+## DESeq2 on full-medium samples (8)
+
+```{r, engine='R', eval=F, echo=TRUE}
+sample.conditions = factor(sapply(strsplit(colnames(x), '_r'), '[', 1), levels=c("Full_DMSO", "Full_dTAG"))
+#rep = factor(sapply(strsplit(colnames(x_full), 'rep'), '[', 2)) 
+#deseq.counts.table = DESeqDataSetFromMatrix(countData = x_full,
+#                colData = cbind.data.frame(sample.conditions, rep), 
+#                design = ~ rep + sample.conditions)
+deseq.counts.table = DESeqDataSetFromMatrix(countData = x,
+                                            colData = DataFrame(sample.conditions), 
+                                            design = ~ sample.conditions)
+deseq.counts.table 
+sf = sizeFactors(estimateSizeFactors(deseq.counts.table))
+#sf
+#Full_DMSO_rep1 Full_DMSO_rep2 Full_DMSO_rep3 Full_DMSO_rep4 Full_dTAG_rep1 
+#     1.2834454      0.5737303      1.1801976      1.0369312      1.4680726 
+#Full_dTAG_rep2 Full_dTAG_rep3 Full_dTAG_rep4 
+#     1.2276420      0.5550182      1.2103337 
+
+dds = DESeq(deseq.counts.table)
+dds
+resultsNames(dds)
+#[1] "Intercept"                               
+#[2] "sample.conditions_Full_dTAG_vs_Full_DMSO"
+save(dds, file = "GATA3_ATAC_Full_dds.Rdata")
+
+normalized.counts = counts(dds, normalized=TRUE)
+rld = rlog(dds, blind=TRUE)
+save(rld, file = "GATA3_ATAC_Full_rld.Rdata")
+
+save.image("GATA3_ATAC_Full_dds_rld.Rdata")
+```
+
+
+### plot principle components 
+
+plotting function: 
+```{r, engine='R', eval=F, echo=TRUE}
+plotPCAlattice = function(df, file = 'PCA_lattice.pdf') {  
+  perVar = round(100 * attr(df, "percentVar"))
+  df = data.frame(cbind(df, sapply(strsplit(as.character(df$name), '_rep'), '[', 1)))
+  colnames(df) = c(colnames(df)[1:(ncol(df)-1)], 'unique_condition')
+  print(df)
+  #get colors and take away the hex transparency
+  color.x = substring(rainbow(length(unique(df$unique_condition))), 1,7) 
+  
+  df$color = NA
+  df$alpha.x = NA
+  df$alpha.y = NA
+  df$colpal = NA
+  
+  for (i in 1:length(unique(df$unique_condition))) {
+    
+    df[df$unique_condition == unique(df$unique_condition)[[i]],]$color = color.x[i]   
+    #gives replicates for unique condition
+    reps_col= df[df$unique_condition == unique(df$unique_condition)[[i]],]
+    #gives number of replicates in unique condition
+    replicates.x = nrow(reps_col)
+    alx = rev(seq(0.2, 1, length.out = replicates.x))
+    
+    #count transparency(alx), convert alx to hex(aly), combain color and transparency(cp)
+    for(rep in 1:replicates.x) {
+    
+      na = reps_col[rep, ]$name
+      df[df$name == na, ]$alpha.x = alx[rep]
+      aly = as.hexmode(round(alx * 255))
+      df[df$name == na, ]$alpha.y = aly[rep]
+      cp = paste0(color.x[i], aly)
+      df[df$name == na, ]$colpal = cp[rep]
+      #print(df)
+    }
+  }
+  colpal = df$colpal
+  df$name = gsub('_', ' ', df$name)
+  pdf(file, width=6, height=6, useDingbats=FALSE)
+  print(xyplot(PC2 ~ PC1, groups = name, data=df,
+               xlab = paste('PC1: ', perVar[1], '% variance', sep = ''),
+               ylab = paste('PC2: ', perVar[2], '% variance', sep = ''),
+               par.settings = list(superpose.symbol = list(pch = c(20), col=colpal)),
+               pch = 20, cex = 1.7,
+               auto.key = TRUE,
+               col = colpal))
+  dev.off()
+}
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+pca.plot = plotPCA(rld, intgroup="sample.conditions", returnData=TRUE)
+pca.plot 
+plotPCAlattice(pca.plot, file = 'ATAC_PCA_plot_Full_30min_GATA3_degradation.pdf')
+```
+
+### MA plot
+
+
+```{r engine='R', eval=F, echo=TRUE}
+res_test = results(dds)
+sum(res_test$padj < 0.1 & !is.na(res_test$padj))
+#35002
+sum(res_test$padj < 0.01 & !is.na(res_test$padj))
+#18475
+```
+
+When we have many genes/regions to match, matchit generates error: `Error in `matchit()`: ! (from optmatch) result would exceed 2^31-1 bytes`. Thus, we need to modify the function to get around of it. \
+
+**function2** (solve the matchit capacity): \
+```{r, engine='R', eval=F, echo=TRUE}
+# here we add a div parameter to the function to help subset large data to accelerate matchit performance
+categorize.DEseq.df.mod = function(DE.results, unchanged.padj = 0.25, changed.padj = 0.1, div=15, match.method="optimal") {
+    DE.results.lattice = DE.results
+    DE.results.lattice$category = "All Other Genes"
+    
+    #find genes/regions match to activated
+    activated = DE.results.lattice[DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange > 0,]
+    #subset the data
+    df=activated
+    rows_per_subset=ceiling(nrow(df) / div)
+    split_df = lapply(1:div, function(i) {start_row = (i - 1) * rows_per_subset + 1
+    end_row = min(i * rows_per_subset, nrow(df))
+    df[start_row:end_row, ]
+})
+    for (i in 1:div) {
+      activated_subset=split_df[[i]]
+      unchanged.act = DE.results.lattice[!is.na(DE.results.lattice$padj) & DE.results.lattice$padj > 0.1 & abs(DE.results.lattice$log2FoldChange) < unchanged.padj & DE.results.lattice$category == "All Other Genes",]
+      unchanged.act$treatment = 0
+      activated_subset$treatment = 1
+      set.seed(123) # for reproducibility
+      unchanged.act_subset=unchanged.act[sample(nrow(unchanged.act), 1000), ]  # randomly select 1000 unchanged.act data to match 
+      df.deseq.effects.lattice = rbind(unchanged.act_subset, activated_subset)
+      out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = match.method, ratio = 1)
+      unchanged.act = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+      matching_rows = intersect(rownames(DE.results.lattice), rownames(unchanged.act))
+      for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] = "Matched to Up"
+    }
+    }
+    
+    #find genes/regions match to repressed
+    repressed = DE.results.lattice[DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange < 0,]
+    #subset the data
+    df=repressed
+    rows_per_subset=ceiling(nrow(df) / div)
+    split_df = lapply(1:div, function(i) {start_row = (i - 1) * rows_per_subset + 1
+    end_row = min(i * rows_per_subset, nrow(df))
+    df[start_row:end_row, ]
+})
+    for (i in 1:div) {
+      repressed_subset=split_df[[i]]
+      unchanged.rep = DE.results.lattice[!is.na(DE.results.lattice$padj) & DE.results.lattice$padj > 0.1 & abs(DE.results.lattice$log2FoldChange) < unchanged.padj & DE.results.lattice$category == "All Other Genes",]
+      unchanged.rep$treatment = 0
+      repressed_subset$treatment = 1
+      set.seed(123) # for reproducibility
+      unchanged.rep_subset=unchanged.rep[sample(nrow(unchanged.rep), 1000), ]  # randomly select 1000 unchanged.act data to match 
+      df.deseq.effects.lattice = rbind(unchanged.rep_subset, repressed_subset)
+      out = matchit(treatment ~ baseMean, data = df.deseq.effects.lattice, method = match.method, ratio = 1)
+      unchanged.rep = df.deseq.effects.lattice[rownames(df.deseq.effects.lattice) %in% out$match.matrix,]
+      matching_rows = intersect(rownames(DE.results.lattice), rownames(unchanged.rep))
+      for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] = "Matched to Down"
+    }
+    }
+    
+      # determine genes/regions that are activated or repressed
+      DE.results.lattice$category = ifelse(
+        DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange > 0,
+        "Up",
+        DE.results.lattice$category
+        )
+      DE.results.lattice$category = ifelse(
+        DE.results.lattice$padj < changed.padj & !is.na(DE.results.lattice$padj) & DE.results.lattice$log2FoldChange < 0,
+        "Down",
+        DE.results.lattice$category
+        )
+    
+
+    return(DE.results.lattice)
+}
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+DE.results = results(dds)
+head(DE.results)
+
+DE.results.lattice = categorize.DEseq.df.mod(DE.results, unchanged.padj = 0.03, changed.padj = 0.01, div=50, match.method= "optimal")
+nrow(DE.results.lattice)
+#[1] 247838
+nrow(DE.results.lattice[DE.results.lattice$category=="Up",])
+#[1] 4418
+nrow(DE.results.lattice[DE.results.lattice$category=="Down",])
+#[1] 14057
+
+
+save.image('260522_GATA3_ATAC_Full_DE_results.Rdata')
+```
+
+
+draw MA plot: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+ma.plot.lattice = function(ma.df, filename = 'file.name', 
+                            title.main = "Differential ATAC-seq Accessibility",
+                            col = c("grey80", "grey20" , "grey20", "#2290cf", "#ce228e")){
+    desired_order = c("All Other Genes", "Matched to UP", "Matched to Down", "Down", "Up")
+    ma.df$category = factor(ma.df$category, levels = desired_order)
+  pdf(paste("MA_plot_", filename, ".pdf", sep=''), 
+      useDingbats = FALSE, width=3.83, height=3.83);
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$category,
+               col= col,
+                main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylab=expression("log"[2]~"ATAC-seq change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+}
+
+ma.plot.lattice(DE.results.lattice, filename = "ATAC_GATA3_MCF7_in_Full_medium_30min_dTAG_accessiblity_MA")
+```
+
+**get example ATAC-seq decreased region** \
+
+```{r, engine='R', eval=F, echo=TRUE}
+#/home/FCAM/ssun/GATA3_ATAC_July2024/ATAC_analysis/240718_deseq2
+load('260522_GATA3_ATAC_Full_DE_results.Rdata')
+
+head(DE.results.lattice)
+
+DE.results.lattice[DE.results.lattice$log2FoldChange < -1.7 & log10(DE.results.lattice$baseMean) > 3.4 & DE.results.lattice$category=="Down", ]
+#chr17:61219408-61219809
+```
+
+### Save differential peaks and matched peaks to .bed file
+
+```{r, engine='R', eval=F, echo=TRUE}
+options(scipen = 99) #avoid scientific notation when writing output
+matched.all = DE.results.lattice[DE.results.lattice$category == 
+                                 'Matched to Down' |
+                                DE.results.lattice$category == 
+                                 'Matched to Up',]
+
+matched.up = DE.results.lattice[DE.results.lattice$category == 
+                                 'Matched to Up',]
+matched.down = DE.results.lattice[DE.results.lattice$category == 
+                                 'Matched to Down',]
+
+
+
+repressed.all = DE.results.lattice[DE.results.lattice$category == 
+                                             'Down',]
+
+activated.all = DE.results.lattice[DE.results.lattice$category == 
+                                             'Up',]
+
+# Up files
+chr = sapply(strsplit(rownames(activated.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(activated.all), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100 
+
+write.table(cbind(chr, start, end), file = "Full_GATA3_degron_ATAC_up_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+# Down files
+chr = sapply(strsplit(rownames(repressed.all), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(repressed.all), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100
+
+write.table(cbind(chr, start, end), file = "Full_GATA3_degron_ATAC_down_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+# matched to up
+chr = sapply(strsplit(rownames(matched.up), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(matched.up), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100
+
+write.table(unique(cbind(chr, start, end)), file = "Full_GATA3_degron_ATAC_matched_up_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+
+# matched to down
+chr = sapply(strsplit(rownames(matched.down), ":"), "[", 1)
+rnge = sapply(strsplit(rownames(matched.down), ":"), "[", 2)
+start = as.numeric(sapply(strsplit(rnge, "-"), "[", 1)) +100
+end = as.numeric(sapply(strsplit(rnge, "-"), "[", 2)) -100
+
+write.table(unique(cbind(chr, start, end)), file = "Full_GATA3_degron_ATAC_matched_down_200bp.bed", quote = FALSE,
+col.names =FALSE, row.names=FALSE, sep = "\t")
+```
+
+
+
+# Plot fraction of ATAC-seq peaks that overlap with ChIP-seq regions
+
+We can use `intersectBed` to find ATAC-seq peaks (up/down/match) that overlap with ChIP-seq peaks. \
+## GATA3 ChIP-peaks
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_call/
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+slopBed -b 100 -i ${dir}GATA_ChIP_summits_final.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_ChIP_summit_200window.bed
+```
+
+## GATA3 ATAC-peaks
+Full_GATA3_degron_ATAC_down_200bp.bed
+Full_GATA3_degron_ATAC_matched_200bp.bed
+Full_GATA3_degron_ATAC_up_200bp.bed
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+ChIP_file=GATA_ChIP_summit_200window.bed
+
+touch overlap_peak.txt
+echo -e "medium\tsupp\toverlap_peaks\tfraction" > overlap_peak.txt
+
+
+for i in Full*200bp.bed
+do
+  nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F".bed" '{print $1}')
+  echo $nm
+  sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+  name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"Full_GATA3_degron_ATAC_" '{print $2}' | awk -F"_200bp.bed" '{print $1}')
+  atac_peak=$(wc -l $i | awk '{print $1}')
+  nonoverlap_peak=$(intersectBed -v -a $i -b $ChIP_file | wc -l | awk '{print $1}')
+  overlap_peak=$(echo "scale=2 ; $atac_peak - $nonoverlap_peak" | bc)
+  fraction=$(echo "scale=2 ; $overlap_peak / $atac_peak" | bc)
+  echo -e "Full\t$name\t$overlap_peak\t$fraction" >> overlap_peak.txt
+done
+
+
+cat overlap_peak.txt 
+#medium	supp	overlap_peaks	fraction
+#Full	down	13025	.92
+#Full	matched_down	3171	.22
+#Full	matched_up	1652	.37
+#Full	up	1733	.39
+
+```
+
+## plot bar chart
+```{r, engine='R', eval=F, echo=TRUE}
+#module load R/4.1.2 
+#R 
+
+# Plot the Full data set
+library("lattice") 
+bar=read.table("overlap_peak.txt", header = TRUE, sep = "\t")
+bar$fraction2=1-bar$fraction
+overlap_df=bar[, c(1,2,4)]
+overlap_df$supp2="overlap"
+nonoverlap_df=bar[, c(1,2,5)]
+nonoverlap_df$supp2="non-overlap"
+colnames(nonoverlap_df)=c("medium", "supp", "fraction", "supp2")
+
+df=rbind(overlap_df, nonoverlap_df)
+df$supp=factor(df$supp, levels=c("down", "matched_down", "up", "matched_up"))
+df$supp2=factor(df$supp2, levels=c("overlap", "non-overlap"))
+df$supp3=rep(c("Decreased ATAC", "Matched with Decreased", "Matched with Increased", "Increased ATAC"), 2)
+df$supp3=factor(df$supp3, levels=c("Decreased ATAC", "Matched with Decreased", "Increased ATAC", "Matched with Increased"))
+
+pdf("stack_barchart_GATA3_Full_ATAC_overlap_ChIP.pdf", width=10, height=6)
+print(barchart(fraction ~ supp3, 
+               data = df, 
+               groups = supp2, 
+               scales = list(x = list(rot = 45, col=c("#2290cf", "grey20", "#ce228e", "grey20"), font=2)),
+               between=list(y=1.0, x = 1.0),
+               auto.key = list(points = FALSE, rectangles = TRUE, space = "right"),
+               aspect = 1,
+               stack = TRUE, 
+               col = c("black", "white"),
+               ylab = "Fraction of ATAC-seq overlapping ChIP", 
+               xlab = "",
+               main="Cell Cultured with Full Medium",
+               par.settings = list(superpose.polygon = list(col=c("black", "white"), pch=20, lwd=2), strip.background=list(col="grey85"))
+               )
+)
+dev.off()
+
+```
+
 
 # Compare ATAC-seq signal change (upon GATA3 depletion) properly for GATA3 binding regions
 
@@ -11,3 +858,1978 @@ By “properly,” I specifically mean that we are comparing changes in ATAC-seq
 2) have matched or comparable ChIP-seq intensities, and \
 3) have matched or comparable baseline ATAC-seq signals in DMSO. \
 After these potential confounding factors are properly controlled, we can compare the ATAC-seq log2FC across regions containing different GATA3 motif variants and determine whether motif variation is associated with differences in chromatin accessibility changes upon GATA3 depletion.
+
+## Integrate with ChIP-seq data: find ChIP-seq peaks with single motif
+
+get the ChIP-seq peaks (all) with normalized intensity: \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+
+# extend the ChIP-peak window size to 101bp
+
+dir=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/peak_Intensity/GATA_Deseq2/
+
+module load bedtools
+
+slopBed -b 50 -i ${dir}GATA_ChIP_summits_final_DESeq2_ranked_intensity.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_ChIP_summits_final_DESeq2_ranked_intensity_101window.bed
+
+fastaFromBed -fi $genome -bed GATA_ChIP_summits_final_DESeq2_ranked_intensity_101window.bed -fo GATA_ChIP_summits_final_DESeq2_ranked_intensity_101window.fasta
+```
+
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.4.1
+module load bedtools
+for i in /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/*_meme.txt # meme PWMs 
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_meme.txt" '{print $1}')
+    echo $name
+    mast -hit_list -best $i GATA_ChIP_summits_final_DESeq2_ranked_intensity_101window.fasta > mast_${name}_in_peaks.txt
+    mot=`grep MOTIF $i | cut -f 2 `
+    echo $mot
+    Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_${name}_in_peaks.txt
+    awk -v nm="$name" '{OFS="\t";} {print $0, nm}' mast_${name}_in_peaks.bed | sort -k1,1 -k2,2n > mast_${name}_indiv.bed #motif coordinates file
+done
+
+intersectBed -C -names 10 11 12 1 2 3 4 5 6 7 8 9 -wa -wb -a GATA_ChIP_summits_final_DESeq2_ranked_intensity_101window.bed -b *_indiv.bed > x.bed # Chip-seq peaks center on peak summit
+
+# x.bed 4th colume is the normalized chip-seq intensity 
+```
+
+
+## count the ATAC-seq signals for ChIP-seq regions with distinct motifs
+
+Extend the Chip-seq regions to 400bp window: \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+slopBed -b 150 -i x.bed -g $sizes  | sort -k1,1 -k2,2n > x_401window.bed
+```
+
+
+use `mapBed` to get ATAC signals for these 400bp ChIP-seq regions: \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load bedtools
+module load samtools/1.12
+peaks=x_401window.bed 
+
+for i in /home/FCAM/ssun/GATA3_ATAC_July2024/match_from_scratch_260520/ATAC_not_scaled_sorted_BED/*_sorted.bed
+do
+    nm=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_sorted.bed" '{print $1}')
+    echo $nm
+    #sort -k1,1 -k2,2n $i > ${nm}_sorted.bed
+    mapBed -null '0' -a $peaks -b $i > ${nm}_peak_counts_x_401window.txt #count 400bp window sum reads
+done
+
+#head MCF7_dTAGGATA522_Full_DMSO_rep1_peak_counts_x_401window.txt
+#chr1	827180	827581	45.324686100056	1	0	258
+#chr1	827180	827581	45.324686100056	10	0	258
+#chr1	827180	827581	45.324686100056	11	0	258
+
+
+
+for i in *_peak_counts_x_401window.txt
+do
+    name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_peak_counts_x_401window.txt" '{print $1}')
+    name2=$(echo $i | awk -F"GATA522_" '{print $NF}' | awk -F"_peak_counts_x_401window.txt" '{print $1}')
+    echo $name2
+    awk '{print $NF}' ${name}_peak_counts_x_401window.txt > ${name}_peak_counts_only_x_401window.txt
+    echo $name2 | cat - ${name}_peak_counts_only_x_401window.txt > ${name}_peak_counts_x_401window.txt
+    rm ${name}_peak_counts_only_x_401window.txt
+done
+
+#head MCF7_dTAGGATA522_Full_DMSO_rep1_peak_counts_x_401window.txt
+#Full_DMSO_rep1
+#258
+#258
+#258
+
+
+
+echo -e "chr\tstart\tend\tchip_intensity\tmotif\tcount" | cat - x_401window.bed | paste -d'\t' - *peak_counts_x_401window.txt > Combined_ChIP_peak_with_atac_counts.txt
+
+# head Combined_ChIP_peak_with_atac_counts.txt
+#chr	start	end	chip_intensity	motif	count	Full_DMSO_rep1	Full_DMSO_rep2	Full_DMSO_rep3	Full_DMSO_rep4	Full_dTAG_rep1	Full_dTAG_rep2	Full_dTAG_rep3	Full_dTAG_rep4
+#chr1	827180	827581	45.324686100056	1	0	258	111	177	187	322	201	92	240
+
+```
+
+## Differential analysis on these ChIP-seq regions with counted ATAC signals (apply the size factor of all ATAC-seq peaks) 
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load R/4.1.2
+# R
+
+#load required library
+library(DESeq2)
+library(lattice)
+library(dplyr)
+library(ggplot2)
+library(limma)
+library(MatchIt)
+
+# Define categorize.DEseq.df function
+categorize.DEseq.df = function(DE.results, unchanged.padj = 0.05, changed.padj = 0.1) {
+    DE.results.lattice = DE.results
+
+    activated = DE.results[DE.results$padj < changed.padj & !is.na(DE.results$padj) & DE.results$log2FoldChange > 0,]
+    unchanged.act = DE.results[!is.na(DE.results$padj) & DE.results$padj > unchanged.padj & abs(DE.results$log2FoldChange) < unchanged.padj,]
+    unchanged.act$treatment = 0
+    activated$treatment = 1
+
+    df.deseq.effects.lattice = rbind(unchanged.act, activated)
+
+    out = matchit(
+        treatment ~ baseMean,
+        data = df.deseq.effects.lattice,
+        method = "nearest",
+        ratio = 1,
+        caliper = 0.05
+    )
+
+    unchanged.act = df.deseq.effects.lattice[
+        rownames(df.deseq.effects.lattice) %in% out$match.matrix,
+    ]
+
+    DE.results.lattice$category = "All Other Regions"
+
+    matching_rows = intersect(rownames(DE.results.lattice), rownames(unchanged.act))
+    for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] = "Matched to Up"
+    }
+
+    DE.results.lattice$category = ifelse(
+        DE.results.lattice$padj < changed.padj &
+            !is.na(DE.results.lattice$padj) &
+            DE.results.lattice$log2FoldChange > 0,
+        "Up",
+        DE.results.lattice$category
+    )
+
+    DE.results.lattice$category = ifelse(
+        DE.results.lattice$padj < changed.padj &
+            !is.na(DE.results.lattice$padj) &
+            DE.results.lattice$log2FoldChange < 0,
+        "Down",
+        DE.results.lattice$category
+    )
+
+    unchanged.rep = DE.results.lattice[
+        !is.na(DE.results.lattice$padj) &
+            DE.results.lattice$padj > unchanged.padj &
+            abs(DE.results.lattice$log2FoldChange) < unchanged.padj &
+            DE.results.lattice$category == "All Other Regions",
+    ]
+
+    repressed = DE.results.lattice[
+        DE.results.lattice$padj < changed.padj &
+            !is.na(DE.results.lattice$padj) &
+            DE.results.lattice$log2FoldChange < 0,
+    ]
+
+    unchanged.rep$treatment = 0
+    repressed$treatment = 1
+
+    df.deseq.effects.lattice.2 = rbind(unchanged.rep, repressed)
+
+    out = matchit(
+        treatment ~ baseMean,
+        data = df.deseq.effects.lattice.2,
+        method = "nearest",
+        ratio = 1,
+        caliper = 0.05
+    )
+
+    unchanged.rep = df.deseq.effects.lattice.2[
+        rownames(df.deseq.effects.lattice.2) %in% out$match.matrix,
+    ]
+
+    matching_rows = intersect(rownames(DE.results.lattice), rownames(unchanged.rep))
+    for (row_name in matching_rows) {
+        DE.results.lattice[row_name, "category"] = "Matched to Down"
+    }
+
+    return(DE.results.lattice)
+}
+
+
+ma.plot.lattice = function(ma.df, filename = 'file.name', 
+                            title.main = "Differential ATAC-seq Accessibility",
+                            col = c("grey80", "grey20" , "grey20", "#2290cf", "#ce228e")){
+    desired_order = c("All Other Regions", "Matched to UP", "Matched to Down", "Down", "Up")
+    ma.df$category = factor(ma.df$category, levels = desired_order)
+  pdf(paste("MA_plot_", filename, ".pdf", sep=''), 
+      useDingbats = FALSE, width=3.83, height=3.83);
+  print(xyplot(ma.df$log2FoldChange ~ log(ma.df$baseMean, base=10),
+               groups=ma.df$category,
+               col= col,
+                main=title.main, scales="free", aspect=1, pch=20, cex=0.5,
+               ylab=expression("log"[2]~"ATAC-seq change"), 
+               xlab=expression("log"[10]~"Mean of Normalized Counts"),
+               par.settings=list(par.xlab.text=list(cex=1.1,font=2), 
+                                 par.ylab.text=list(cex=1.1,font=2))));
+  dev.off()
+}
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+# get the size factor from all ATAC regions
+x = read.table('Combined_GATA_peak_counts.txt', sep = "\t", check.names=FALSE, header=TRUE)
+x = x[, colnames(x) != ""]
+rownames(x) = paste0(x[,1], ":", x[,2], "-", x[,3])
+peak_name = x[,4]
+peak_qvalue = x[,5]
+x = x[,-c(1:5)]
+
+#head(x)
+#                   Full_DMSO_rep1 Full_DMSO_rep2 Full_DMSO_rep3 Full_DMSO_rep4
+#chr1:804681-805082             80             35             66             67
+#chr1:820107-820508             17             13             16             19
+#chr1:826823-827224            110             50             65             92
+#chr1:827482-827883            213             85            168            141
+#chr1:832118-832519             39             24             40             35
+#chr1:845620-846021            360            187            367            301
+#                   Full_dTAG_rep1 Full_dTAG_rep2 Full_dTAG_rep3 Full_dTAG_rep4
+#chr1:804681-805082             65             77             29             74
+#chr1:820107-820508             17             18              9             22
+#chr1:826823-827224            101             91             52             85
+#chr1:827482-827883            263            190             96            172
+#chr1:832118-832519             58             36             35             54
+#chr1:845620-846021            200            184            115            259
+
+sample.conditions = factor(sapply(strsplit(colnames(x), '_r'), '[', 1), levels=c("Full_DMSO", "Full_dTAG"))
+#rep = factor(sapply(strsplit(colnames(x_full), 'rep'), '[', 2)) 
+#deseq.counts.table = DESeqDataSetFromMatrix(countData = x_full,
+#                colData = cbind.data.frame(sample.conditions, rep), 
+#                design = ~ rep + sample.conditions)
+deseq.counts.table = DESeqDataSetFromMatrix(countData = x,
+                                            colData = DataFrame(sample.conditions), 
+                                            design = ~ sample.conditions)
+deseq.counts.table 
+sf = sizeFactors(estimateSizeFactors(deseq.counts.table))
+#sf
+#Full_DMSO_rep1 Full_DMSO_rep2 Full_DMSO_rep3 Full_DMSO_rep4 Full_dTAG_rep1 
+#     1.2834454      0.5737303      1.1801976      1.0369312      1.4680726 
+#Full_dTAG_rep2 Full_dTAG_rep3 Full_dTAG_rep4 
+#     1.2276420      0.5550182      1.2103337 
+```
+
+
+Filter to get chip peaks that contains only one assigned motif
+
+```{r, engine='R', eval=F, echo=TRUE}
+x = read.table('Combined_ChIP_peak_with_atac_counts.txt', header=T)
+x$count = as.numeric(x$count)
+result = x %>%
+  group_by(chr, start, end) %>% # chromosome, start, and end positions
+  summarise(cum_sum = sum(count)) %>% # count represents the column to sum
+  filter(cum_sum == 1)  # Filter out groups where the cumulative sum is 1
+
+y = x %>%
+  inner_join(result, by = c("chr" = "chr", "start" = "start", "count" = "cum_sum")) #32478
+
+colnames(y)
+# [1] "chr"            "start"          "end.x"          "chip_intensity"
+# [5] "motif"          "count"          "Full_DMSO_rep1" "Full_DMSO_rep2"
+# [9] "Full_DMSO_rep3" "Full_DMSO_rep4" "Full_dTAG_rep1" "Full_dTAG_rep2"
+#[13] "Full_dTAG_rep3" "Full_dTAG_rep4" "end.y" 
+
+#unique(y$count)
+#[1] 1
+#unique(y$motif)
+# [1] 11  1  6  8  5 10  7  3  2  4  9 12
+
+#head(y)
+#   chr   start   end.x chip_intensity motif count Full_DMSO_rep1 Full_DMSO_rep2
+#1 chr1  845596  845997      530.34196    11     1            361            185
+#2 chr1 1080356 1080757       29.14573     1     1            170             82
+#3 chr1 1238037 1238438       43.01128     1     1            115             38
+#  Full_DMSO_rep3 Full_DMSO_rep4 Full_dTAG_rep1 Full_dTAG_rep2 Full_dTAG_rep3
+#1            367            299            200            182            114
+#2            146            135            199            186             62
+#3            131             95            135            124             71
+#  Full_dTAG_rep4   end.y
+#1            259  845997
+#2            150 1080757
+#3            112 1238438
+
+
+# apply the size factor from all ATAC regions to the data under analyze -- the y (ChIP-peaks with individula motif)
+
+rownames(y) = paste0(y[,1], ":", y[,2], "-", y[,3], "_motif", y[,5])
+chip_intensity = y[,4]
+category_name = y[,5]
+
+y = y[,-c(1:6, 15)]
+
+sample.conditions.y = factor(sapply(strsplit(colnames(y), '_r'), '[', 1), levels=c("Full_DMSO", "Full_dTAG"))
+rep = factor(sapply(strsplit(colnames(y), 'rep'), '[', 2))
+
+deseq.counts.table.y = DESeqDataSetFromMatrix(countData = y,
+                                              colData = cbind.data.frame(sample.conditions.y, rep), 
+                                              design = ~ rep + sample.conditions.y)
+
+deseq.counts.table.y
+sizeFactors(deseq.counts.table.y) = sf # Apply size factors from common regions
+
+dds = DESeq(deseq.counts.table.y)
+dds
+save(dds, file = "GATA3_ChIP_peak_with_atac_counts_dds.Rdata")
+
+DE.results = results(dds)
+head(DE.results)
+DE.results.lattice = categorize.DEseq.df(DE.results, changed.padj = 0.1)
+
+DE.results.lattice$chip_intensity=chip_intensity
+DE.results.lattice$motif=category_name
+
+# transfer / calculate the DMSO base signals
+DE.results.lattice$DMSO_signal = 2 * DE.results.lattice$baseMean / (1 + 2^DE.results.lattice$log2FoldChange)
+
+save.image("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
+
+#head(DE.results.lattice)
+#log2 fold change (MLE): sample.conditions.y Full dTAG vs Full DMSO 
+#Wald test p-value: sample.conditions.y Full dTAG vs Full DMSO 
+#DataFrame with 6 rows and 10 columns
+#                             baseMean log2FoldChange     lfcSE      stat
+#                            <numeric>      <numeric> <numeric> <numeric>
+#chr1:845596-845997_motif11   238.3644     -0.7959573  0.141411 -5.628687
+#chr1:1080356-1080757_motif1  131.4979     -0.0211395  0.161153 -0.131177
+#chr1:1238037-1238438_motif1   96.4843      0.1968487  0.192173  1.024331
+#chr1:1504821-1505222_motif6  201.6931     -0.0478609  0.146829 -0.325964
+#chr1:1686231-1686632_motif1  158.9461      0.0693750  0.148775  0.466308
+#chr1:1724147-1724548_motif6  367.8723      0.0553282  0.101511  0.545049
+#                                 pvalue        padj          category
+#                              <numeric>   <numeric>       <character>
+#chr1:845596-845997_motif11  1.81587e-08 4.83955e-07              Down
+#chr1:1080356-1080757_motif1 8.95636e-01 9.39783e-01   Matched to Down
+#chr1:1238037-1238438_motif1 3.05679e-01 4.65082e-01 All Other Regions
+#chr1:1504821-1505222_motif6 7.44452e-01 8.41998e-01   Matched to Down
+#chr1:1686231-1686632_motif1 6.40995e-01 7.67576e-01 All Other Regions
+#chr1:1724147-1724548_motif6 5.85720e-01 7.24330e-01 All Other Regions
+#                            chip_intensity     motif DMSO_signal
+#                                 <numeric> <integer>   <numeric>
+#chr1:845596-845997_motif11        530.3420        11    302.5004
+#chr1:1080356-1080757_motif1        29.1457         1    132.4612
+#chr1:1238037-1238438_motif1        43.0113         1     89.9121
+#chr1:1504821-1505222_motif6        51.3567         6    205.0383
+#chr1:1686231-1686632_motif1        66.5706         1    155.1252
+#chr1:1724147-1724548_motif6        34.5234         6    360.8191
+```
+
+
+# match for both ChIP-intensity as well as DMSO signals 
+
+## Globally all 12 motifs 
+
+````{r, engine='R', eval=F, echo=TRUE}
+load("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
+```
+
+
+````{r, engine='R', eval=F, echo=TRUE}
+# match for both chip intensity as well as dmso atac signals
+df_match =as.data.frame(DE.results.lattice[, c(2, 6, 7, 8, 9, 10)])
+df_match$motif = as.numeric(as.character(df_match$motif))
+
+# Log-transform matching variables because chip_intensity and DMSO_signal may have very different scales
+df_match$log_ChIP_intensity = log2(df_match$chip_intensity + 1)
+df_match$log_DMSO_signal = log2(df_match$DMSO_signal + 1)
+
+df_match = df_match[
+  !is.na(df_match$motif) &
+    !is.na(df_match$log_ChIP_intensity) &
+    !is.na(df_match$log_DMSO_signal),
+]
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(MatchIt)
+
+matched_list_treat_final = list()
+matched_list_control_final = list()
+
+for (g in c(10:1, 12)) {
+  print(g)
+  test = df_match[df_match$motif == 11 | df_match$motif == g, ]
+  print("here")
+  test$group_binary = ifelse(test$motif == 11, 1, 0)
+  
+#  out = matchit(
+#    group_binary ~ log_ChIP_intensity + log_DMSO_signal,
+#    data = test,
+#    method = "optimal",
+#    ratio = 1,
+#    caliper = 0.1
+#  )
+  
+#  enforce direct calipers on both log-scaled variables
+  out = matchit(
+    group_binary ~ log_ChIP_intensity + log_DMSO_signal,
+    data = test,
+    method = "nearest",
+    distance = "mahalanobis",
+    ratio = 1,
+    caliper = c(
+    log_ChIP_intensity = 0.1,
+    log_DMSO_signal = 0.1
+    ))
+  matched_df = match.data(out)
+  
+  matched_controls = matched_df[matched_df$group_binary == 0, ]
+  matched_treat = matched_df[matched_df$group_binary == 1, ]
+  
+  matched_list_treat_final[[as.character(g)]] = matched_treat
+  matched_list_control_final[[as.character(g)]] = matched_controls
+}
+
+# Find motif11 peaks that appear in all 11-vs-g comparisons
+motif11_sets = lapply(matched_list_treat_final, rownames)
+common_motif11 = Reduce(intersect, motif11_sets)
+
+length(common_motif11) #654; there are 654 peaks per category
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+get_matched_motif_g = function(g) {
+  
+  g = as.character(g)
+  
+  motif11_df = matched_list_treat_final[[g]]
+  motifg_df  = matched_list_control_final[[g]]
+  
+  motif11_df$motif11_peak = rownames(motif11_df)
+  motifg_df$motifg_peak   = rownames(motifg_df)
+  
+  ## keep only common motif11 peaks
+  motif11_keep = motif11_df[motif11_df$motif11_peak %in% common_motif11, ]
+  
+  ## match motif11 to motif g by subclass
+  merged = merge(
+    motif11_keep[, c("motif11_peak", "subclass")],
+    motifg_df[, c("motifg_peak", "subclass",  "log2FoldChange", "padj", "chip_intensity", "DMSO_signal")],
+    by = "subclass",
+    all.x = FALSE,
+    all.y = FALSE
+  )
+  
+  ## keep useful columns
+  out = merged[, c("motif11_peak", "motifg_peak", "log2FoldChange", "padj", "chip_intensity", "DMSO_signal")]
+  
+  colnames(out) = c(
+    "motif11_peak",
+    paste0("motif", g, "_peak"),
+    paste0("motif", g, "_log2FoldChange"),
+    paste0("motif", g, "_padj"),
+    paste0("motif", g, "_chip_intensity"),
+    paste0("motif", g, "_DMSO_signal")
+  )
+  
+  out
+}
+
+# wide df
+wide_list = lapply(c(10:1, 12), get_matched_motif_g)
+
+
+wide_df = Reduce(function(x, y) {
+  merge(x, y, by = "motif11_peak")
+}, wide_list)
+
+motif11_info = matched_list_treat_final[["1"]]
+motif11_info$motif11_peak = rownames(motif11_info)
+
+motif11_info = motif11_info[
+  motif11_info$motif11_peak %in% common_motif11,
+  c("motif11_peak", "log2FoldChange", "padj", "chip_intensity", "DMSO_signal")
+]
+
+colnames(motif11_info) = c(
+  "motif11_peak",
+  "motif11_log2FoldChange",
+  "motif11_padj",
+  "motif11_chip_intensity",
+  "motif11_DMSO_signal"
+)
+
+wide_df = merge(motif11_info, wide_df, by = "motif11_peak")
+
+head(wide_df)
+dim(wide_df)
+#[1] 654  60
+save.image("260529_matched2_both_int_dmso.Rdata")
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+write.table(
+  wide_df,
+  file = "MatchIt2_both_int_dmso_peaks_wide_with_motif11_info.txt",
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+## plot
+
+### 1) plot DMSO vs. chip intesnity
+
+This plot visually shows how comparable DMSO signals and chip intensity are across matched regions that contains distinct motif. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+library(RColorBrewer)
+library(dplyr)
+library(tidyr)
+## assign one color per matched row
+wide_df$row_id = seq_len(nrow(wide_df))
+wide_df$row_col = colorRampPalette(brewer.pal(12, "Paired"))(nrow(wide_df))
+
+# narrow df
+plot_df = wide_df %>%
+  pivot_longer(
+    cols = matches("^motif[0-9]+_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)$"),
+    names_to = c("motif", ".value"),
+    names_pattern = "motif([0-9]+)_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)"
+  ) %>%
+  mutate(
+    motif = factor(as.integer(motif), levels = 1:12)
+  )
+
+
+head(plot_df)
+nrow(plot_df) # 7848 
+length(unique(plot_df$row_id)) # 654
+
+
+pdf("MatchIt2_DMSO_vs_ChIP_by_motif_colored_by_row_raw.pdf", width = 9.5, height = 7.5, useDingbats = FALSE)
+
+print(
+  xyplot(
+    DMSO_signal ~ chip_intensity | motif,
+    data = plot_df,
+    layout = c(4, 3),
+    xlab = "ChIP intensity",
+    ylab = "DMSO signal",
+    main = "Matched peaks: DMSO signal vs ChIP intensity by motif",
+    scales = list(relation = "same"),
+    panel = function(x, y, subscripts, ...) {
+      #panel.grid(h = -1, v = -1, col = "grey92")
+      panel.xyplot(
+        x, y,
+        pch = 16,
+        cex = 0.55,
+        col = plot_df$row_col[subscripts]
+      )
+    }
+  )
+)
+
+dev.off()
+```
+
+
+### 2) bw-violin
+```{r, engine='R', eval=F, echo=TRUE}
+pdf(paste0('MatchIt2_Full_match_both_chip_dmso','_bwplot_1to12.pdf'), useDingbats = FALSE, width=7.5, height=4.4)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+print(bwplot(plot_df$log2FoldChange ~ plot_df$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             ylim = c(-2.5,2.5),
+             ylab =expression("log"[2]~"(ATAC fold change)"),
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = '#724ed880',
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+```
+
+### 3) bw-violin (polished with gradient color)
+
+```{r, engine='R', eval=F, echo=TRUE}
+# draw color gradient violin
+
+df = plot_df #log2FoldChange #motif
+df$motif = factor(df$motif) #7848
+df=na.omit(df) #7848
+
+global_ymin = min(df$log2FoldChange) 
+global_ymax = max(df$log2FoldChange) 
+display_ymin = min(df$log2FoldChange) - 0.05 
+display_ymax = max(df$log2FoldChange) + 0.05  
+
+draw_gradient_violin = function(x_pos, y_vals, width = 0.3, n = 50) {
+  if (length(y_vals) < 10) return() 
+
+  dens = density(y_vals, adjust = 1)  
+  y_dens = dens$x
+  x_dens = dens$y / max(dens$y) * width
+
+  # Split color palettes
+  color_palette1 = colorRampPalette(c("darkblue","darkblue","blue", "white"))(n)
+  color_palette2 = colorRampPalette(c("white", "red", "darkred","darkred"))(n)
+
+  # Split y_seq into two parts
+  y_seq1 = seq(display_ymin, 0, length.out = n)
+  y_seq2 = seq(0, display_ymax, length.out = n)
+
+  # Draw the first half of the violin with the first color palette (blue to white)
+  for (i in seq_len(n - 1)) {
+    y_lower = y_seq1[i]
+    y_upper = y_seq1[i + 1]
+
+    x_lower = approx(y_dens, x_dens, xout = y_lower, rule = 2, method = "linear")$y
+    x_upper = approx(y_dens, x_dens, xout = y_upper, rule = 2, method = "linear")$y
+
+    if (!is.na(x_lower) & !is.na(x_upper)) {
+      panel.polygon(
+        x = c(x_pos - x_lower, x_pos + x_lower, x_pos + x_upper, x_pos - x_upper),
+        y = c(y_lower, y_lower, y_upper, y_upper),
+        col = color_palette1[i], border = NA
+      )
+    }
+  }
+
+  # Draw the second half of the violin with the second color palette (white to red)
+  for (i in seq_len(n - 1)) {
+    y_lower = y_seq2[i]
+    y_upper = y_seq2[i + 1]
+
+    x_lower = approx(y_dens, x_dens, xout = y_lower, rule = 2, method = "linear")$y
+    x_upper = approx(y_dens, x_dens, xout = y_upper, rule = 2, method = "linear")$y
+
+    if (!is.na(x_lower) & !is.na(x_upper)) {
+      panel.polygon(
+        x = c(x_pos - x_lower, x_pos + x_lower, x_pos + x_upper, x_pos - x_upper),
+        y = c(y_lower, y_lower, y_upper, y_upper),
+        col = color_palette2[i], border = NA
+      )
+    }
+  }
+
+  # Draw the outline of the violin
+  panel.lines(x_pos + x_dens, y_dens, col = "black")
+  panel.lines(x_pos - x_dens, y_dens, col = "black")
+}
+
+
+pdf("MatchIt2_Full_match_both_chip_dmso_bwplot_1to12_gradient.pdf", useDingbats = FALSE, width = 7.5, height = 4.4)
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+print(bwplot(df$log2FoldChange ~ df$motif, data = df,
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = "motif",
+             ylab = expression("log"[2]~"(ATAC fold change)"),
+             ylim=c(-2.5, 2.5),
+             horizontal = FALSE,
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               strip.default(..., which.panel = which.panel)
+             },
+             panel = function(x, y, ...) {
+               panel.abline(h = 0, col = 'grey45', lty = 2)
+               
+               unique_x = levels(x) 
+               for (cat in unique_x) {
+                 x_pos = which(levels(x) == cat) 
+                 draw_gradient_violin(x_pos, y[x == cat])  
+               }
+               
+               panel.bwplot(x=df$motif, y=df$log2FoldChange, horizontal = FALSE, aspect = 0.3, pch = '|', do.out = FALSE)
+             })
+)
+dev.off()
+
+
+# draw color gradient bar as a legend
+
+library(grid)
+
+draw_color_gradient_bar = function(x_pos = 0.5 - 0.02/2, y_bottom = 0.1, y_top = 0.9, 
+                                    bar_width = 0.05, n = 50, 
+                                    top_label = "increased", 
+                                    mid_label = "no change", 
+                                    bottom_label = "decreased") {
+  # Create the color palette (blue: decreased, white: no change, red: increased)
+  color_palette = colorRampPalette(c("darkblue","darkblue","blue", "white", "red", "darkred","darkred"))(n)
+  
+  # Create a sequence of y values (in npc coordinates) for the segments
+  y_seq = seq(y_bottom, y_top, length.out = n + 1)
+  
+  # Draw each colored rectangle segment to form the gradient bar
+  for (i in 1:n) {
+    grid.polygon(
+      x = unit(c(x_pos, x_pos + bar_width, x_pos + bar_width, x_pos), "npc"),
+      y = unit(c(y_seq[i], y_seq[i], y_seq[i+1], y_seq[i+1]), "npc"),
+      gp = gpar(fill = color_palette[i], col = NA)
+    )
+  }
+  
+  # Draw a border around the gradient bar.
+  grid.rect(
+    x = unit(x_pos + bar_width/2, "npc"),
+    y = unit((y_bottom + y_top)/2, "npc"),
+    width = unit(bar_width, "npc"),
+    height = unit(y_top - y_bottom, "npc"),
+    gp = gpar(col = "black", fill = NA)
+  )
+  
+  # Add the top label ("increased")
+  grid.text(
+    label = top_label,
+    x = unit(x_pos + bar_width + 0.01, "npc"),
+    y = unit(y_top, "npc"),
+    just = "left",
+    gp = gpar(fontsize = 10)
+  )
+  
+  # Add the middle label ("no change")
+  grid.text(
+    label = mid_label,
+    x = unit(x_pos + bar_width + 0.01, "npc"),
+    y = unit((y_bottom + y_top)/2, "npc"),
+    just = "left",
+    gp = gpar(fontsize = 10)
+  )
+  
+  # Add the bottom label ("decreased")
+  grid.text(
+    label = bottom_label,
+    x = unit(x_pos + bar_width + 0.01, "npc"),
+    y = unit(y_bottom, "npc"),
+    just = "left",
+    gp = gpar(fontsize = 10)
+  )
+}
+
+
+pdf("MatchIt2_Full_bwplot_1to12_gradient_bar.pdf", useDingbats = FALSE, width = 5, height = 4.4)
+
+draw_color_gradient_bar(x_pos = 0.5, n=50)
+dev.off()
+```
+
+### 4) plot % difference
+
+Calculating/plot the percent difference of DMSO and ChIP signals within each matched peak set to **evaluate whether the matching worked** \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load R/4.1.2
+# R
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+load("260529_matched2_both_int_dmso.Rdata")
+nrow(wide_df)
+# [1] 654
+head(wide_df)
+
+wide_df$row_id = seq_len(nrow(wide_df))
+#wide_df$row_col = colorRampPalette(brewer.pal(12, "Paired"))(nrow(wide_df))
+
+# narrow df
+plot_df = wide_df %>%
+  pivot_longer(
+    cols = matches("^motif[0-9]+_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)$"),
+    names_to = c("motif", ".value"),
+    names_pattern = "motif([0-9]+)_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)"
+  ) %>%
+  mutate(
+    motif = factor(as.integer(motif), levels = 1:12)
+  )
+
+
+# ask: Within this matched set, how far is each motif’s DMSO signal or ChIP intensity from the row average?
+plot_df = plot_df %>%
+  group_by(row_id) %>%
+  mutate(
+    mean_DMSO_signal = mean(DMSO_signal, na.rm = TRUE),
+    mean_chip_intensity = mean(chip_intensity, na.rm = TRUE),
+    
+    ## relative signal: value / row mean
+    relative_DMSO = DMSO_signal / mean_DMSO_signal,
+    relative_ChIP = chip_intensity / mean_chip_intensity,
+    
+    # percent difference: values close to 0% mean well matched.
+    DMSO_percent_diff_from_row_mean =
+      100 * (DMSO_signal - mean_DMSO_signal) / mean_DMSO_signal, 
+
+    chip_percent_diff_from_row_mean =
+      100 * (chip_intensity - mean_chip_intensity) / mean_chip_intensity,
+
+    DMSO_abs_percent_diff_from_row_mean =
+      abs(DMSO_percent_diff_from_row_mean),
+
+    chip_abs_percent_diff_from_row_mean =
+      abs(chip_percent_diff_from_row_mean)
+  ) %>%
+  ungroup()
+
+plot_df$motif = factor(plot_df$motif, levels = 1:12)
+
+
+## plot bwviolin plot
+
+pdf('MatchIt2_bwviolin_percent_difference_DMSO_by_motif.pdf', useDingbats = FALSE, width=7.5, height=4.4)
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+print(bwplot(plot_df$DMSO_percent_diff_from_row_mean ~ plot_df$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             #ylim = c(-2.5,2.5),
+             ylab ="DMSO percent difference (from matched mean)",
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = 'transparent',
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+
+pdf('MatchIt2_bwviolin_percent_difference_ChIP_by_motif.pdf', useDingbats = FALSE, width=7.5, height=4.4)
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+print(bwplot(plot_df$chip_percent_diff_from_row_mean ~ plot_df$motif,             
+             between=list(y=1.0, x = 1.0),
+             scales=list(x=list(draw=TRUE),relation="free",rot = 45, alternating=c(1,1,1,1),cex=1,font=1),
+             xlab = 'GATA3 motif',
+             main = "",
+             #ylim = c(-2.5,2.5),
+             ylab ="chip percent difference (from matched mean)",
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = 'transparent',
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+```
+
+### 5) categorize up/down/unchanged ATAC signals across regions with distinct motif
+
+ **Determine whether binding intensity is associated with chromatin accessibility changes**: For each motif category, classify ChIP-seq regions using both raw log2FC-based groups and significance-based groups. Then plot bwplots to compare GATA3 ChIP-seq intensity across ATAC-up, ATAC-down, and unchanged/non-significant regions. \
+ 
+```{r, engine='R', eval=F, echo=TRUE}
+# module load R/4.1.2
+# R
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+load("260529_matched2_both_int_dmso.Rdata")
+nrow(wide_df)
+# [1] 654
+
+head(wide_df)
+wide_df$row_id = seq_len(nrow(wide_df))
+#wide_df$row_col = colorRampPalette(brewer.pal(12, "Paired"))(nrow(wide_df))
+
+# narrow df
+plot_df = wide_df %>%
+  pivot_longer(
+    cols = matches("^motif[0-9]+_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)$"),
+    names_to = c("motif", ".value"),
+    names_pattern = "motif([0-9]+)_(peak|log2FoldChange|padj|chip_intensity|DMSO_signal)"
+  ) %>%
+  mutate(
+    motif = factor(as.integer(motif), levels = 1:12)
+  )
+
+plot_df2 = plot_df
+plot_df2$motif = factor(as.character(plot_df2$motif), levels = as.character(1:12))
+
+# I classified raw ATAC changes using a reciprocal 1.2-fold cutoff: regions with ≥1.2-fold increase were called ATAC-up, regions with ≤1/1.2-fold change were called ATAC-down, and regions between these reciprocal cutoffs were called unchanged.
+lfc_cutoff = log2(1.2)
+plot_df2 = plot_df2 %>%
+  mutate(
+    ATAC_group_raw = case_when(
+      log2FoldChange <= -lfc_cutoff ~ "ATAC-down",
+      log2FoldChange >= lfc_cutoff ~ "ATAC-up",
+      abs(log2FoldChange) < lfc_cutoff ~ "Unchanged",
+      TRUE ~ NA_character_
+    )
+  )
+
+plot_df2$ATAC_group_raw = factor(plot_df2$ATAC_group_raw, levels = c("ATAC-down", "Unchanged", "ATAC-up"))
+
+padj_cutoff = 0.05
+
+plot_df2 = plot_df2 %>%
+  mutate(
+    ATAC_group_sig = case_when(
+      !is.na(padj) & padj < padj_cutoff & log2FoldChange < 0 ~ "ATAC-down",
+      !is.na(padj) & padj < padj_cutoff & log2FoldChange > 0 ~ "ATAC-up",
+      TRUE ~ "Non-significant"
+    )
+  )
+
+plot_df2$ATAC_group_sig = factor(plot_df2$ATAC_group_sig, levels = c("ATAC-down", "Non-significant", "ATAC-up"))
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+my.settings = list(
+  box.rectangle = list(col = "black"),
+  box.umbrella = list(lty = 1, col="black", lwd=1.6),
+  plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'),
+  strip.background = list(col = "grey85"),
+  strip.border = list(col = "grey40")
+)
+
+pdf("GATA3_ChIP_intensity_by_raw_ATAC_group_bwplot.pdf", width = 9, height = 7, useDingbats = FALSE)
+
+print(
+  bwplot(
+    #log(plot_df2$chip_intensity, base=10) ~ ATAC_group_raw | motif,
+    plot_df2$chip_intensity ~ ATAC_group_raw | motif,
+    data = plot_df2,
+    layout = c(4, 3),
+    scales = list(
+      x = list(rot = 45),
+      y = list(relation = "same")
+    ),
+    ylim=c(-50, 400),
+    xlab = "Raw ATAC log2FC-based group",
+    #ylab = "log10 GATA3 ChIP-seq intensity",
+    ylab = "GATA3 ChIP-seq intensity",
+    main = "GATA3 ChIP-seq intensity across raw ATAC-seq groups",
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      #panel.grid(h = -1, v = 0, col = "grey90")
+      panel.violin(x, y, ..., col = '#E0FFFF',
+                              varwidth = FALSE, outer = FALSE)
+      panel.bwplot(x, y, ..., pch = '|', do.out = FALSE)
+      panel.stripplot(x, y,
+                      horizontal = FALSE,
+                      col = "#b3b3b366",
+                      jitter.data = TRUE,
+                      amount = 0.2,
+                      factor = 4,
+                      pch = 16,
+                      cex = 0.3)
+    }
+  )
+)
+
+dev.off()
+
+
+pdf("GATA3_log_ChIP_intensity_by_raw_ATAC_group_bwplot.pdf", width = 9, height = 7, useDingbats = FALSE)
+
+print(
+  bwplot(
+    log(plot_df2$chip_intensity, base=10) ~ ATAC_group_raw | motif,
+    #plot_df2$chip_intensity ~ ATAC_group_raw | motif,
+    data = plot_df2,
+    layout = c(4, 3),
+    scales = list(
+      x = list(rot = 45),
+      y = list(relation = "same")
+    ),
+    #ylim=c(0:200),
+    xlab = "Raw ATAC log2FC-based group",
+    ylab = "log10 GATA3 ChIP-seq intensity",
+    #ylab = "GATA3 ChIP-seq intensity",
+    main = "GATA3 ChIP-seq intensity across raw ATAC-seq groups",
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      #panel.grid(h = -1, v = 0, col = "grey90")
+      panel.bwplot(x, y, ..., pch = '|', do.out = FALSE)
+    }
+  )
+)
+
+dev.off()
+
+pdf("GATA3_ChIP_intensity_by_significance_ATAC_group_bwplot.pdf", width = 9, height = 7, useDingbats = FALSE)
+
+print(
+  bwplot(
+    log(plot_df2$chip_intensity, base=10) ~ ATAC_group_sig | motif,
+    data = plot_df2,
+    layout = c(4, 3),
+    scales = list(
+      x = list(rot = 45),
+      y = list(relation = "same")
+    ),
+    xlab = paste0("Significance-based ATAC group, padj < ", padj_cutoff),
+    ylab = "log10 GATA3 ChIP-seq intensity",
+    main = "GATA3 ChIP-seq intensity across significant ATAC-seq groups",
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      #panel.grid(h = -1, v = 0, col = "grey90")
+      panel.bwplot(x, y, ..., pch = '|', do.out = FALSE)
+    }
+  )
+)
+
+dev.off()
+
+```
+
+ATAC-up regions tend to have lower GATA3 ChIP-seq intensity, suggesting that many of these regions may correspond to weak/background GATA3 binding sites rather than robust functional GATA3-bound regulatory regions. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# stack bar plot
+# the goal is to get a visual comparison between regions that are sig. up/down/unchanged
+bar_df = plot_df2 %>%
+  group_by(motif, ATAC_group_sig) %>%
+  summarise(n = n(), .groups = "drop")
+
+# A tibble: 36 × 3
+# motif ATAC_group_sig      n
+#   <fct> <fct>           <int>
+# 1 1     ATAC-down         192
+# 2 1     Non-significant   461
+# 3 1     ATAC-up             1
+# 4 2     ATAC-down         186
+# 5 2     Non-significant   467
+# 6 2     ATAC-up             1
+# 7 3     ATAC-down         162
+# 8 3     Non-significant   487
+# 9 3     ATAC-up             5
+#10 4     ATAC-down         154
+
+bar_df$motif = factor(bar_df$motif, levels = as.character(1:12))
+
+bar_df$ATAC_group_sig = factor(bar_df$ATAC_group_sig, levels = c("ATAC-down", "ATAC-up", "Non-significant"))
+
+library("lattice") 
+library(RColorBrewer)
+my_cols = c(
+  "ATAC-down" = "#377EB8",
+  "ATAC-up" = "#E41A1C",
+  "Non-significant" = "grey80"
+)
+
+pdf('MatchIt2_stack_bar_significance_ATAC_group.pdf', width=7, height=5, useDingbats = FALSE)
+
+my.settings = list(superpose.polygon=list(col = my_cols[levels(bar_df$ATAC_group_sig)], border = "black"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(n ~ motif,         
+         data = bar_df,
+         groups = ATAC_group_sig,
+         stack = TRUE,
+         auto.key = list(space = "right", lines=F, points=F, rectangles = TRUE, cex = 1, reverse.rows = TRUE),
+         #auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylab = "number of single-motif bound regions",
+         xlab = "motif",
+         par.settings = my.settings,
+         panel=function(x, y, ...) {
+                 panel.barchart(x, y, ...) 
+                # Add text labels
+                # panel.text(x, cumsum(y)-y, labels = y, pos = 3, cex = 0.6)
+         }
+               )
+)
+dev.off()
+```
+
+
+
+### 6) which motif pairs show stronger differences in chromatin accessibility changes
+
+Apply a statistically justified pairwise test to compare ATAC-seq log2FC differences between motif categories using globally matched peak sets, and **identify which motif pairs show stronger differences in chromatin accessibility changes compared with others.**
+
+```{r, engine='R', eval=F, echo=TRUE}
+# step0: determine a pair-wise statistical test 
+# Because the peak sets were globally matched across motif categories by GATA3 ChIP-seq intensity and baseline DMSO ATAC signal, motif comparisons are paired rather than independent. For each motif pair, I compared ATAC-seq log2FC values within the same matched row using a paired Wilcoxon signed-rank test (which does not assume normally distributed data), followed by FDR correction across all 66 comparisons.
+
+# module load R/4.1.2
+# R
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+load("260529_matched2_both_int_dmso.Rdata")
+nrow(wide_df)
+# [1] 654
+head(wide_df)
+
+wide_df$row_id = seq_len(nrow(wide_df))
+motifs = 1:12
+all_pairs = combn(motifs, 2)
+
+ncol(all_pairs) # 66
+
+pairwise_results = data.frame()
+pairwise_diff_df = data.frame()
+
+for (k in seq_len(ncol(all_pairs))) {
+  motif_A = all_pairs[1, k]
+  motif_B = all_pairs[2, k]
+  
+  col_A = paste0("motif", motif_A, "_log2FoldChange")
+  col_B = paste0("motif", motif_B, "_log2FoldChange")
+  
+  test_df = wide_df[, c("row_id", col_A, col_B)] #654
+  test_df = test_df[complete.cases(test_df), ] # removes NA rows in any column of test_df
+  x = test_df[[col_A]]
+  y = test_df[[col_B]]
+  
+  paired_diff = x - y
+  pair_name = paste0("motif", motif_A, "_vs_motif", motif_B)
+  
+  # save the log2FC differences between each paired motif A and B
+  pairwise_diff_df = rbind(
+    pairwise_diff_df,
+    data.frame(
+      row_id = test_df$row_id,
+      motif_A = motif_A,
+      motif_B = motif_B,
+      pair_name = pair_name,
+      log2FC_difference = paired_diff
+    )
+  )
+  
+  # wilcox.test
+  if (length(paired_diff) >= 3 && length(unique(paired_diff)) > 1) {
+    
+    wt = wilcox.test(x, y, paired = TRUE, exact = FALSE)
+    
+    p_value = wt$p.value
+    W_stat = as.numeric(wt$statistic)
+    
+  } else {
+    p_value = NA
+    W_stat = NA
+  }
+  
+  pairwise_results = rbind(
+    pairwise_results,
+    data.frame(
+      motif_A = motif_A,
+      motif_B = motif_B,
+      pair_name = paste0("motif", motif_A, "_vs_motif", motif_B),
+      n_matched_pairs = length(paired_diff),
+      median_log2FC_A = median(x, na.rm = TRUE),
+      median_log2FC_B = median(y, na.rm = TRUE),
+      mean_log2FC_A = mean(x, na.rm = TRUE),
+      mean_log2FC_B = mean(y, na.rm = TRUE),
+      median_paired_difference_A_minus_B = median(paired_diff, na.rm = TRUE),
+      mean_paired_difference_A_minus_B = mean(paired_diff, na.rm = TRUE),
+      W_stat = W_stat,
+      p_value = p_value
+    )
+  )
+}
+
+# p_value = significance for one motif pair before correction
+# FDR = significance after accounting for testing 66 motif pairs
+# Multiple-testing correction 
+pairwise_results = pairwise_results %>%
+  mutate(
+    FDR = p.adjust(p_value, method = "BH"),
+    minus_log10_FDR = -log10(FDR), # transform so now large +values means more significant
+    abs_median_difference = abs(median_paired_difference_A_minus_B),
+    direction = ifelse(
+      median_paired_difference_A_minus_B > 0,
+      paste0("motif", motif_A, " higher than motif", motif_B),
+      paste0("motif", motif_B, " higher than motif", motif_A)
+    ),
+    significant_FDR_0.05 = FDR < 0.05,
+    significant_FDR_0.10 = FDR < 0.10 # TRUE means this motif pair is significant at FDR < 0.10
+  ) %>%
+  arrange(FDR, desc(abs_median_difference)) # I rank the most significant-different pair first
+
+```
+
+For each motif pair, I first measured the size and direction of the ATAC log2FC difference, then tested whether that difference was statistically significant after correcting for all 66 pairwise comparisons. \
+
+```{r, engine='R', eval=F, echo=TRUE}
+plot_df_effect = pairwise_results %>%
+  mutate(
+    pair_name = factor(pair_name, levels = pair_name[order(median_paired_difference_A_minus_B)]),
+    sig_group = ifelse(FDR < 0.10, "FDR < 0.10", "Not significant")
+  )
+
+pdf("global_matched_66_pairwise_ATAC_log2FC_effect_size_dotplot.pdf", width = 8, height = 13, useDingbats = FALSE)
+
+print(
+  dotplot(
+    pair_name ~ median_paired_difference_A_minus_B,
+    data = plot_df_effect,
+    groups = sig_group,
+    auto.key = list(
+      title = "Significance",
+      columns = 2
+    ),
+    xlab = "Median paired ATAC log2FC difference: motif A - motif B",
+    ylab = "Motif pair",
+    main = "Globally matched peaks: pairwise ATAC log2FC differences",
+    panel = function(x, y, ...) {
+      panel.abline(v = 0, col = "grey60", lty = 2)
+      panel.grid(h = 0, v = -1, col = "grey90")
+      panel.dotplot(x, y, pch = 16, ...)
+    }
+  )
+)
+
+dev.off()
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+plot_df_sig = pairwise_results %>%
+  mutate(
+    pair_name = factor(
+      pair_name,
+      levels = pair_name[order(minus_log10_FDR)]
+    ),
+    sig_group = ifelse(FDR < 0.10, "FDR < 0.10", "Not significant")
+  )
+
+pdf(
+  "global_matched_66_pairwise_ATAC_log2FC_minus_log10FDR_dotplot.pdf",
+  width = 8,
+  height = 13,
+  useDingbats = FALSE
+)
+
+print(
+  dotplot(
+    pair_name ~ minus_log10_FDR,
+    data = plot_df_sig,
+    groups = sig_group,
+    auto.key = list(
+      title = "Significance",
+      columns = 2
+    ),
+    xlab = "-log10(FDR)",
+    ylab = "Motif pair",
+    main = "Globally matched peaks: pairwise Wilcoxon significance",
+    panel = function(x, y, ...) {
+      panel.abline(v = -log10(0.10), col = "red", lty = 2)
+      panel.abline(v = -log10(0.05), col = "blue", lty = 3)
+      panel.grid(h = 0, v = -1, col = "grey90")
+      panel.dotplot(x, y, pch = 16, ...)
+    }
+  )
+)
+
+dev.off()
+```
+
+plot the violin plot for paired log2FC differences: \
+```{r, engine='R', eval=F, echo=TRUE}
+# set levels: rank the most signidicant first
+pairwise_diff_df$pair_name = factor(pairwise_diff_df$pair_name, levels = unique(pairwise_results$pair_name))
+
+# violin plot for paired log2FC differences
+pdf("global_matched_pairwise_log2FC_difference_violin.pdf", width = 15, height = 10, useDingbats = FALSE)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+
+print(bwplot(log2FC_difference ~ pair_name,
+             data = pairwise_diff_df,
+             xlab = "Motif pair",
+             ylab = "Paired log2FC difference: motif A - motif B",
+             ylim=c(-2.5, 2.5),
+             scales = list(x = list(rot = 45, cex = 0.45), 
+                           y = list(cex = 0.8)),
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = 'transparent',
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+
+```
+
+
+## 1 by 1 pair-wise matching 
+
+Here, instead of doing a global match for all 12 motifs, we are matching between two sets of regions (with distinct motifs) at a time. For example, we are matching regions containing motif A and regions containing motifB that have comparable ATAC DMSO signals as well as ChIP-seq intensity. \  
+
+```{r, engine='R', eval=F, echo=TRUE}
+# module load R/4.1.2
+# R
+load("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
+# match for both chip intensity as well as dmso atac signals
+df_match =as.data.frame(DE.results.lattice[, c(2, 6, 7, 8, 9, 10)])
+df_match$motif = as.numeric(as.character(df_match$motif))
+
+# Log-transform matching variables because chip_intensity and DMSO_signal may have very different scales
+df_match$log_ChIP_intensity = log2(df_match$chip_intensity + 1)
+df_match$log_DMSO_signal = log2(df_match$DMSO_signal + 1)
+
+df_match = df_match[
+  !is.na(df_match$motif) &
+    !is.na(df_match$log_ChIP_intensity) &
+    !is.na(df_match$log_DMSO_signal),
+]
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(MatchIt)
+
+matched_list_treat_final = list()
+matched_list_control_final = list()
+matched_list_all = list()
+
+motif_pairs = combn(1:12, 2, simplify = FALSE) # all combinations # 66
+
+for (pair in motif_pairs) {
+  
+  motif_a = pair[1]
+  motif_b = pair[2]
+  
+  pair_name = paste0("motif", motif_a, "_vs_motif", motif_b)
+  print(pair_name)
+  
+  test = df_match[df_match$motif %in% c(motif_a, motif_b), ]
+  
+  # define motif_b as treatment group, motif_a as control group
+  test$group_binary = ifelse(test$motif == motif_b, 1, 0)
+  
+   out = matchit(
+    group_binary ~ log_ChIP_intensity + log_DMSO_signal,
+    data = test,
+    method = "nearest",
+    distance = "mahalanobis",
+    ratio = 1,
+    caliper = c(
+    log_ChIP_intensity = 0.1,
+    log_DMSO_signal = 0.1
+    ))
+  
+  matched_df = match.data(out)
+  
+  matched_control = matched_df[matched_df$group_binary == 0, ]
+  matched_treat   = matched_df[matched_df$group_binary == 1, ]
+  
+  matched_list_control_final[[pair_name]] = matched_control
+  matched_list_treat_final[[pair_name]]   = matched_treat
+  matched_list_all[[pair_name]]           = matched_df
+}
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(dplyr)
+library(lattice)
+library(latticeExtra)
+library(RColorBrewer)
+
+# Make long dataframe from matched_list_all
+plot_pair_df = do.call(rbind, lapply(names(matched_list_all), function(pair_name) {
+  
+  df = matched_list_all[[pair_name]]
+  df$pair = pair_name
+  df$peak = rownames(df)
+  
+  ## extract motif numbers from pair name
+  motif_nums = as.integer(unlist(regmatches(pair_name, gregexpr("[0-9]+", pair_name))))
+  motif_a = motif_nums[1]
+  motif_b = motif_nums[2]
+  
+  df$motif_side = ifelse(df$motif == motif_a,
+                          paste0("motif", motif_a),
+                          paste0("motif", motif_b))
+  
+  df[, c(
+    "pair",
+    "motif",
+    "motif_side",
+    "peak",
+    "subclass",
+    "group_binary",
+    "log2FoldChange",
+    "chip_intensity",
+    "DMSO_signal"
+  )]
+}))
+
+rownames(plot_pair_df) = NULL
+
+plot_pair_df$pair = factor(plot_pair_df$pair, levels = names(matched_list_all))
+plot_pair_df$motif = factor(plot_pair_df$motif, levels = 1:12)
+
+#head(plot_pair_df)
+#              pair motif motif_side                        peak subclass
+#1 motif1_vs_motif2     1     motif1 chr1:1238037-1238438_motif1     1268
+#2 motif1_vs_motif2     1     motif1 chr1:1740930-1741331_motif1     3595
+#3 motif1_vs_motif2     1     motif1 chr1:2001821-2002222_motif1     3479
+#4 motif1_vs_motif2     1     motif1 chr1:3703357-3703758_motif1     3561
+#5 motif1_vs_motif2     2     motif2 chr1:5688447-5688848_motif2     2959
+#6 motif1_vs_motif2     2     motif2 chr1:5959630-5960031_motif2     3415
+#  group_binary log2FoldChange chip_intensity DMSO_signal
+#1            0      0.1968487       43.01128    89.91213
+#2            0      0.1638587       30.26410   148.18576
+#3            0      0.2696854       36.15170   122.53889
+#4            0     -0.1499091      181.31618   249.57131
+#5            1     -1.0467053      134.69437    74.89265
+#6            1     -2.0765003      103.23573    59.51115
+
+
+save.image("260526_matched_both_int_dmso_pairwise.Rdata")
+
+table(plot_pair_df$pair)
+```
+
+Note: Each matched pairs have different sets of peaks: \
+ motif1_vs_motif2   motif1_vs_motif3   motif1_vs_motif4   motif1_vs_motif5 
+              8594               5152               4934               4072 
+  motif1_vs_motif6   motif1_vs_motif7   motif1_vs_motif8   motif1_vs_motif9 
+              5900               7236               3144               3408 
+ motif1_vs_motif10  motif1_vs_motif11  motif1_vs_motif12   motif2_vs_motif3 
+              3000               1780               3562               5088 
+  motif2_vs_motif4   motif2_vs_motif5   motif2_vs_motif6   motif2_vs_motif7 
+              4898               4018               5854               6986 
+  motif2_vs_motif8   motif2_vs_motif9  motif2_vs_motif10  motif2_vs_motif11 
+              3100               3352               2880               1764 
+ motif2_vs_motif12   motif3_vs_motif4   motif3_vs_motif5   motif3_vs_motif6 
+              3474               4362               3856               4790 
+  motif3_vs_motif7   motif3_vs_motif8   motif3_vs_motif9  motif3_vs_motif10 
+              5032               2990               3246               2778 
+ motif3_vs_motif11  motif3_vs_motif12   motif4_vs_motif5   motif4_vs_motif6 
+              1720               3324               3764               4628 
+  motif4_vs_motif7   motif4_vs_motif8   motif4_vs_motif9  motif4_vs_motif10 
+              4854               2960               3218               2732 
+ motif4_vs_motif11  motif4_vs_motif12   motif5_vs_motif6   motif5_vs_motif7 
+              1716               3216               3866               4040 
+  motif5_vs_motif8   motif5_vs_motif9  motif5_vs_motif10  motif5_vs_motif11 
+              2884               3108               2670               1714 
+ motif5_vs_motif12   motif6_vs_motif7   motif6_vs_motif8   motif6_vs_motif9 
+              3140               5690               3016               3250 
+ motif6_vs_motif10  motif6_vs_motif11  motif6_vs_motif12   motif7_vs_motif8 
+              2792               1714               3330               3086 
+  motif7_vs_motif9  motif7_vs_motif10  motif7_vs_motif11  motif7_vs_motif12 
+              3380               2926               1778               3494 
+  motif8_vs_motif9  motif8_vs_motif10  motif8_vs_motif11  motif8_vs_motif12 
+              2640               2392               1616               2708 
+ motif9_vs_motif10  motif9_vs_motif11  motif9_vs_motif12 motif10_vs_motif11 
+              2518               1668               2854               1626 
+motif10_vs_motif12 motif11_vs_motif12 
+              2700               1682 
+\
+
+The above number needs to be divided by 2 to get exact matched peaks \
+
+```{r, engine='R', eval=F, echo=TRUE}
+plot_pair_df %>%
+  group_by(pair) %>%
+  summarise(
+    n_rows = n(),
+    n_subclass = n_distinct(subclass),
+    rows_divided_by_2 = n_rows / 2,
+    .groups = "drop"
+  )
+# A tibble: 66 × 4
+#   pair              n_rows n_subclass rows_divided_by_2
+#   <fct>              <int>      <int>             <dbl>
+# 1 motif1_vs_motif2    8594       4297              4297
+# 2 motif1_vs_motif3    5152       2576              2576
+# 3 motif1_vs_motif4    4934       2467              2467
+# 4 motif1_vs_motif5    4072       2036              2036
+# 5 motif1_vs_motif6    5900       2950              2950
+# 6 motif1_vs_motif7    7236       3618              3618
+# 7 motif1_vs_motif8    3144       1572              1572
+# 8 motif1_vs_motif9    3408       1704              1704
+# 9 motif1_vs_motif10   3000       1500              1500
+#10 motif1_vs_motif11   1780        890               890
+```
+
+## plot
+
+### 1) plot DMSO vs. chip intensity
+
+```{r, engine='R', eval=F, echo=TRUE}
+pdf("new_pairwise_DMSO_vs_ChIP_colored_by_two_motifs.pdf", width = 18, height = 22, useDingbats = FALSE)
+
+print(
+  xyplot(
+    DMSO_signal ~ chip_intensity | pair,
+    data = plot_pair_df,
+    layout = c(6, 11),
+    xlab = "ChIP intensity",
+    ylab = "DMSO signal",
+    main = "Pairwise matched peaks: DMSO signal vs ChIP intensity",
+    scales = list(relation = "same"),
+    panel = function(x, y, subscripts, ...) {
+      
+      panel_df = plot_pair_df[subscripts, ]
+      
+      motif_levels = unique(panel_df$motif_side)
+      
+      col_use = ifelse(
+        panel_df$motif_side == motif_levels[1],
+        "#1F78B4",
+        "#A6CEE3"
+      )
+      
+      panel.xyplot(
+        x, y,
+        pch = 16,
+        cex = 0.45,
+        col = col_use
+      )
+    }
+  )
+)
+
+dev.off()
+```
+
+
+### 2) bw-violin
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+plot_df = plot_pair_df
+
+# Split pair_name like "motif1_vs_motif2"
+pair_parts = strsplit(as.character(plot_df$pair), "_vs_")
+
+plot_df$motif_A_label = sapply(pair_parts, function(z) z[1])
+plot_df$motif_B_label = sapply(pair_parts, function(z) z[2])
+
+# Constant x-axis positions: left and right
+plot_df$x_position = ifelse(
+  plot_df$motif_side == plot_df$motif_A_label,
+  "motif_A",
+  "motif_B"
+)
+
+plot_df$x_position = factor(plot_df$x_position, levels = c("motif_A", "motif_B"))
+plot_df$pair = factor(plot_df$pair)
+
+pdf("new_pairwise_matched_log2FC_violin_by_motif_pair.pdf", useDingbats = FALSE, width = 18, height = 22)
+
+trellis.par.set(
+  box.umbrella = list(lty = 1, col = "#93939380", lwd = 2),
+  box.rectangle = list(col = "#93939380", lwd = 1.6),
+  plot.symbol = list(col = "#93939380", lwd = 1.6, pch = ".")
+)
+
+print(
+  bwplot(
+    log2FoldChange ~ x_position | pair,
+    data = plot_df,
+    layout = c(6, 11),
+    between = list(y = 0.7, x = 0.7),
+    scales = list(
+      x = list(
+        at = c(1, 2),
+        labels = c("", ""),
+        relation = "same"
+      ),
+      y = list(relation = "same")
+    ),
+    xlab = "Motif in matched pair",
+    ylab = "ATAC log2FC: dTAG vs DMSO",
+    main = "Pairwise matched regions: ATAC log2FC by motif",
+    horizontal = FALSE,
+    col = "black",
+    aspect = 0.8,
+    par.settings = list(
+      par.xlab.text = list(cex = 1.2, font = 1),
+      par.ylab.text = list(cex = 1.2, font = 1),
+      par.main.text = list(cex = 1.2, font = 1),
+      plot.symbol = list(col = "black", lwd = 1.6, pch = 19, cex = 0.25)
+    ),
+    panel = function(..., box.ratio, col, subscripts) {
+      
+      panel.abline(h = 0, col = "grey45", lty = 2)
+      
+      panel.violin(
+        ...,
+        col = "#d9c8b1",
+        border = "gray50",
+        varwidth = FALSE,
+        box.ratio = box.ratio,
+        outer = FALSE
+      )
+      
+      panel.bwplot(...,
+        pch = "|",
+        do.out = FALSE
+      )
+      
+      # Add actual motif labels inside each panel
+      current_panel = plot_df[subscripts, ]
+      motif_A = unique(current_panel$motif_A_label)
+      motif_B = unique(current_panel$motif_B_label)
+      
+      panel_limits = current.panel.limits()
+      y_bottom = panel_limits$ylim[1]
+      y_top = panel_limits$ylim[2]
+      y_label = y_bottom + 0.08 * (y_top - y_bottom)
+      
+      panel.text(
+        x = 1,
+        y = y_label,
+        labels = motif_A,
+        cex = 0.65
+      )
+      
+      panel.text(
+        x = 2,
+        y = y_label,
+        labels = motif_B,
+        cex = 0.65
+      )
+    }
+  )
+)
+
+dev.off()
+```
+
+
+
+
+### 3) which motif pairs show stronger differences in chromatin accessibility changes
+
+Apply a statistically justified pairwise test to compare ATAC-seq log2FC differences between motif categories using pairwise matched peak sets, and **identify which motif pairs show stronger differences in chromatin accessibility changes compared with others.** \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# step0: determine a pair-wise statistical test 
+# Because the peak sets were pair-wise matched across motif categories by GATA3 ChIP-seq intensity and baseline DMSO ATAC signal, motif comparisons are paired rather than independent. For each motif pair, I compared ATAC-seq log2FC values within the same matched row using a paired Wilcoxon signed-rank test (which does not assume normally distributed data), followed by FDR correction across all 66 comparisons.
+
+# module load R/4.1.2
+# R
+library(dplyr)
+library(tidyr)
+library(lattice)
+
+load("260526_matched_both_int_dmso_pairwise.Rdata")
+# table(plot_pair_df$pair)
+
+plot_pair_df2 = plot_pair_df %>%
+  mutate(
+    pair = as.character(pair),
+    motif = as.integer(as.character(motif)),
+    subclass = as.character(subclass),
+    motif_col = paste0("motif", motif)
+  )
+
+pair_wide_df = plot_pair_df2 %>%
+  select(pair, subclass, motif_col, log2FoldChange) %>%
+  pivot_wider(
+    names_from = motif_col,
+    values_from = log2FoldChange,
+    values_fn = mean
+  )
+
+
+
+all_pairs = sort(unique(pair_wide_df$pair))
+
+pairwise_results = data.frame()
+pairwise_diff_df = data.frame()
+
+for (p in all_pairs) {
+  
+  one_pair = pair_wide_df %>%
+    filter(pair == p)
+  
+  ## identify the two motif columns present in this pair
+  motif_cols = grep("^motif[0-9]+$", colnames(one_pair), value = TRUE)
+  motif_cols = motif_cols[colSums(!is.na(one_pair[, motif_cols, drop = FALSE])) > 0]
+  
+  col_A = motif_cols[1]
+  col_B = motif_cols[2]
+  
+  motif_A = gsub("motif", "", col_A)
+  motif_B = gsub("motif", "", col_B)
+  
+  test_df = one_pair[, c("subclass", col_A, col_B)]
+  test_df = test_df[complete.cases(test_df), ]
+  
+  x = test_df[[col_A]]
+  y = test_df[[col_B]]
+  
+  paired_diff = x - y
+  
+  # save the log2FC dif--for violin
+  pairwise_diff_df = rbind(
+    pairwise_diff_df,
+    data.frame(
+      pair = p,
+      subclass = test_df$subclass,
+      motif_A = motif_A,
+      motif_B = motif_B,
+      log2FC_A = x,
+      log2FC_B = y,
+      log2FC_difference_A_minus_B = paired_diff
+    )
+  )
+  
+  # wilcox.test
+  if (length(paired_diff) >= 3 && length(unique(paired_diff)) > 1) {
+    
+    wt = wilcox.test(x,y,
+      paired = TRUE,
+      exact = FALSE
+    )
+    
+    p_value = wt$p.value
+    W_stat = as.numeric(wt$statistic)
+    
+  } else {
+    
+    p_value = NA
+    W_stat = NA
+  }
+  
+  pairwise_results = rbind(
+    pairwise_results,
+    data.frame(
+      pair = p,
+      motif_A = motif_A,
+      motif_B = motif_B,
+      n_matched_pairs = length(paired_diff),
+      median_log2FC_A = median(x, na.rm = TRUE),
+      median_log2FC_B = median(y, na.rm = TRUE),
+      median_paired_difference_A_minus_B = median(paired_diff, na.rm = TRUE),
+      mean_paired_difference_A_minus_B = mean(paired_diff, na.rm = TRUE),
+      W_stat = W_stat,
+      p_value = p_value
+    )
+  )
+}
+
+
+#  FDR correction
+pairwise_results = pairwise_results %>%
+  mutate(
+    FDR = p.adjust(p_value, method = "BH"),
+    minus_log10_FDR = -log10(pmax(FDR, .Machine$double.xmin)),
+    abs_median_difference = abs(median_paired_difference_A_minus_B),
+    direction = ifelse(
+      median_paired_difference_A_minus_B > 0,
+      paste0("motif", motif_A, " higher than motif", motif_B),
+      paste0("motif", motif_B, " higher than motif", motif_A)
+    ),
+    sig_group = ifelse(FDR < 0.10, "FDR < 0.10", "Not significant")
+  ) %>%
+  arrange(FDR, desc(abs_median_difference))
+
+
+nrow(pairwise_results) # 66
+```
+
+plot the median(motif A log2FC - motif B log2FC), group by the FDR adjusted significance: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# dotplot 1
+
+plot_df_effect = pairwise_results %>%
+  mutate(
+    pair = factor(
+      pair,
+      levels = pair[order(median_paired_difference_A_minus_B)]
+    )
+  )
+
+pdf("pairwise_matched_ATAC_log2FC_effect_size_dotplot.pdf", width = 8, height = 13, useDingbats = FALSE)
+
+print(
+  dotplot(
+    pair ~ median_paired_difference_A_minus_B,
+    data = plot_df_effect,
+    groups = sig_group,
+    auto.key = list(
+      title = "Significance",
+      columns = 2
+    ),
+    xlab = "Median paired ATAC log2FC difference: motif A - motif B",
+    ylab = "Motif pair",
+    main = "Pairwise matched peaks: ATAC log2FC differences",
+    panel = function(x, y, ...) {
+      panel.abline(v = 0, col = "grey60", lty = 2)
+      panel.grid(h = 0, v = -1, col = "grey90")
+      panel.dotplot(x, y, pch = 16, ...)
+    }
+  )
+)
+
+dev.off()
+```
+
+plot the -log10(FDR) to whether the median difference of each pair is significant or not, and rank by significant /FDR value: \
+
+```{r, engine='R', eval=F, echo=TRUE}
+# dot plot 2
+plot_df_sig = pairwise_results %>%
+  mutate(
+    pair = factor(
+      pair,
+      levels = pair[order(minus_log10_FDR)]
+    )
+  )
+
+pdf("pairwise_matched_ATAC_log2FC_minus_log10FDR_dotplot.pdf", width = 8, height = 13, useDingbats = FALSE)
+
+print(
+  dotplot(
+    pair ~ minus_log10_FDR,
+    data = plot_df_sig,
+    groups = sig_group,
+    auto.key = list(
+      title = "Significance",
+      columns = 2
+    ),
+    xlab = "-log10(FDR)",
+    ylab = "Motif pair",
+    main = "Pairwise matched peaks: paired Wilcoxon significance",
+    panel = function(x, y, ...) {
+      panel.abline(v = -log10(0.10), col = "red", lty = 2)
+      panel.abline(v = -log10(0.05), col = "blue", lty = 3)
+      panel.grid(h = 0, v = -1, col = "grey90")
+      panel.dotplot(x, y, pch = 16, ...)
+    }
+  )
+)
+
+dev.off()
+```
+
+plot the violin plot for paired log2FC differences: \
+```{r, engine='R', eval=F, echo=TRUE}
+# set levels: rank the most signidicant first
+pairwise_diff_df$pair_name = factor(pairwise_diff_df$pair_name, levels = unique(pairwise_results$pair_name))
+
+# set levels: rank the most different pairs first
+#pairwise_results_for_plot = pairwise_results %>%
+#  arrange(desc(abs_median_difference), FDR)
+# pairwise_diff_df$pair = factor(pairwise_diff_df$pair,levels = pairwise_results_for_plot$pair)
+
+# violin plot for paired log2FC differences
+pdf("pairwise_matched_log2FC_difference_violin.pdf", width = 15, height = 10, useDingbats = FALSE)
+
+trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
+                box.rectangle = list(col = '#93939380', lwd=1.6),
+                plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
+
+
+print(bwplot(log2FC_difference_A_minus_B ~ pair,,
+             data = pairwise_diff_df,
+             xlab = "Motif pair",
+             ylab = "Paired log2FC difference: motif A - motif B",
+             ylim=c(-2.5, 2.5),
+             scales = list(x = list(rot = 45, cex = 0.45), 
+                           y = list(cex = 0.8)),
+             horizontal =FALSE,  
+             col= 'black',
+             aspect = 0.3,
+             par.settings=list(par.xlab.text=list(cex=1.2,font=1),
+                               par.ylab.text=list(cex=1.2,font=1),
+                               par.main.text=list(cex=1.2, font=1),
+                               plot.symbol = list(col='black', lwd=1.6, pch =19, cex = 0.25)),
+             strip = function(..., which.panel, bg) {
+               #bg.col = c("#ce228e" ,"grey60", "#2290cf","grey90")
+               strip.default(..., which.panel = which.panel,
+                             bg = rep(bg.col, length = which.panel)[which.panel])
+             },
+             panel = function(..., box.ratio, col) {
+                 panel.abline(h = 0, col = 'grey45', lty = 2)
+                 panel.violin(..., col = 'transparent',
+                              varwidth = FALSE, box.ratio = box.ratio, outer = FALSE)
+                 #panel.stripplot(..., col='#724ed880', do.out=FALSE, jitter.data=TRUE, amount = 0.2, pch = 16)
+                 panel.bwplot(..., pch = '|', do.out = FALSE)
+           
+       }))
+dev.off()
+
+```
+
+
+
+
+
