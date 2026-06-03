@@ -1,0 +1,13 @@
+---
+title: "GATA3_ATAC_analysis"
+output: html_document
+date: "2026-06-03"
+---
+
+# Compare ATAC-seq signal change (upon GATA3 depletion) properly for GATA3 binding regions
+
+By “properly,” I specifically mean that we are comparing changes in ATAC-seq signal upon GATA3 depletion only at GATA3-bound regions that: \
+1) contain one distinct GATA3 motif, \
+2) have matched or comparable ChIP-seq intensities, and \
+3) have matched or comparable baseline ATAC-seq signals in DMSO. \
+After these potential confounding factors are properly controlled, we can compare the ATAC-seq log2FC across regions containing different GATA3 motif variants and determine whether motif variation is associated with differences in chromatin accessibility changes upon GATA3 depletion.
