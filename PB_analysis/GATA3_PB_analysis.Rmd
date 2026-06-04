@@ -1430,10 +1430,6 @@ rm *meme.txt
 
 Motif enriched in top 5,000 peak match to GATA3 \
 
-```{r  out.width = "100%", echo=F, fig.align = "center", fig.cap="GATA3 motif variants 1"}
-#library(knitr)
-knitr::include_graphics("./de_novo_motif/GATAmotif1.pdf") 
-```
 
 MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
 Usage: http://meme-suite.org/tools/mast \
