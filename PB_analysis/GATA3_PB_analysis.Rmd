@@ -1509,19 +1509,20 @@ module load meme/5.4.1
         -r
 ```
 
+-->
 
 PB-seq high intensity:
-MEME --> single site
-GLAM2 --> spaced motif
+MEME -> single site
+GLAM2 -> spaced motif
 
 PB-seq low intensity:
-MEME --> spaced motif
+MEME -> spaced motif
 
 ChIP-seq high intensity:
-MEME --> spaced motif
+MEME -> spaced motif
 
 
-Although MEME detects only a single GATA-site motif from the top PB-seq peaks, GLAM2 recovers a spaced motif from the same high-intensity PB-seq subset. This suggests that spaced GATA-site configurations are present in high-intensity PB-seq peaks but are not the most dominant ungapped motif signal. In contrast, MEME can recover spaced motifs from high-intensity ChIP-seq peaks, implying that the spaced architecture is more consistently enriched or better aligned relative to the ChIP-seq peak centers in vivo.
+Although MEME detects only a single GATA-site motif from the top PB-seq peaks, GLAM2 recovers a spaced motif from the same high-intensity PB-seq subset. This suggests that spaced GATA-site configurations are present in high-intensity PB-seq peaks but are not the most dominant ungapped motif signal. In contrast, MEME can recover spaced motifs from high-intensity ChIP-seq peaks, implying that the spaced architecture is more consistently enriched or better aligned relative to the ChIP-seq peak centers in vivo. \
 
 
 <!--
