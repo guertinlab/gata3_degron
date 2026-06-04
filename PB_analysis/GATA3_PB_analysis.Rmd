@@ -958,7 +958,7 @@ head mast_hits_near_0.00005.fasta
 
 
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 # Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
 intersectBed -v -a ../GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > PB_without_glam2_motifs_1.bed #74460
 fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1.bed -fo PB_without_glam2_motifs_1.fasta
@@ -967,7 +967,7 @@ fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1.bed -fo PB_without_glam2
 
 ## GLAM2-all-round2
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=Glam2_round2_all.sh
 #SBATCH -N 1
@@ -1334,7 +1334,7 @@ glam2 -O GATA_PB_without_glam2_motifs_12_161win_glam2_round4_output -2 n PB_with
 ## GLAM2-round1:
 
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=Glam2_round1.sh
 #SBATCH -N 1
@@ -1392,7 +1392,7 @@ fastaFromBed -fi $genome -bed GATA_PB_top5000_161window.bed -fo GATA_PB_top5000_
 ```
 
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 # working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2
 
 #!/bin/bash
@@ -1420,7 +1420,7 @@ glam2 -O GATA_PB_top5000_161win_glam2_output_round1 -2 n GATA_PB_top5000_161wind
 top5000 peaks gives a GATA3 spaced motif (tandem 13bp; thrid motif), maybe start from here
 
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 #wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
 python MEME_individual_from_db_python3_updated.py -i GATA_PB_top5000_161win_glam2_output_round1/glam2.meme
 mkdir Glam2_individual_meme
@@ -1477,9 +1477,7 @@ sort -nrk4,4 PB_without_glam2_motifs_1.bed | head -n 5000 > PB_without_glam2_mot
 fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1_top5000.bed -fo PB_without_glam2_motifs_1_top5000.fasta
 ```
 
-```{r}
-# working directory: c
-
+```{r engine='R', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=Glam2_round2_top5000.sh
 #SBATCH -N 1
@@ -1501,7 +1499,7 @@ module load meme/5.4.1
 glam2 -O GATA_PB_without_glam2_motifs_1_top5000_161win_glam2__round2_output -2 n PB_without_glam2_motifs_1_top5000.fasta
 ```
 
-```{r}
+```{r engine='R', eval=F, echo=TRUE}
 module load meme/5.4.1
 # generate seqlogo
  ceqlogo -i1 "glam2.meme" \
