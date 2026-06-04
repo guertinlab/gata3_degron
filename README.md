@@ -13,7 +13,7 @@ GATA3 PB-seq analysis
 https://guertinlab.github.io/gata3_degron/PB_analysis/GATA3_PB_analysis.html
 
 
-GATA3 ATAC-seq analysis
+GATA3 dTAGv1 degradation ATAC-seq analysis
 
 https://guertinlab.github.io/gata3_degron/ATAC_analysis/GATA3_ATAC_analysis.html
 
