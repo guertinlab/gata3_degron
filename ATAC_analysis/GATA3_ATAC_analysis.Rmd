@@ -55,13 +55,13 @@ if (!requireNamespace("Biostrings", quietly = TRUE)) {
 ```
 
 Install `latticeExtra` \
-```{r engine='R', eval=TRUE, echo=T}
+```{r engine='R', eval=F, echo=T}
 install.packages("latticeExtra", quiet = TRUE)
 ```
 
 ## Renaming
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 for i in *R1_001.fastq.gz
 do
     name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_S" '{print $1}')
@@ -79,7 +79,7 @@ done
 `-o` (PE1) and `-p` (PE2) specfies the output file. \
 The last two positional areguments are the input fastq files. We save the output to a log file. \
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load cutadapt/3.5
 
 for i in ../raw_fastq_renamed/*PE1.fastq
@@ -99,7 +99,7 @@ done
 # Alighment
 
 ## Filter reads that align to the mitochondrial chromosome
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load genometools/1.5.10
 module load bowtie2
 
@@ -112,7 +112,7 @@ bowtie2-build chrM.fa chrM
 Since mitochondrial DNA is preferentially targeted by transposase (more accessible), we first align to chrM and filter these aligned reads out before aligning to human genome. \
 We first align the PE1 and PE2 read to chrM, then we sort the file, use `samtools collate` to shuffle and group reads together with the same prefix, and use `samtools` and the `-f` option with the flag `0x4` to output the reads that do **NOT** align to the mitochondrial genome. \
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load samtools/1.9
 module load bowtie2
 
@@ -138,7 +138,7 @@ The filterred reads (that have removed reads align to ChrM) are now aligning to 
 Then the output is piped to samtools to convert to bam, then sorted by name (`-n`) so paired end reads are adjacent in the file, then piped to `samtools fixmate` which adds information about the fragment length by comparing the PE1 and PE2 coordinates, then the files are sorted by coordinate, then piped to `samtools markdup` to remove duplicate reads. Duplicate reads have the same PE1 and PE2 ends. \
 The fixmate step is necessary to pipe to markdup. \
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load samtools/1.16.1
 module load bowtie2
 
@@ -155,7 +155,7 @@ do
 done
 ```
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 #250506 modification: get the unmapped sequences
 module load samtools/1.16.1
 module load bowtie2
@@ -178,7 +178,7 @@ done
 
 
 zip the intermediate files. \
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 for i in *_PE1_no_adapt.fastq
 do
     name=$(echo $i | awk -F"/" '{print $NF}' | awk -F"_PE1" '{print $1}')
@@ -193,7 +193,7 @@ done
 We used `seqOutBias` to convert the data into BED format. The `--no-scale` flag was included to prevent correction for enzymatic sequence bias in chromatin accessibility assays, and `--custom-shift=4,-4` was used to specify the center of the transposase interaction site. The `grep` step removes incomplete contigs and the Epstein-Barr virus genome. \
 
 `seqOutBias` mappability files generation: \
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load genometools/1.5.10
 module load ucsc_genome/2012.05.22
 module load rust
@@ -206,7 +206,7 @@ seqOutBias seqtable ${genome} --read-size=40 2>&1 | tee seqOutBias_40.log
 
 Convert BAM to bed for counting (previously created the tallymer with seqOutBias seqtable) \
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load genometools/1.5.10
 module load ucsc_genome/2012.05.22
 module load rust
@@ -245,7 +245,7 @@ relevant track files are here: \
 [normalize with scale factor or Deseq2 size factor] \
 
 
-```{r engine='bash', eval=TRUE, echo=T}
+```{r engine='bash', eval=F, echo=T}
 module load bedtools
 module load samtools
 module load genometools/1.5.10
@@ -1228,12 +1228,12 @@ save.image("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
 
 ## Globally all 12 motifs 
 
-````{r, engine='R', eval=F, echo=TRUE}
+```{r, engine='R', eval=F, echo=TRUE}
 load("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
 ```
 
 
-````{r, engine='R', eval=F, echo=TRUE}
+```{r, engine='R', eval=F, echo=TRUE}
 # match for both chip intensity as well as dmso atac signals
 df_match =as.data.frame(DE.results.lattice[, c(2, 6, 7, 8, 9, 10)])
 df_match$motif = as.numeric(as.character(df_match$motif))
