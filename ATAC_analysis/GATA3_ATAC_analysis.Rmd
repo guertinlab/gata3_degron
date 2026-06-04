@@ -1779,7 +1779,7 @@ dev.off()
 
 ### 5) categorize up/down/unchanged ATAC signals across regions with distinct motif
 
- **Determine whether binding intensity is associated with chromatin accessibility changes**: For each motif category, classify ChIP-seq regions using both raw log2FC-based groups and significance-based groups. Then plot bwplots to compare GATA3 ChIP-seq intensity across ATAC-up, ATAC-down, and unchanged/non-significant regions. \
+**Determine whether binding intensity is associated with chromatin accessibility changes**: For each motif category, classify ChIP-seq regions using both raw log2FC-based groups and significance-based groups. Then plot bwplots to compare GATA3 ChIP-seq intensity across ATAC-up, ATAC-down, and unchanged/non-significant regions. \
  
 ```{r, engine='R', eval=F, echo=TRUE}
 # module load R/4.1.2
@@ -2710,12 +2710,8 @@ plot the median(motif A log2FC - motif B log2FC), group by the FDR adjusted sign
 # dotplot 1
 
 plot_df_effect = pairwise_results %>%
-  mutate(
-    pair = factor(
-      pair,
-      levels = pair[order(median_paired_difference_A_minus_B)]
-    )
-  )
+  mutate(pair = factor(pair, levels = pair[order(median_paired_difference_A_minus_B)])
+)
 
 pdf("pairwise_matched_ATAC_log2FC_effect_size_dotplot.pdf", width = 8, height = 13, useDingbats = FALSE)
 
@@ -2742,7 +2738,7 @@ print(
 dev.off()
 ```
 
-plot the -log10(FDR) to whether the median difference of each pair is significant or not, and rank by significant /FDR value: \
+plot the -log10(FDR) to whether the median difference of each pair is significant or not, and rank by significance /FDR value: \
 
 ```{r, engine='R', eval=F, echo=TRUE}
 # dot plot 2
@@ -2783,7 +2779,7 @@ dev.off()
 plot the violin plot for paired log2FC differences: \
 ```{r, engine='R', eval=F, echo=TRUE}
 # set levels: rank the most signidicant first
-pairwise_diff_df$pair_name = factor(pairwise_diff_df$pair_name, levels = unique(pairwise_results$pair_name))
+pairwise_diff_df$pair = factor(pairwise_diff_df$pair, levels = unique(pairwise_results$pair))
 
 # set levels: rank the most different pairs first
 #pairwise_results_for_plot = pairwise_results %>%
@@ -2798,7 +2794,7 @@ trellis.par.set(box.umbrella = list(lty = 1, col="#93939380", lwd=2),
                 plot.symbol = list(col='#93939380', lwd=1.6, pch ='.'))
 
 
-print(bwplot(log2FC_difference_A_minus_B ~ pair,,
+print(bwplot(log2FC_difference_A_minus_B ~ pair,
              data = pairwise_diff_df,
              xlab = "Motif pair",
              ylab = "Paired log2FC difference: motif A - motif B",
