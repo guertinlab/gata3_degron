@@ -2778,7 +2778,7 @@ dev.off()
 
 plot the violin plot for paired log2FC differences: \
 ```{r, engine='R', eval=F, echo=TRUE}
-# set levels: rank the most signidicant first
+# set levels: rank the most significant first
 pairwise_diff_df$pair = factor(pairwise_diff_df$pair, levels = unique(pairwise_results$pair))
 
 # set levels: rank the most different pairs first
