@@ -745,6 +745,13 @@ function toggle_visibility(id1) {
 <li><a href="#glam2-all-round2" id="toc-glam2-all-round2"><span class="toc-section-number">9.3</span> GLAM2-all-round2</a></li>
 <li><a href="#glam2-all-round3" id="toc-glam2-all-round3"><span class="toc-section-number">9.4</span> GLAM2-all-round3</a></li>
 <li><a href="#glam2-all-round4" id="toc-glam2-all-round4"><span class="toc-section-number">9.5</span> GLAM2-all-round4</a></li>
+<li><a href="#glam2-all-round4-1" id="toc-glam2-all-round4-1"><span class="toc-section-number">9.6</span> GLAM2-all-round4-1</a>
+<ul>
+<li><a href="#alternatively-try-meme" id="toc-alternatively-try-meme"><span class="toc-section-number">9.6.1</span> alternatively try MEME</a></li>
+<li><a href="#conduct-tomtom" id="toc-conduct-tomtom"><span class="toc-section-number">9.6.2</span> Conduct TOMTOM</a></li>
+<li><a href="#conduct-tomtom-meme" id="toc-conduct-tomtom-meme"><span class="toc-section-number">9.6.3</span> Conduct TOMTOM-meme</a></li>
+</ul></li>
+<li><a href="#glam2-all-round5" id="toc-glam2-all-round5"><span class="toc-section-number">9.7</span> GLAM2-all-round5</a></li>
 </ul></li>
 </ul>
 </div>
@@ -1291,8 +1298,24 @@ Figure 2: <span class="caption-title">Frip</span><br>
 </div>
 <div id="exaustive-de-novo-motif-analysis-in-pb-seq-peaks" class="section level1" number="7">
 <h1><span class="header-section-number">7</span> Exaustive de novo motif analysis in PB-seq peaks</h1>
-<p>For PB-seq peaks, each peak should ideally contains at least one GATA3 binding site. By conducting a kmer analysis, we are confident that the</p>
-<p>Working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust</p>
+<p>For PB-seq peaks, each peak is expected to contain at least one GATA3 binding site. Based on prior ChIP-seq de novo motif analysis, we expected to identify uniquely oriented and spaced GATA3 motifs in PB-seq peaks that are similar to those observed in ChIP-seq.<br />
+</p>
+<p>However, when performing de novo motif analysis on PB-seq peaks using the MEME Suite, we observed the following:<br />
+</p>
+<p>PB-seq high intensity peaks:<br />
+MEME -&gt; single site GATA3 motif<br />
+GLAM2 -&gt; spaced GATA3 motif<br />
+</p>
+<p>PB-seq low intensity peaks:<br />
+MEME -&gt; spaced GATA3 motif<br />
+</p>
+<p>ChIP-seq high intensity:<br />
+MEME -&gt; spaced GATA3 motif<br />
+</p>
+<p>Although MEME detects only a single GATA-site motif from the top PB-seq peaks, GLAM2 recovers a spaced motif from the same high-intensity PB-seq subset. This suggests that spaced GATA-site configurations are present in high-intensity PB-seq peaks but are not the most dominant ungapped motif signal. In contrast, MEME can recover spaced motifs from high-intensity ChIP-seq peaks, implying that the spaced architecture is more consistently enriched or better aligned relative to the ChIP-seq peak centers in vivo.<br />
+</p>
+<p>Additionally, k-mer analysis further supports that spaced GATA3 motif configurations are enriched in PB-seq peaks.<br />
+</p>
 <div id="updated-parse_mast_to_coordinates.r" class="section level2" number="7.1">
 <h2><span class="header-section-number">7.1</span> Updated parse_mast_to_coordinates.R</h2>
 <p>Path to file: /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R<br />
@@ -1392,8 +1415,6 @@ done
 <div id="glam2" class="section level1" number="9">
 <h1><span class="header-section-number">9</span> GLAM2</h1>
 <p>Quote from MEME suite: GLAM2 discovers novel, gapped motifs (recurring, variable-length patterns) in your DNA or protein sequences.<br />
-</p>
-<p>working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2<br />
 </p>
 <div id="input-sequences-gata3-pb-seq-data-in-vitro-1" class="section level2" number="9.1">
 <h2><span class="header-section-number">9.1</span> Input sequences: GATA3 PB-seq data in vitro</h2>
@@ -1516,7 +1537,7 @@ cat tomtom_glam2_vs_chip12_qval/tomtom.tsv
 #1  TTATCTBYNNVATCT       -5                0.00260378  0.0312454       0.0312454     15          TAGATAAAAAAAAAAGATAA  AGATGAAAGAGATAA     -
 #1  21-AGATAAGG           -14               0.00461196  0.0553435       0.0368957               TAGATAAAAAAAAAAGATAA    AGATAAGG              +
 </code></pre>
-<p><strong>A coherence for using TOMTOM:</strong><br />
+<p><strong>A coherence check for using TOMTOM:</strong><br />
 </p>
 <pre class="bash"><code># negative control: TOMTOM the neg top glam2 motif against the 12 chip motif
 python ../MEME_individual_from_db_python3_updated.py -i ../GATA_PB_negcontrol_ran5000_161win_glam2_output/glam2.meme
@@ -1987,6 +2008,275 @@ module load meme/5.5.9
 
 # all PB-seq peaks without glam2_found motif123
 glam2 -O GATA_PB_without_glam2_motifs_12_161win_glam2_round4_output -2 n PB_without_glam2_motifs_123.fasta</code></pre>
+<p>This round of GLAM2 generated a top GATA3-like motif, tandem-12, but the motif structure does not look very strong. One of the half-sites appears less promising.<br />
+</p>
+</div>
+<div id="glam2-all-round4-1" class="section level2" number="9.6">
+<h2><span class="header-section-number">9.6</span> GLAM2-all-round4-1</h2>
+<p>I decided to modify the glam2 command by modifying on some parameters:<br />
+<code>-n</code> Specify how many iterations should pass since the highest-scoring alignment seen so far before ending each alignment run.<br />
+<code>-z</code> Specify the minimum number sequences that must participate in the alignment. If greater than the number of input sequences, then all the sequences must participate.<br />
+<code>-a</code> minimum aligned; Specify the minimum number of key positions (aligned columns) in the alignment.<br />
+<code>-b</code> maximum aligned; Specify the maximum number of key positions (aligned columns) in the alignment.<br />
+<code>-w</code> aligned columns; Specify the initial number of key positions (aligned columns) in the alignment. If less than the minimum (-a) or greater than the maximum (-b), it is increased to the minimum or reduced to the maximum.<br />
+</p>
+<pre class="bash"><code>#!/bin/bash
+#SBATCH --job-name=Glam2_round4_all_1.sh
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_round4_all_1.sh_%j.out
+#SBATCH -e Glam2_round4_all_1.sh_%j.err
+
+hostname
+export TMPDIR=&quot;${HOME}/temp&quot;
+module load py-deeptools
+module load meme/5.5.9
+
+# all PB-seq peaks without glam2_found motif123
+glam2 -n 1000000 -z 1000000 -a 8 -b 30 -w 16 -O GATA_PB_without_glam2_motifs_12_161win_glam2_round4_output1 -2 n PB_without_glam2_motifs_123.fasta</code></pre>
+<div id="alternatively-try-meme" class="section level3" number="9.6.1">
+<h3><span class="header-section-number">9.6.1</span> alternatively try MEME</h3>
+<p>I also submitted a MEME job using the top 5,000 PB-seq peaks, after removing peaks containing the motifs identified in GLAM2 rounds 1, 2, and 3. I used this 5000-peak subset to reduce the MEME running time.<br />
+</p>
+<pre class="bash"><code>#!/bin/bash
+#SBATCH --job-name=Glam2_round4_all_meme.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_round4_all_meme.sh_%j.out
+#SBATCH -e Glam2_round4_all_meme.sh_%j.err
+
+hostname
+export TMPDIR=&quot;${HOME}/temp&quot;
+module load py-deeptools
+module load meme/5.5.9
+
+
+sort -nrk4,4 PB_without_glam2_motifs_123.bed | head -n 5000 &gt; PB_without_glam2_motifs_123_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123_top5000.bed -fo PB_without_glam2_motifs_123_top5000.fasta
+
+# all PB-seq peaks without glam2_found motif123
+meme -p 32 -oc GATA_PB_without_glam2_motifs_123_161win_meme_round4_output -nmotifs 10 -objfun classic -csites 20000 -searchsize 0 -minw 8 -maxw 30 -revcomp -dna -markov_order 2 -maxsize 100000000 PB_without_glam2_motifs_123_top5000.fasta</code></pre>
+<p>MEME on top5000 PB-seq peak (without motif1,2,3) identified a tandem-12 motif (looks better than GLAM2 original round4 top motif) as the top enriched motif (2978 sites of 5000); it also reports a convergent-8 as the 8th motif (321 sites of 5000).<br />
+</p>
+</div>
+<div id="conduct-tomtom" class="section level3" number="9.6.2">
+<h3><span class="header-section-number">9.6.2</span> Conduct TOMTOM</h3>
+<p>Because independent MEME and GLAM2 analyses both identified a tandem-12 GATA3 motif as the top enriched motif, I believe that the tandem-12 motif is enriched in the remaining PB-seq peaks after excluding peaks containing the round 1, 2, and 3 motifs. I am now conducting TOMTOM analysis to match this motif (glam2-round4 top) to the ChIP-seq motifs.<br />
+</p>
+<pre class="bash"><code>module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: chip_12_motifs.meme
+
+# get the top Glam2 motif
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_without_glam2_motifs_12_161win_glam2_round4_output/glam2.meme
+# mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif4_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round4 -thresh 0.05 -dist pearson Glam2_all_individual_meme/Glam2_PB_GATAmotif4_meme.txt chip_12_motifs.meme
+
+cat tomtom_glam2_vs_chip12_qval_round4/tomtom.tsv
+# Using a TOMTOM threshold of 0.05, we did not identify any significant matches between the GLAM2 round 4 top motif and the 12 ChIP-seq motifs. This may be because the GLAM2 round 4 top motif is relatively degenerate.
+</code></pre>
+</div>
+<div id="conduct-tomtom-meme" class="section level3" number="9.6.3">
+<h3><span class="header-section-number">9.6.3</span> Conduct TOMTOM-meme</h3>
+<pre class="bash"><code>module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: chip_12_motifs.meme
+
+# get the top Glam2 motif
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_without_glam2_motifs_123_161win_meme_round4_output/meme.txt
+# mkdir Glam2_all_individual_meme
+cp MEME-1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif4_2_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round4_2 -thresh 0.05 -dist pearson Glam2_all_individual_meme/Glam2_PB_GATAmotif4_2_meme.txt chip_12_motifs.meme
+
+cat tomtom_glam2_vs_chip12_qval_round4_2/tomtom.tsv
+# Query_ID  Target_ID   Optimal_offset  p-value E-value q-value OverlapQuery_consensus  Target_consensus    Orientation
+#CTTATCTBWWWTHWRATCT    21-AGATAAGG 1   0.000156447 0.00187737  0.00375474  7   CTTATCTTTTTTAAAATCT CCTTATCT    -
+#CTTATCTBWWWTHWRATCT    NAGATBNNARNNVWGATA  -2  0.00119248  0.0143097   0.0143097   17  CTTATCTTTTTTAAAATCT TATCTGTATTGCCATCTC  -
+#CTTATCTBWWWTHWRATCT    NCTTATCWGAT 1   0.00448008  0.0537609   0.0358406   10  CTTATCTTTTTTAAAATCT TCTTATCTGAT +
+#CTTATCTBWWWTHWRATCT    TTATCTBYNNVATCT -1  0.00667381  0.0800858   0.0400429   15  CTTATCTTTTTTAAAATCT TTATCTCTTTCATCT +
+#CTTATCTBWWWTHWRATCT    YTTATCTYYNNHVATCT   0   0.00838687  0.100640.040257 17  CTTATCTTTTTTAAAATCT CTTATCTTTTCCAATCT   +</code></pre>
+<p>Among the 12 ChIP-seq motif variants, TOMTOM ranked motif NAGATBNNARNNVWGATA as the closest spaced match (ignoring the top being the single site motif) to the top round2_GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously.<br />
+</p>
+<p>Mast using the closest matched ChIP-seq motif<br />
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif.<br />
+Usage: <a href="http://meme-suite.org/tools/mast" class="uri">http://meme-suite.org/tools/mast</a><br />
+</p>
+<pre class="bash"><code>genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir=&quot;/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/&quot;
+tomtom_tsv=&quot;tomtom_glam2_vs_chip12_qval_round3/tomtom.tsv&quot;
+
+best_target=&quot;NAGATBNNARNNVWGATA&quot;
+
+matched_file=$(awk -v target=&quot;$best_target&quot; &#39;
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+&#39; &quot;$meme_dir&quot;*meme.txt)
+
+# Best TOMTOM Target_ID: NAGATBNNARNNVWGATA
+
+#echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif7_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_123.fasta &gt; mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt #19600
+
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed #19597
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk &#39;BEGIN{OFS=&quot;\t&quot;}
+{
+    p = $5
+    if (p &gt;= 0.00009 &amp;&amp; p &lt;= 0.0001) {
+        name = $1 &quot;:&quot; $2 &quot;-&quot; $3 &quot;|p=&quot; $5 &quot;|strand=&quot; $6
+        print $1, $2, $3, name, $5, $6
+    }
+}&#39; mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed &gt; mast_hits_near_0.0001_round4.bed #194
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round4.bed -fo mast_hits_near_0.0001_round4.fasta -name -s
+head mast_hits_near_0.0001_round4.fasta
+
+#&gt;chr1:10590504-10590522|p=9.21e-05|strand=+::chr1:10590504-10590522(+)
+#CAGATAGAGAAACAGACA
+#&gt;chr1:74071625-74071643|p=9.21e-05|strand=+::chr1:74071625-74071643(+)
+#gagataagatctttgatt
+#&gt;chr1:83173672-83173690|p=9.21e-05|strand=-::chr1:83173672-83173690(-)
+#atgatacatgtgatgatt
+#&gt;chr1:90220361-90220379|p=9.8e-05|strand=+::chr1:90220361-90220379(+)
+#ATGATAAGATCAGTGATT
+#&gt;chr1:106895043-106895061|p=9.21e-05|strand=-::chr1:106895043-106895061(-)
+#aagataatttgtatgata
+
+tail mast_hits_near_0.0001_round4.fasta
+#&gt;chrX:68601850-68601868|p=9.21e-05|strand=+::chrX:68601850-68601868(+)
+#aagatgtaatttgtgaca
+#&gt;chrX:74449572-74449590|p=9.8e-05|strand=+::chrX:74449572-74449590(+)
+#CAGATGCAATTGAAGACT
+#&gt;chrX:78862953-78862971|p=9.21e-05|strand=+::chrX:78862953-78862971(+)
+#aagatctgcaagaagaca
+#&gt;chrX:90633655-90633673|p=9.21e-05|strand=-::chrX:90633655-90633673(-)
+#aagatatatatatagatc
+#&gt;chrX:119388214-119388232|p=9.21e-05|strand=+::chrX:119388214-119388232(+)
+#gagatctgtcccaagatc
+
+# Not all sequences near the cutoff perfectly match the motif
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_123.fasta &gt; mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt #18500
+
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed #18497 of 102830
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk &#39;BEGIN{OFS=&quot;\t&quot;}
+{
+    p = $5
+    if (p &gt;= 0.00004 &amp;&amp; p &lt;= 0.00005) {
+        name = $1 &quot;:&quot; $2 &quot;-&quot; $3 &quot;|p=&quot; $5 &quot;|strand=&quot; $6
+        print $1, $2, $3, name, $5, $6
+    }
+}&#39; mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed &gt; mast_hits_near_0.00005_round4.bed #540
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round4.bed -fo mast_hits_near_0.00005_round4.fasta -name -s
+head mast_hits_near_0.00005_round4.fasta
+
+#&gt;chr1:25997130-25997148|p=4.28e-05|strand=+::chr1:25997130-25997148(+)
+#AAGATACAGTCCAAGATA
+#&gt;chr1:26419200-26419218|p=4.28e-05|strand=+::chr1:26419200-26419218(+)
+#CTGATTACCTATCTGATA
+#&gt;chr1:33294272-33294290|p=4.97e-05|strand=+::chr1:33294272-33294290(+)
+#cagatgaggaaactgatg
+#&gt;chr1:38792393-38792411|p=4.28e-05|strand=+::chr1:38792393-38792411(+)
+#ATgataagagcttagata
+#&gt;chr1:51056005-51056023|p=4.61e-05|strand=-::chr1:51056005-51056023(-)
+#tagatcatatgttagatt
+
+tail mast_hits_near_0.00005_round4.fasta
+#&gt;chrX:126961916-126961934|p=4.61e-05|strand=-::chrX:126961916-126961934(-)
+#tggatcagaacaaagata
+#&gt;chrX:129582553-129582571|p=4.61e-05|strand=+::chrX:129582553-129582571(+)
+#TAGATTCTTCATTTGATA
+#&gt;chrX:138979382-138979400|p=4.28e-05|strand=+::chrX:138979382-138979400(+)
+#tagataaGATCAGAGATT
+#&gt;chrX:150621874-150621892|p=4.61e-05|strand=-::chrX:150621874-150621892(-)
+#CTGATCCCTGCCTTGATA
+#&gt;chrX:152531332-152531350|p=4.61e-05|strand=-::chrX:152531332-152531350(-)
+#ctgatcatgtggtagata
+
+# now looks much much better, but tagataaGATCAGAGATT sequence could match to a tandem-5, tandem-7 and the tandem-12</code></pre>
+<pre class="bash"><code># Use `intersectBed` to find GATA3 peaks without motif 1 and 2. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_123.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed &gt; PB_without_glam2_motifs_1234.bed #29173
+
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1234.bed -fo PB_without_glam2_motifs_1234.fasta
+</code></pre>
+</div>
+</div>
+<div id="glam2-all-round5" class="section level2" number="9.7">
+<h2><span class="header-section-number">9.7</span> GLAM2-all-round5</h2>
+<pre class="bash"><code>#!/bin/bash
+#SBATCH --job-name=Glam2_round5_all.sh
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_round5_all.sh_%j.out
+#SBATCH -e Glam2_round5_all.sh_%j.err
+
+hostname
+export TMPDIR=&quot;${HOME}/temp&quot;
+module load py-deeptools
+module load meme/5.5.9
+
+# all PB-seq peaks without glam2_found motif123
+glam2 -O GATA_PB_without_glam2_motifs_1234_161win_glam2_round5_output -2 n PB_without_glam2_motifs_1234.fasta</code></pre>
 <!--
 ## GLAM2-round1:
 
@@ -2175,15 +2465,6 @@ module load meme/5.4.1
 ```
 
 -->
-<p>PB-seq high intensity:
-MEME -&gt; single site
-GLAM2 -&gt; spaced motif</p>
-<p>PB-seq low intensity:
-MEME -&gt; spaced motif</p>
-<p>ChIP-seq high intensity:
-MEME -&gt; spaced motif</p>
-<p>Although MEME detects only a single GATA-site motif from the top PB-seq peaks, GLAM2 recovers a spaced motif from the same high-intensity PB-seq subset. This suggests that spaced GATA-site configurations are present in high-intensity PB-seq peaks but are not the most dominant ungapped motif signal. In contrast, MEME can recover spaced motifs from high-intensity ChIP-seq peaks, implying that the spaced architecture is more consistently enriched or better aligned relative to the ChIP-seq peak centers in vivo.<br />
-</p>
 <!--
 ## 3-ordered Markov Background Model
 GATA3 TF binding sites are short, commonly seen as 4-mer GATA/GATC. \
