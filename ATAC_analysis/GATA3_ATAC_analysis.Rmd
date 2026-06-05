@@ -1795,7 +1795,6 @@ nrow(wide_df)
 
 head(wide_df)
 wide_df$row_id = seq_len(nrow(wide_df))
-#wide_df$row_col = colorRampPalette(brewer.pal(12, "Paired"))(nrow(wide_df))
 
 # narrow df
 plot_df = wide_df %>%
@@ -1813,6 +1812,7 @@ plot_df2$motif = factor(as.character(plot_df2$motif), levels = as.character(1:12
 
 # I classified raw ATAC changes using a reciprocal 1.2-fold cutoff: regions with ≥1.2-fold increase were called ATAC-up, regions with ≤1/1.2-fold change were called ATAC-down, and regions between these reciprocal cutoffs were called unchanged.
 lfc_cutoff = log2(1.2)
+
 plot_df2 = plot_df2 %>%
   mutate(
     ATAC_group_raw = case_when(
@@ -1887,51 +1887,36 @@ print(
 dev.off()
 
 
-pdf("GATA3_log_ChIP_intensity_by_raw_ATAC_group_bwplot.pdf", width = 9, height = 7, useDingbats = FALSE)
-
-print(
-  bwplot(
-    log(plot_df2$chip_intensity, base=10) ~ ATAC_group_raw | motif,
-    #plot_df2$chip_intensity ~ ATAC_group_raw | motif,
-    data = plot_df2,
-    layout = c(4, 3),
-    scales = list(
-      x = list(rot = 45),
-      y = list(relation = "same")
-    ),
-    #ylim=c(0:200),
-    xlab = "Raw ATAC log2FC-based group",
-    ylab = "log10 GATA3 ChIP-seq intensity",
-    #ylab = "GATA3 ChIP-seq intensity",
-    main = "GATA3 ChIP-seq intensity across raw ATAC-seq groups",
-    par.settings = my.settings,
-    panel = function(x, y, ...) {
-      #panel.grid(h = -1, v = 0, col = "grey90")
-      panel.bwplot(x, y, ..., pch = '|', do.out = FALSE)
-    }
-  )
-)
-
-dev.off()
-
 pdf("GATA3_ChIP_intensity_by_significance_ATAC_group_bwplot.pdf", width = 9, height = 7, useDingbats = FALSE)
 
 print(
   bwplot(
-    log(plot_df2$chip_intensity, base=10) ~ ATAC_group_sig | motif,
+    #log(plot_df2$chip_intensity, base=10) ~ ATAC_group_sig | motif,
+    plot_df2$chip_intensity ~ ATAC_group_sig | motif,
     data = plot_df2,
     layout = c(4, 3),
     scales = list(
       x = list(rot = 45),
       y = list(relation = "same")
     ),
+    #ylim=c(-50, 400),
     xlab = paste0("Significance-based ATAC group, padj < ", padj_cutoff),
-    ylab = "log10 GATA3 ChIP-seq intensity",
+    ylab = "GATA3 ChIP-seq intensity",
     main = "GATA3 ChIP-seq intensity across significant ATAC-seq groups",
     par.settings = my.settings,
     panel = function(x, y, ...) {
       #panel.grid(h = -1, v = 0, col = "grey90")
+      panel.violin(x, y, ..., col = '#E0FFFF',
+                              varwidth = FALSE, outer = FALSE)
       panel.bwplot(x, y, ..., pch = '|', do.out = FALSE)
+      panel.stripplot(x, y,
+                      horizontal = FALSE,
+                      col = "#b3b3b366",
+                      jitter.data = TRUE,
+                      amount = 0.2,
+                      factor = 4,
+                      pch = 16,
+                      cex = 0.3)
     }
   )
 )
