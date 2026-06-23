@@ -4995,7 +4995,7 @@ fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12.bed -fo PB_without_glam
 ```
 
 making a narrow window: \
-```{r}
+```{r, engine='bash', eval=F, echo=TRUE}
 awk 'BEGIN{OFS="\t"} {center=int(($2+$3)/2); start=center-40; end=center+41; print $1,start,end,$4}' PB_without_glam2_motifs_12.bed > PB_without_glam2_motifs_12_81bp.bed
 ```
 
