@@ -762,6 +762,1948 @@ fastaFromBed -fi $genome -bed GATA_PB_neg3_random5000_161window.bed -fo GATA_PB_
 
 -->
 
+## GLAM2-all-round1-100bp
+working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB_100bp \
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+dir=/home/FCAM/ssun/PBseq/GATA_Deseq2/peakcall0.05/
+
+# extend the peak region to 161bp window centered on the summit
+slopBed -b 50 -i ${dir}GATA_PB_summits_final_DESeq2_ranked_intensity.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed #102830
+
+# convert to FASTA
+fastaFromBed -fi $genome -bed GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed -fo GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta #205660
+```
+
+```{r engine='bash', eval=F, echo=TRUE}
+head -5 GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed
+#chr1	861857	861958	215.56987605857
+#chr1	879725	879826	55.3828083151726
+#chr1	885798	885899	22.0697079251984
+#chr1	899956	900057	30.308282773772
+#chr1	1190244	1190345	159.683533257889
+```
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all.sh_%j.out
+#SBATCH -e Glam2_all.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_output -2 n GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta
+
+```
+
+
+Conduct a TOMTOM to compare the GLAM2-round1 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_output/glam2.meme
+mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round1 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	NAGATBNNARNNVWGATA	-2	3.28921e-10	3.94705e-09	7.8941e-09	18	TTTATCTTTTTATTAATCTA	TATCTGTATTGCCATCTC	-
+#1	AGATDDDNAGATAAD	0	7.07176e-05	0.000848611	0.000568171	15	TTTATCTTTTTATTAATCTA	TTTATCTTTTCATCT	-
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif NAGATBNNARNNVWGATA as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: NAGATBNNARNNVWGATA
+#echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif7_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt #30808
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #30805
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.0001_round1.bed #354
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round1.bed -fo mast_hits_near_0.0001_round1.fasta -name -s
+head mast_hits_near_0.0001_round1.fasta
+
+#>chr1:7925801-7925819|p=9.8e-05|strand=+::chr1:7925801-7925819(+)
+#ctgatctgatgggagatg
+#>chr1:17801375-17801393|p=9.21e-05|strand=-::chr1:17801375-17801393(-)
+#cagataagaggatagatg
+#>chr1:39679412-39679430|p=9.21e-05|strand=+::chr1:39679412-39679430(+)
+#GAGATAAGAAATAAGATG
+#>chr1:40292898-40292916|p=9.21e-05|strand=-::chr1:40292898-40292916(-)
+#TTGATGGTAAATTAGATG
+#>chr1:50633840-50633858|p=9.8e-05|strand=-::chr1:50633840-50633858(-)
+#GAGATAAAATTACAGACA
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #28862
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.00005_round1.bed #842
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round1.bed -fo mast_hits_near_0.00005_round1.fasta -name -s
+head mast_hits_near_0.00005_round1.fasta
+
+#>chr1:4943848-4943866|p=4.28e-05|strand=-::chr1:4943848-4943866(-)
+#tagatagattggtagata
+#>chr1:6876740-6876758|p=4.28e-05|strand=+::chr1:6876740-6876758(+)
+#CAGATTTTGTTTGTGATT
+#>chr1:25997130-25997148|p=4.28e-05|strand=+::chr1:25997130-25997148(+)
+#AAGATACAGTCCAAGATA
+#>chr1:26419200-26419218|p=4.28e-05|strand=+::chr1:26419200-26419218(+)
+#CTGATTACCTATCTGATA
+#>chr1:35891514-35891532|p=4.97e-05|strand=+::chr1:35891514-35891532(+)
+#TAGAttctgttcctgatt
+
+# now looks much much better
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
+intersectBed -v -a GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > PB_without_glam2_motifs_1.bed #73967
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1.bed -fo PB_without_glam2_motifs_1.fasta
+
+```
+
+## GLAM2-all-round2-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round2.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round2.sh_%j.out
+#SBATCH -e Glam2_all_round2.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round2_output -2 n PB_without_glam2_motifs_1.fasta
+
+```
+
+
+The output top motif is a degenerate tandem-14 motif (this is new, not been previously reported by ChIP-seq). \
+The second motif is a tandem-10 motif. \
+
+I prioritize on using the tandem-10 motif as the second round motif. \
+
+Conduct a TOMTOM to compare the GLAM2-round2 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round2_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 2_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round2 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#2	YTTATCTYYNNHVATCT	-2	1.15797e-09	1.38956e-08	2.77912e-08	17	TTCTTATCTTTTATAATCTT	CTTATCTTTTCCAATCT	+
+#2	AGATGRVAGATAA	-3	5.34715e-05	0.000641658	0.000641658	13	TTCTTATCTTTTATAATCTT	TTATCTCTCATCT	-
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif YTTATCTYYNNHVATCT as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: YTTATCTYYNNHVATCT
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif8_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #7159
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #7156
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.0001_round2.bed #240
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round2.bed -fo mast_hits_near_0.0001_round2.fasta -name -s
+head mast_hits_near_0.0001_round2.fasta
+
+#>chr1:11140819-11140836|p=9.75e-05|strand=-::chr1:11140819-11140836(-)
+#TTTATCAGTGATAGTCA
+#>chr1:17801395-17801412|p=9.31e-05|strand=-::chr1:17801395-17801412(-)
+#tttatcaacgtatattt
+#>chr1:24398560-24398577|p=9.75e-05|strand=-::chr1:24398560-24398577(-)
+#gtaatctgtgaaaatga
+#>chr1:35569695-35569712|p=9.75e-05|strand=-::chr1:35569695-35569712(-)
+#ATAATCTGAAGAGATCA
+#>chr1:49044654-49044671|p=9.75e-05|strand=-::chr1:49044654-49044671(-)
+#ataatccaggttaatct
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #5380
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #5377
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.00005_round2.bed #842
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round2.bed -fo mast_hits_near_0.00005_round2.fasta -name -s
+head mast_hits_near_0.00005_round2.fasta
+
+#>chr1:28449421-28449438|p=4.78e-05|strand=+::chr1:28449421-28449438(+)
+#TTAATCCTGTTTTATCT
+#>chr1:33294209-33294226|p=4.02e-05|strand=+::chr1:33294209-33294226(+)
+#attatctgatgttatct
+#>chr1:57885125-57885142|p=4.02e-05|strand=+::chr1:57885125-57885142(+)
+#TTTATCTCAATAGATGT
+#>chr1:66440423-66440440|p=4.02e-05|strand=+::chr1:66440423-66440440(+)
+#ctaatcattgatgattt
+#>chr1:68208217-68208234|p=4.52e-05|strand=+::chr1:68208217-68208234(+)
+#ATTATCTTCACAAATTA
+
+# change to a more stringent mast_p cut off
+mast -mt 0.000005 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #2506
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #2503
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.000004 && p <= 0.000005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.000005_round2.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.000005_round2.bed -fo mast_hits_near_0.000005_round2.fasta -name -s
+head mast_hits_near_0.000005_round2.fasta
+
+#>chr1:5604140-5604157|p=4.74e-06|strand=+::chr1:5604140-5604157(+)
+#tctatctctttctatct
+#>chr1:32833895-32833912|p=4.74e-06|strand=-::chr1:32833895-32833912(-)
+#gtaatcattaaaaatct
+#>chr1:50464722-50464739|p=4.74e-06|strand=+::chr1:50464722-50464739(+)
+#attatcacttttgatct
+#>chr1:75578402-75578419|p=4.3e-06|strand=-::chr1:75578402-75578419(-)
+#tctatCTCTATCAATCA
+#>chr1:90933807-90933824|p=4.74e-06|strand=-::chr1:90933807-90933824(-)
+#gctatcttacctaatct
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_1.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > PB_without_glam2_motifs_12.bed # 71464
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12.bed -fo PB_without_glam2_motifs_12.fasta
+
+```
+
+## GLAM2-all-round3-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round3.sh_%j.out
+#SBATCH -e Glam2_all_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round3_output -2 n PB_without_glam2_motifs_12.fasta
+
+```
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round3_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif3_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round3 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif3_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round3/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	AGATDDDNAGATAAD	0	2.93566e-11	3.5228e-10	7.0456e-10	15	AGATTAAAAGATAAGAATCT	AGATGAAAAGATAAA	+
+#1	21-AGATAAGG	-8	0.000157469	0.00188963	0.00110385	AGATTAAAAGATAAGAATCT	AGATAAGG	+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATDDDNAGATAAD as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round3/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATDDDNAGATAAD
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif3_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_12.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt #13135
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed #13132
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > mast_hits_near_0.0001_round3.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round3.bed -fo mast_hits_near_0.0001_round3.fasta -name -s
+head mast_hits_near_0.0001_round3.fasta
+
+#>chr1:13993520-13993535|p=9.77e-05|strand=+::chr1:13993520-13993535(+)
+#AGATTGAATGGTAGT
+#>chr1:27833840-27833855|p=9.77e-05|strand=+::chr1:27833840-27833855(+)
+#AGATAACCAGGTATT
+#>chr1:53431945-53431960|p=9.33e-05|strand=+::chr1:53431945-53431960(+)
+#AGATCAATGGATGAG
+#>chr1:65071115-65071130|p=9.33e-05|strand=-::chr1:65071115-65071130(-)
+#TGATTCTtagatgat
+#>chr1:91870170-91870185|p=9.77e-05|strand=-::chr1:91870170-91870185(-)
+#TGATAAAATGGTTAG
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_12.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt #12227
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed #12224
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > mast_hits_near_0.00005_round3.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round3.bed -fo mast_hits_near_0.00005_round3.fasta -name -s
+head mast_hits_near_0.00005_round3.fasta
+
+#>chr1:5603392-5603407|p=4.55e-05|strand=-::chr1:5603392-5603407(-)
+#agatatagagatgga
+#>chr1:20450313-20450328|p=4.27e-05|strand=+::chr1:20450313-20450328(+)
+#tGATtgcaagattgt
+#>chr1:21425737-21425752|p=4.84e-05|strand=-::chr1:21425737-21425752(-)
+#TGATATTGGGATAAT
+#>chr1:21482250-21482265|p=4.84e-05|strand=+::chr1:21482250-21482265(+)
+#TGATATTGGGATAAT
+#>chr1:25610794-25610809|p=4.27e-05|strand=-::chr1:25610794-25610809(-)
+#tgatgtgaggattag
+
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_12.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > PB_without_glam2_motifs_123.bed # 59239
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123.bed -fo PB_without_glam2_motifs_123.fasta
+
+```
+
+## GLAM2-all-round4-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round4.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round4.sh_%j.out
+#SBATCH -e Glam2_all_round4.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round4_output -2 n PB_without_glam2_motifs_123.fasta
+
+```
+
+tandem-13 \
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round4_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif4_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round4 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif4_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round4/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	AGATBNNNNNNVNWGATAA	0	3.73993e-10	4.48791e-09	8.97583e-09	19	TTATCTTTTTTATATATCTT	TTATCTGTATTTGACATCT	-
+#1	TTATCTBYNNVATCT	0	5.50119e-05	0.000660143	0.000660143	15	TTATCTTTTTTATATATCTT	TTATCTCTTTCATCT	+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATBNNNNNNVNWGATAA as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round4/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATBNNNNNNVNWGATAA
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif6_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_123.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed #21499
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed > mast_hits_near_0.0001_round4.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round4.bed -fo mast_hits_near_0.0001_round4.fasta -name -s
+head mast_hits_near_0.0001_round4.fasta
+
+#>chr1:74979590-74979609|p=9.6e-05|strand=+::chr1:74979590-74979609(+)
+#AGACCCAATGAAGAGATTA
+#>chr1:103373766-103373785|p=9.01e-05|strand=-::chr1:103373766-103373785(-)
+#AGACTGGAAATAAAGATTT
+#>chr1:167474257-167474276|p=9.6e-05|strand=+::chr1:167474257-167474276(+)
+#AGACTTTAAAGTCAGATTT
+#>chr1:190764275-190764294|p=9.6e-05|strand=+::chr1:190764275-190764294(+)
+#TGATAATGAGAAGCGATAG
+#>chr1:212755652-212755671|p=9.6e-05|strand=+::chr1:212755652-212755671(+)
+#agacacagcaaactgataa
+
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_123.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed #20994
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed > mast_hits_near_0.00005_round4.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round4.bed -fo mast_hits_near_0.00005_round4.fasta -name -s
+head mast_hits_near_0.00005_round4.fasta
+
+#>chr1:40140441-40140460|p=4.2e-05|strand=+::chr1:40140441-40140460(+)
+#tgataatatttacagattc
+#>chr1:42226835-42226854|p=4.4e-05|strand=-::chr1:42226835-42226854(-)
+#AGATCTCAAACTGGGATTA
+#>chr1:61644478-61644497|p=4.2e-05|strand=+::chr1:61644478-61644497(+)
+#AGATCTGGATTCTGGATAA
+#>chr1:81236755-81236774|p=4.81e-05|strand=-::chr1:81236755-81236774(-)
+#TGATTTTCATATGTGATTT
+#>chr1:91748551-91748570|p=4.81e-05|strand=+::chr1:91748551-91748570(+)
+#TGATGCGATGCCCTGATTT
+
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_123.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round4.bed > PB_without_glam2_motifs_1234.bed # 38243
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1234.bed -fo PB_without_glam2_motifs_1234.fasta
+
+```
+
+## GLAM2-all-round5-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round5.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round5.sh_%j.out
+#SBATCH -e Glam2_all_round5.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round5_output -2 n PB_without_glam2_motifs_1234.fasta
+
+```
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round5_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif5_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round5 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif5_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round5/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	AGATBYTTATC	-8	4.89996e-07	5.87995e-06	1.17599e-05	11	TTTTTTTTAGATCTTTATCT	AGATTTTTATC	+
+#1	21-AGATAAGG	-12	0.000918569	0.0110228	0.0110228	TTTTTTTTAGATCTTTATCT	CCTTATCT	-
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATBYTTATC as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round5/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATBYTTATC
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif2_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_1234.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round5.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round5.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round5.bed #9700
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round5.bed > mast_hits_near_0.0001_round5.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round5.bed -fo mast_hits_near_0.0001_round5.fasta -name -s
+head mast_hits_near_0.0001_round5.fasta
+
+#>chr1:11493422-11493433|p=9.57e-05|strand=+::chr1:11493422-11493433(+)
+#tgatgctgatc
+#>chr1:239048387-239048398|p=9.57e-05|strand=+::chr1:239048387-239048398(+)
+#TGATGCAAATC
+#>chr10:5450647-5450658|p=9.57e-05|strand=-::chr10:5450647-5450658(-)
+#TGATGAGAATC
+#>chr10:55048691-55048702|p=9.3e-05|strand=-::chr10:55048691-55048702(-)
+#tgataaatatC
+#>chr12:82403228-82403239|p=9.3e-05|strand=-::chr12:82403228-82403239(-)
+#TGATCCAAATC
+
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_1234.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round5.bed > PB_without_glam2_motifs_12345.bed # 28543
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12345.bed -fo PB_without_glam2_motifs_12345.fasta
+
+```
+
+## GLAM2-all-round6-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round6.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round6.sh_%j.out
+#SBATCH -e Glam2_all_round6.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round6_output -2 n PB_without_glam2_motifs_12345.fasta
+
+```
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round6_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif6_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round6 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif6_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round6/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	TTATCTBYNNVATCT	0	8.7534e-08	1.05041e-06	2.10082e-06	15	AGATTAAAAAGATAAGATCT	AGATGAAAGAGATAA	-
+#1	WGATAAVATCW	-9	1.80172e-06	2.16206e-05	2.16206e-05	11	AGATTAAAAAGATAAGATCT	AGATAACATCT	+
+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif TTATCTBYNNVATCT as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round6/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: TTATCTBYNNVATCT
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif4_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_12345.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed #7209
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed > mast_hits_near_0.0001_round6.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round6.bed -fo mast_hits_near_0.0001_round6.fasta -name -s
+head mast_hits_near_0.0001_round6.fasta
+
+#>chr1:211381038-211381053|p=9.35e-05|strand=+::chr1:211381038-211381053(+)
+#ttatctataaaacca
+#>chr1:239363623-239363638|p=9.09e-05|strand=-::chr1:239363623-239363638(-)
+#taatccaatgtatct
+#>chr10:61438738-61438753|p=9.88e-05|strand=+::chr10:61438738-61438753(+)
+#TAAACTCCATAATCT
+#>chr10:90133928-90133943|p=9.09e-05|strand=+::chr10:90133928-90133943(+)
+#ttaacattattatct
+#>chr10:111501046-111501061|p=9.09e-05|strand=-::chr10:111501046-111501061(-)
+#ttaacatttatatct
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_12345.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed #7015
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed > mast_hits_near_0.00005_round6.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round6.bed -fo mast_hits_near_0.00005_round6.fasta -name -s
+head mast_hits_near_0.00005_round6.fasta
+
+#>chr1:59945946-59945961|p=4.87e-05|strand=+::chr1:59945946-59945961(+)
+#aaatcatccttatct
+#>chr1:104870108-104870123|p=4.02e-05|strand=-::chr1:104870108-104870123(-)
+#atatcatatatatca
+#>chr1:108523938-108523953|p=4.02e-05|strand=-::chr1:108523938-108523953(-)
+#atatcacatatatca
+#>chr10:8362847-8362862|p=4.02e-05|strand=+::chr10:8362847-8362862(+)
+#atatcatatatatca
+#>chr10:32294880-32294895|p=4.02e-05|strand=-::chr10:32294880-32294895(-)
+#AAATCAATGAAATCT
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_12345.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed > PB_without_glam2_motifs_123456.bed # 
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123456.bed -fo PB_without_glam2_motifs_123456.fasta
+
+```
+
+## GLAM2-all-round7-100bp
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round7.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round7.sh_%j.out
+#SBATCH -e Glam2_all_round7.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round7_output -2 n PB_without_glam2_motifs_123456.fasta
+
+```
+
+convergent-8 \
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_round7_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif7_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round7 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif7_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round7/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	WGATAAVATCW	-1	2.86791e-05	0.000344149	0.000688298	11	TAGATCTTATCTTTATTTTT	AGATGTTATCT	-
+#1	AGATBNNNNNNVNWGATAA	-6	0.000222925	0.0026751	0.0026751	14	TAGATCTTATCTTTATTTTT	TTATCTGTATTTGACATCT	-
+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif WGATAAVATCW as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round7/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: WGATAAVATCW
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif1_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_123456.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round7.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round7.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round7.bed #8420
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round7.bed > mast_hits_near_0.0001_round7.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round7.bed -fo mast_hits_near_0.0001_round7.fasta -name -s
+head mast_hits_near_0.0001_round7.fasta
+
+#>chr10:17183156-17183167|p=9.8e-05|strand=+::chr10:17183156-17183167(+)
+#AGATAACATCC
+#>chr11:5691756-5691767|p=9.46e-05|strand=-::chr11:5691756-5691767(-)
+#CGATAAGATCG
+#>chr11:75899211-75899222|p=9.14e-05|strand=-::chr11:75899211-75899222(-)
+#GGATTTAATCT
+#>chr14:81507961-81507972|p=9.8e-05|strand=+::chr14:81507961-81507972(+)
+#agataacatcc
+#>chr16:59953889-59953900|p=9.46e-05|strand=+::chr16:59953889-59953900(+)
+#GGATTTAATCA
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_123456.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round7.bed > PB_without_glam2_motifs_1234567.bed # 13107
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1234567.bed -fo PB_without_glam2_motifs_1234567.fasta
+
+```
+
+## GLAM2-all-round8-100bp
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round8.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round8.sh_%j.out
+#SBATCH -e Glam2_all_round8.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -O GATA_PB_all_101win_glam2_round8_output -2 n PB_without_glam2_motifs_1234567.fasta
+
+```
+no additional GATA3-like motifs. \
+
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round8_flag.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round8_flag.sh_%j.out
+#SBATCH -e Glam2_all_round8_flag.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_101win_glam2_round8_output1 -2 n PB_without_glam2_motifs_1234567.fasta
+
+```
+
+a degerate Tandem-10 motif (which had been previously found in round2), no additional GATA3-like gapped motif. 
+
+## extend to 161bp
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+
+
+# extend the peak region to 161bp window centered on the summit
+slopBed -b 30 -i PB_without_glam2_motifs_1234567.bed -g $sizes  | sort -k1,1 -k2,2n > PB_without_glam2_motifs_1234567_161bpwindow.bed #13107 
+
+# convert to FASTA
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1234567_161bpwindow.bed -fo PB_without_glam2_motifs_1234567_161bpwindow.fasta #
+```
+
+## GLAM2-all-round8-161bp
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round8_161bp.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round8_161bp.sh_%j.out
+#SBATCH -e Glam2_all_round8_161bp.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 101 window
+glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_101win_glam2_round8_161bp_output -2 n PB_without_glam2_motifs_1234567_161bpwindow.fasta
+
+```
+
+## #################
+
+## GLAM2-all-round1-100bp-top5000
+working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB_100bp_top5000 \
+
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+dir=/home/FCAM/ssun/PBseq/GATA_Deseq2/peakcall0.05/
+
+# extend the peak region to 161bp window centered on the summit
+slopBed -b 50 -i ${dir}GATA_PB_summits_final_DESeq2_ranked_intensity.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed #102830
+
+# convert to FASTA
+fastaFromBed -fi $genome -bed GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed -fo GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta #205660
+```
+
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000.sh_%j.out
+#SBATCH -e Glam2_top5000.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed | head -n 5000 > GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow_top5000.bed -fo GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow_top5000.fasta
+
+
+# all PB-seq peaks with 101 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_101win_glam2_top5000_output -2 n GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow_top5000.fasta
+```
+
+Conduct a TOMTOM to compare the GLAM2-round1 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_101win_glam2_top5000_output/glam2.meme
+mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round1 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	AGATDDDNAGATAAD	1	2.08745e-06	2.50494e-05	5.00988e-05	14	TTATCTATCTATCTAT	TTTATCTTTTCATCT	-
+#1	21-AGATAAGG	2	0.0002405	0.002886	0.002886	6	TTATCTATCTATCTAT	CCTTATCT	-
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATDDDNAGATAAD as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATDDDNAGATAAD
+#echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif3_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt #21361
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #21358
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.0001_round1.bed #208
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round1.bed -fo mast_hits_near_0.0001_round1.fasta -name -s
+head mast_hits_near_0.0001_round1.fasta
+
+#>chr1:13993520-13993535|p=9.77e-05|strand=+::chr1:13993520-13993535(+)
+#AGATTGAATGGTAGT
+#>chr1:27833840-27833855|p=9.77e-05|strand=+::chr1:27833840-27833855(+)
+#AGATAACCAGGTATT
+#>chr1:49964531-49964546|p=9.77e-05|strand=+::chr1:49964531-49964546(+)
+#TGATGTCAGGATTGT
+#>chr1:53431945-53431960|p=9.33e-05|strand=+::chr1:53431945-53431960(+)
+#AGATCAATGGATGAG
+#>chr1:58458949-58458964|p=9.33e-05|strand=+::chr1:58458949-58458964(+)
+#tgatattaaggtaga
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #19947
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.00005_round1.bed #385
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round1.bed -fo mast_hits_near_0.00005_round1.fasta -name -s
+head mast_hits_near_0.00005_round1.fasta
+
+#>chr1:5603392-5603407|p=4.55e-05|strand=-::chr1:5603392-5603407(-)
+#agatatagagatgga
+#>chr1:10778230-10778245|p=4.27e-05|strand=-::chr1:10778230-10778245(-)
+#agattgtgtgattgt
+#>chr1:20450313-20450328|p=4.27e-05|strand=+::chr1:20450313-20450328(+)
+#tGATtgcaagattgt
+#>chr1:21425737-21425752|p=4.84e-05|strand=-::chr1:21425737-21425752(-)
+#TGATATTGGGATAAT
+#>chr1:21482250-21482265|p=4.84e-05|strand=+::chr1:21482250-21482265(+)
+#TGATATTGGGATAAT
+
+# now looks much much better
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
+intersectBed -v -a GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > PB_without_glam2_motifs_1.bed #82881
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1.bed -fo PB_without_glam2_motifs_1.fasta
+
+```
+
+## GLAM2-all-round2-100bp-top5000
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round2.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round2.sh_%j.out
+#SBATCH -e Glam2_top5000_round2.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_1.bed | head -n 5000 > PB_without_glam2_motifs_1_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1_top5000.bed -fo PB_without_glam2_motifs_1_top5000.fasta
+
+
+# all PB-seq peaks with 101 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_without_mot1_101win_glam2_top5000_output -2 n PB_without_glam2_motifs_1_top5000.fasta
+```
+
+Conduct a TOMTOM to compare the GLAM2-round2 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_without_mot1_101win_glam2_top5000_output/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round2 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#1	AGATGRVAGATAA	0	1.40716e-07	1.6886e-06	3.37719e-06	13	AGATTAAAGATAAGAA	AGATGAGAGATAA	+
+#1	21-AGATAAGG	-7	6.89492e-05	0.000827391	0.000827391	8	AGATTAAAGATAAGAA	AGATAAGG	+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATGRVAGATAA as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATGRVAGATAA
+#echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif10_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #10266
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #10263
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.0001_round2.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round2.bed -fo mast_hits_near_0.0001_round2.fasta -name -s
+head mast_hits_near_0.0001_round2.fasta
+
+#>chr1:16368151-16368164|p=9.84e-05|strand=+::chr1:16368151-16368164(+)
+#AGATTTGTGAATA
+#>chr1:49344674-49344687|p=9.84e-05|strand=-::chr1:49344674-49344687(-)
+#taaggtaagatta
+#>chr1:49358191-49358204|p=9.84e-05|strand=-::chr1:49358191-49358204(-)
+#tagggtctgataa
+#>chr1:52504968-52504981|p=9.84e-05|strand=-::chr1:52504968-52504981(-)
+#tgatggatgaata
+#>chr1:61577175-61577188|p=9.11e-05|strand=-::chr1:61577175-61577188(-)
+#tagtctctgataa
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #7208
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.00005_round2.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round2.bed -fo mast_hits_near_0.00005_round2.fasta -name -s
+head mast_hits_near_0.00005_round2.fasta
+
+#>chr1:3621498-3621511|p=4.85e-05|strand=+::chr1:3621498-3621511(+)
+#aaattaatgatta
+#>chr1:5111181-5111194|p=4.34e-05|strand=-::chr1:5111181-5111194(-)
+#TAAGTGTAGATAA
+#>chr1:11912754-11912767|p=4.18e-05|strand=-::chr1:11912754-11912767(-)
+#gaatttctgataa
+#>chr1:12521369-12521382|p=4.68e-05|strand=+::chr1:12521369-12521382(+)
+#ggggtggagataa
+#>chr1:16103648-16103661|p=4.34e-05|strand=+::chr1:16103648-16103661(+)
+#tggttccagataa
+
+# not great
+
+mast -mt 0.00001 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #2876
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.000009 && p <= 0.00001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.00001_round2.bed #107
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00001_round2.bed -fo mast_hits_near_0.00001_round2.fasta -name -s
+head mast_hits_near_0.00001_round2.fasta
+#>chr1:46588004-46588017|p=9.43e-06|strand=-::chr1:46588004-46588017(-)
+#gaattagagataa
+#>chr1:47003813-47003826|p=9.43e-06|strand=+::chr1:47003813-47003826(+)
+#tgagcagagataa
+#>chr1:69627856-69627869|p=9.43e-06|strand=+::chr1:69627856-69627869(+)
+#taatgtaagataa
+#>chr1:71766251-71766264|p=9.43e-06|strand=+::chr1:71766251-71766264(+)
+#agatgtaagaaaa
+#>chr1:81097976-81097989|p=9.43e-06|strand=+::chr1:81097976-81097989(+)
+#aaatcaatgataa
+
+
+# change to a more stringent mast_p cut off
+mast -mt 0.000005 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #1933
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.000004 && p <= 0.000005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.000005_round2.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.000005_round2.bed -fo mast_hits_near_0.000005_round2.fasta -name -s
+head mast_hits_near_0.000005_round2.fasta
+
+#>chr1:68832621-68832634|p=4.18e-06|strand=+::chr1:68832621-68832634(+)
+#agagcaaagataa
+#>chr1:72804036-72804049|p=4.18e-06|strand=-::chr1:72804036-72804049(-)
+#agagcaaagataa
+#>chr1:86484840-86484853|p=4.18e-06|strand=+::chr1:86484840-86484853(+)
+#AGATGGGAGAAAA
+#>chr1:88013128-88013141|p=4.8e-06|strand=-::chr1:88013128-88013141(-)
+#agatgctagataa
+#>chr1:93117534-93117547|p=4.43e-06|strand=+::chr1:93117534-93117547(+)
+#AGATTTATGATAA
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_1.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > PB_without_glam2_motifs_12.bed #80948
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12.bed -fo PB_without_glam2_motifs_12.fasta
+
+```
+
+## GLAM2-all-round3-100bp-top5000
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round3.sh_%j.out
+#SBATCH -e Glam2_top5000_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_12.bed | head -n 5000 > PB_without_glam2_motifs_12_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12_top5000.bed -fo PB_without_glam2_motifs_12_top5000.fasta
+
+
+# all PB-seq peaks with 101 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_without_mot12_101win_glam2_top5000_output -2 n PB_without_glam2_motifs_12_top5000.fasta
+```
+
+the top motif is not a spaced gata3-like motif. \
+
+re-run GLAM2 with double the "maximum number of iterations without improvement" \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round3_1.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round3_1.sh_%j.out
+#SBATCH -e Glam2_top5000_round3_1.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_12.bed | head -n 5000 > PB_without_glam2_motifs_12_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12_top5000.bed -fo PB_without_glam2_motifs_12_top5000.fasta
+
+
+# all PB-seq peaks (without motif1 and 2) with 101 window
+glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_without_mot12_101win_glam2_top5000_output1 -2 n PB_without_glam2_motifs_12_top5000.fasta
+```
+
+increasing the "maximum number of iterations without improvement" seems improved the motif detection. Although the first motif still not a good GATA3 spaced motif (it is a ATC-ATG form), the second motif did show a GATA3 tandem-10 motif. I will use this tandem-10 motif as the round3 identified motif. \
+
+Conduct a TOMTOM to compare the GLAM2-round3 motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_without_mot12_101win_glam2_top5000_output1/glam2.meme
+#mkdir Glam2_all_individual_meme
+cp 2_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif3_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round3 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif3_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round3/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensuOrientation
+#2	YTTATCTYYNNHVATCT	1	1.18191e-08	1.41829e-07	2.83658e-07	16	TTATCTTTTATAATCT	CTTATCTTTTCCAATCT	+
+#2	21-AGATAAGG	2	0.000128143	0.00153772	0.00153772	TTATCTTTTATAATCT	CCTTATCT
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif YTTATCTYYNNHVATCT as the closest match to the top GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round3/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: YTTATCTYYNNHVATCT
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif8_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_12.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt #7317
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed #7314
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > mast_hits_near_0.0001_round3.bed #273
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round3.bed -fo mast_hits_near_0.0001_round3.fasta -name -s
+head mast_hits_near_0.0001_round3.fasta
+
+#>chr1:11140819-11140836|p=9.75e-05|strand=-::chr1:11140819-11140836(-)
+#TTTATCAGTGATAGTCA
+#>chr1:42821386-42821403|p=9.75e-05|strand=-::chr1:42821386-42821403(-)
+#GATATCACTCATAATCG
+#>chr1:49044654-49044671|p=9.75e-05|strand=-::chr1:49044654-49044671(-)
+#ataatccaggttaatct
+#>chr1:50574194-50574211|p=9.75e-05|strand=+::chr1:50574194-50574211(+)
+#TTTATCAGTTTTCATTG
+#>chr1:65071129-65071146|p=9.75e-05|strand=-::chr1:65071129-65071146(-)
+#GTAATCAATAAACATTT
+
+# Not all sequences near the cutoff perfectly match the motif core 3mer GAT
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_12.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt #
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed #5438
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > mast_hits_near_0.00005_round3.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round3.bed -fo mast_hits_near_0.00005_round3.fasta -name -s
+head mast_hits_near_0.00005_round3.fasta
+
+#>chr1:28449421-28449438|p=4.78e-05|strand=+::chr1:28449421-28449438(+)
+#TTAATCCTGTTTTATCT
+#>chr1:31912257-31912274|p=4.52e-05|strand=-::chr1:31912257-31912274(-)
+#ATAATCTTCAATTATCT
+#>chr1:33294209-33294226|p=4.02e-05|strand=+::chr1:33294209-33294226(+)
+#attatctgatgttatct
+#>chr1:34222374-34222391|p=4.78e-05|strand=-::chr1:34222374-34222391(-)
+#tcaatccccctaaatct
+#>chr1:43911604-43911621|p=4.26e-05|strand=-::chr1:43911604-43911621(-)
+#TATATCTGTAGATATCT
+
+
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_12.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round3.bed > PB_without_glam2_motifs_123.bed #75510
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123.bed -fo PB_without_glam2_motifs_123.fasta
+
+```
+
+## GLAM2-all-round4-100bp-top5000
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round4.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round4.sh_%j.out
+#SBATCH -e Glam2_top5000_round4.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_123.bed | head -n 5000 > PB_without_glam2_motifs_123_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123_top5000.bed -fo PB_without_glam2_motifs_123_top5000.fasta
+
+
+# all PB-seq peaks with 101 window
+glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_without_mot123_101win_glam2_top5000_output -2 n PB_without_glam2_motifs_123_top5000.fasta
+```
+
+2nd is a tandem-6 motif \
+
+
+
+## #################
+
 ## GLAM2-all-round1
 working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB
 
@@ -2459,7 +4401,7 @@ module load bedtools
 genome=/home/FCAM/ssun/Genome/hg38.fa
 fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12345678_top5000.bed -fo PB_without_glam2_motifs_12345678_top5000.fasta
 
-# all PB-seq peaks without glam2_found motif123
+# all PB-seq peaks without glam2_found motif12345678
 meme -p 32 -oc GATA_PB_without_glam2_motifs_12345678_161win_meme_round9_output -nmotifs 10 -objfun classic -csites 20000 -searchsize 0 -minw 8 -maxw 30 -revcomp -dna -markov_order 2 -maxsize 100000000 PB_without_glam2_motifs_12345678_top5000.fasta
 ```
 
@@ -2528,10 +4470,675 @@ do
 done
 ```
 
-In the above parrellel running slurm jobs, I tested different combinations between wg/ws values (gap panalty values) and the markov_order up to 3 (because the core elements for GATA3 motifs are the GAT which is a 3mer or GATA which is a 4mer). \
+In the above parellel running slurm jobs, I tested different combinations between wg/ws values (gap penalty values) and the markov_order up to 3 (because the core elements for GATA3 motifs are the GAT which is a 3mer or GATA which is a 4mer). \
 
 at a time I can run 10 slurm jobs with the request of 32 cpus per job. I will check the outputs once they are completed. \
 
+Checked all MEME results, and only GATAA single GATA3 motif is found. \
+
+0_11_3 GATAA single site \
+
+0.5_11_3 GATAA single site \
+
+1_11_3 GATAA single site \
+
+### try a narrow window
+
+```{r, engine='bash', eval=F, echo=TRUE}
+awk 'BEGIN{OFS="\t"} {center=int(($2+$3)/2); start=center-40; end=center+41; print $1,start,end,$4}' PB_without_glam2_motifs_12345678.bed > PB_without_glam2_motifs_12345678_81bp.bed
+
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12345678_81bp.bed -fo PB_without_glam2_motifs_12345678_81bp.fasta
+
+
+sort -nrk4,4 PB_without_glam2_motifs_12345678_81bp.bed | head -n 5000 > PB_without_glam2_motifs_12345678_81bp_top5000.bed #5000
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12345678_81bp_top5000.bed -fo PB_without_glam2_motifs_12345678_81bp_top5000.fasta
+```
+
+Narrow window glam2-round9 \
+Narrow window glam2-new command -round9 \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_round9_81bp_all.sh
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_round9_81bp_all.sh_%j.out
+#SBATCH -e Glam2_round9_81bp_all.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load py-deeptools
+module load meme/5.5.9
+
+# all PB-seq peaks without glam2_found motif12345678
+glam2 -O GATA_PB_without_glam2_motifs_12345678_81win_glam2_round9_output -2 n PB_without_glam2_motifs_12345678_81bp.fasta
+
+glam2  -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_without_glam2_motifs_12345678_81win_glam2_round9_output1 -2 n PB_without_glam2_motifs_12345678_81bp.fasta
+```
+
+the 81bp window did not report more GATA3-like motifs using Glam2. \
+
+
+Narrow window meme-round9 \
+
+Glam2_round9_all_81bp_MEME_exaust.sh \
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=top5000_win81_meme_ws_XXXXXX_wg_YYYYYY_ZZZZZZ_r9.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o top5000_win81_meme_ws_XXXXXX_wg_YYYYYY_ZZZZZZ_r9.sh_%j.out
+#SBATCH -e top5000_win81_meme_ws_XXXXXX_wg_YYYYYY_ZZZZZZ_r9.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load py-deeptools
+module load meme/5.5.9
+
+ncore=32
+e_thresh=.05
+objfun=classic
+minsites=$(awk '/^>/{count++} END{print int(count*0.2)}' PB_without_glam2_motifs_12345678_81bp.fasta) #1000, 20% of my input sequences
+
+test_ws=XXXXXX
+test_wg=YYYYYY
+test_order=ZZZZZZ
+
+meme -p $ncore -oc GATA3_without_mot_12345678_81bp_top5000_ws_XXXXXX_wg_YYYYYY_order_ZZZZZZ_meme_output -evt $e_thresh -csites 20000 -objfun $objfun -minw 8 -maxw 12 -wg $test_wg -ws $test_ws -searchsize 0 -revcomp -dna -markov_order $test_order -minsites $minsites PB_without_glam2_motifs_12345678_81bp.fasta
+          
+```
+
+parallel running: \
+```{r engine='bash', eval=F, echo=TRUE}
+sh_file=Glam2_round9_all_81bp_MEME_exaust.sh
+
+wg_value=("0" "1" "11")
+ws_value=("0" "0.5" "1")
+order=("0" "1" "2" "3")
+
+
+for test_ws in "${ws_value[@]}"
+do
+    echo $test_ws
+    for test_wg in "${wg_value[@]}"
+    do
+      echo $test_wg
+      for test_order in "${order[@]}"
+      do
+       echo $test_order
+       sed -e "s/XXXXXX/${test_ws}/g" -e "s/YYYYYY/${test_wg}/g" -e "s/ZZZZZZ/${test_order}/g" "$sh_file" > top5000_win81_meme_ws_${test_ws}_wg_${test_wg}_${test_order}_r9.sh  
+      sbatch top5000_win81_meme_ws_${test_ws}_wg_${test_wg}_${test_order}_r9.sh  
+      sleep 1
+      done
+    done
+done
+```
+
+Using the 81bp window, meme identified the single GATAA site under more parameters settings than previously. \
+
+# GLAM2 new command
+## new GLAM2_all-round1
+working directory: /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB_new
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all.sh_%j.out
+#SBATCH -e Glam2_all.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+# all PB-seq peaks with 161 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_161win_glam2_output -2 n GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.fasta
+```
+
+tandem-9 motif. \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000.sh_%j.out
+#SBATCH -e Glam2_top5000.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.bed | head -n 5000 > GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow_top5000.bed -fo GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow_top5000.fasta
+
+
+# all PB-seq peaks with 161 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_161win_glam2_top5000_output -2 n GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow_top5000.fasta
+```
+
+The top 5000 PB-seq peaks use the new GLAM2 command reports a Tandem-9 as the most enriched one. \
+
+### Conduct TOMTOM
+
+Conduct a TOMTOM to compare the new GLAM2-round1 top motif with the 12 ChIP-seq motif: \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: chip_12_motifs.meme
+
+# get the top Glam2 motif
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_all_161win_glam2_top5000_output/glam2.meme
+# mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round1 -thresh 0.05 -dist pearson Glam2_all_individual_meme/Glam2_PB_GATAmotif1_meme.txt chip_12_motifs.meme
+
+cat tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv
+# Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	OverlapQuery_consensus	Target_consensus	Orientation
+# 1	TTATCTBYNNVATCT	0	9.68744e-05	0.00116249	0.00232499	15	TTATCTATCTAATCTA	TTATCTCTTTCATCT	+
+
+```
+
+```{r, engine='bash', eval=F, echo=TRUE}
+# /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB_new/Glam2_all_individual_meme
+module load meme/5.5.9
+ceqlogo \
+        -i1 Glam2_PB_GATAmotif1_meme.txt \
+        -o Glam2_PB_GATAmotif1_rc.eps \
+        -r
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif TTATCTBYNNVATCT as the closest spaced match to the top round2_GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round1/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+# Best TOMTOM Target_ID: TTATCTBYNNVATCT
+# echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif4_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt #16008
+
+# Note: when I use the old command, I got this motif out at round3, and at that time I use 0.0001 mast p cutoff and get 10573 peaks containing this tandem-9 motif.  
+
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #16005
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.0001_round1.bed #372
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round1.bed -fo mast_hits_near_0.0001_round1.fasta -name -s
+head mast_hits_near_0.0001_round1.fasta
+
+#>chr1:7426470-7426485|p=9.61e-05|strand=-::chr1:7426470-7426485(-)
+#GTATCAATCGAATCG
+#>chr1:11173817-11173832|p=9.35e-05|strand=+::chr1:11173817-11173832(+)
+#TAATCCTGGTGATCA
+#>chr1:20847935-20847950|p=9.88e-05|strand=-::chr1:20847935-20847950(-)
+#TTAACAGTGTAATCA
+#>chr1:30394191-30394206|p=9.88e-05|strand=-::chr1:30394191-30394206(-)
+#ataactgtgtcatct
+#>chr1:38171313-38171328|p=9.35e-05|strand=-::chr1:38171313-38171328(-)
+#CTATCTCCTTAACCT
+
+# Not all sequences near the cutoff perfectly match the motif
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt #14343
+
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed #14340
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > mast_hits_near_0.00005_round1.bed #455
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round1.bed -fo mast_hits_near_0.00005_round1.fasta -name -s
+head mast_hits_near_0.00005_round1.fasta
+
+#>chr1:5406571-5406586|p=4.44e-05|strand=-::chr1:5406571-5406586(-)
+#ttatcctatctatct
+#>chr1:8224500-8224515|p=4.44e-05|strand=-::chr1:8224500-8224515(-)
+#AAATCTTCCAGATCA
+#>chr1:20437767-20437782|p=4.65e-05|strand=-::chr1:20437767-20437782(-)
+#AAATCAAAACCATCT
+#>chr1:24397037-24397052|p=4.23e-05|strand=-::chr1:24397037-24397052(-)
+#aaatctactttatct
+#>chr1:32600051-32600066|p=4.87e-05|strand=+::chr1:32600051-32600066(+)
+#AAATCACTTTTATCA
+
+# now looks much much better, I am allowing some motif degeneracy (as long as I can see valid GAT, and don't being stringent about having a GATA). 
+```
+
+
+
+```{r, engine='bash', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1 and 2. And convert to FASTA. 
+intersectBed -v -a GATA_PB_summits_final_DESeq2_ranked_intensity_161bpwindow.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round1.bed > PB_without_glam2_motifs_1.bed #88487
+
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1.bed -fo PB_without_glam2_motifs_1.fasta
+
+```
+
+
+## new GLAM2_all-round2
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round2.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round2.sh_%j.out
+#SBATCH -e Glam2_top5000_round2.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_1.bed | head -n 5000 > PB_without_glam2_motifs_1_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1_top5000.bed -fo PB_without_glam2_motifs_1_top5000.fasta
+
+
+# all PB-seq peaks with 161 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_without_mot1_161win_glam2_top5000_output -2 n PB_without_glam2_motifs_1_top5000.fasta
+```
+
+
+The top 5000 PB-seq peaks use the new GLAM2 command reports a Tandem-8 as the most enriched one. \
+
+### Conduct TOMTOM
+
+Conduct a TOMTOM to compare the new GLAM2-round1 top motif with the 12 ChIP-seq motif: \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: chip_12_motifs.meme
+
+# get the top Glam2 motif
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA_PB_without_mot1_161win_glam2_top5000_output/glam2.meme
+# mkdir Glam2_all_individual_meme
+cp 1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round2 -thresh 0.05 -dist pearson Glam2_all_individual_meme/Glam2_PB_GATAmotif2_meme.txt chip_12_motifs.meme
+
+cat tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv
+# Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	OverlapQuery_consensus	Target_consensus	Orientation
+# 1	AGATDDDNAGATAAD	0	4.42085e-05	0.000530502	0.001061	15	AGATATATAGATAAGA	AGATGAAAAGATAAA	+
+#1	21-AGATAAGG	-8	0.00019805	0.00237661	0.00237661	AGATATATAGATAAGA	AGATAAGG	+
+
+```
+
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATDDDNAGATAAD as the closest spaced match to the top round2_GLAM2 motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+#module load deeptools/3.5.0
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round2/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+# Best TOMTOM Target_ID: AGATDDDNAGATAAD
+
+# echo $matched_file
+#/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif3_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt #20558
+
+# Note: when I use the old command, I got this motif out at round3, and at that time I use 0.0001 mast p cutoff and get 10573 peaks containing this tandem-9 motif.  
+
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #20555
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.0001_round2.bed #229
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round2.bed -fo mast_hits_near_0.0001_round2.fasta -name -s
+head mast_hits_near_0.0001_round2.fasta
+
+#>chr1:13993520-13993535|p=9.77e-05|strand=+::chr1:13993520-13993535(+)
+#AGATTGAATGGTAGT
+#>chr1:17004038-17004053|p=9.77e-05|strand=+::chr1:17004038-17004053(+)
+#tgatagtctgattca
+#>chr1:27833840-27833855|p=9.77e-05|strand=+::chr1:27833840-27833855(+)
+#AGATAACCAGGTATT
+#>chr1:49964531-49964546|p=9.77e-05|strand=+::chr1:49964531-49964546(+)
+#TGATGTCAGGATTGT
+#>chr1:53431945-53431960|p=9.33e-05|strand=+::chr1:53431945-53431960(+)
+#AGATCAATGGATGAG
+
+# Not all sequences near the cutoff perfectly match the motif
+
+# change to a more stringent mast_p cut off
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_1.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed #18997
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > mast_hits_near_0.00005_round2.bed #431
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round2.bed -fo mast_hits_near_0.00005_round2.fasta -name -s
+head mast_hits_near_0.00005_round2.fasta
+
+#>chr1:5603392-5603407|p=4.55e-05|strand=-::chr1:5603392-5603407(-)
+#agatatagagatgga
+#>chr1:8219467-8219482|p=4.84e-05|strand=+::chr1:8219467-8219482(+)
+#agataaatagatgta
+#>chr1:20450313-20450328|p=4.27e-05|strand=+::chr1:20450313-20450328(+)
+#tGATtgcaagattgt
+#>chr1:25610794-25610809|p=4.27e-05|strand=-::chr1:25610794-25610809(-)
+#tgatgtgaggattag
+#>chr1:40013793-40013808|p=4.55e-05|strand=-::chr1:40013793-40013808(-)
+#agatgttaggattga
+
+# now looks much much better, I am allowing some motif degeneracy (as long as I can see valid GAT, and don't being stringent about having a GATA). 
+```
+
+
+
+```{r, engine='bash', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 1 and 2. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_1.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round2.bed > PB_without_glam2_motifs_12.bed #69487
+
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12.bed -fo PB_without_glam2_motifs_12.fasta
+```
+
+making a narrow window: \
+```{r}
+awk 'BEGIN{OFS="\t"} {center=int(($2+$3)/2); start=center-40; end=center+41; print $1,start,end,$4}' PB_without_glam2_motifs_12.bed > PB_without_glam2_motifs_12_81bp.bed
+```
+
+
+
+## new GLAM2_all-round3
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_round3.sh_%j.out
+#SBATCH -e Glam2_top5000_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_12.bed | head -n 5000 > PB_without_glam2_motifs_12_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12_top5000.bed -fo PB_without_glam2_motifs_12_top5000.fasta
+
+
+# all PB-seq peaks with 161 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_without_mot12_161win_glam2_top5000_output -2 n PB_without_glam2_motifs_12_top5000.fasta
+```
+
+This does not report useful motif. \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round3.sh_%j.out
+#SBATCH -e Glam2_all_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+
+# all PB-seq peaks with 161 window
+glam2 -O GATA_PB_without_mot12_161win_glam2_output -2 n PB_without_glam2_motifs_12.fasta
+```
+
+This also does not report more GATA3-like useful motif. \
+
+### Try a narrow window? \
+glam2 new command-- top5000 peaks without motif12 81bp window: \
+
+PB_without_glam2_motifs_12_81bp.bed \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_top5000_81win_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_top5000_81win_round3.sh_%j.out
+#SBATCH -e Glam2_top5000_81win_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+sort -nrk4,4 PB_without_glam2_motifs_12_81bp.bed | head -n 5000 > PB_without_glam2_motifs_12_81bp_top5000.bed #5000
+
+#Convert this top 5000 peak BED file to a FASTA file with `fastaFromBed`. 
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12_81bp_top5000.bed -fo PB_without_glam2_motifs_12_81bp_top5000.fasta
+
+
+# all PB-seq peaks with 81 window
+glam2 -n 1000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_without_mot12_81win_glam2_top5000_output -2 n PB_without_glam2_motifs_12_81bp_top5000.fasta
+```
+
+```{r, engine='bash', eval=F, echo=TRUE}
+# /home/FCAM/ssun/PBseq/Exhaustive_denovomotif_analysis_260410/new_Exaust/GLAM2/glam2_all_PB_new/GATA_PB_without_mot12_81win_glam2_top5000_output
+
+module load meme/5.5.9
+ceqlogo \
+        -i1 glam2.meme \
+        -o Glam2_PB_GATAmotif3_rc.eps \
+        -r
+```
+the top5000 81bp window peaks returns a tandem-7 motif. \
+
+
+It proved the point that there do still have spaced motif in the remaining peaks but we need to use a narrow peak. \
+
+
+glam2 old command-- all peaks without motif12 81bp window
+```{r, engine='bash', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_81win_round3.sh
+#SBATCH -N 1
+#SBATCH -n 32
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_81win_round3.sh_%j.out
+#SBATCH -e Glam2_all_81win_round3.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+module load bedtools
+genome=/home/FCAM/ssun/Genome/hg38.fa
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12_81bp.bed -fo PB_without_glam2_motifs_12_81bp.fasta
+
+
+# all PB-seq peaks with 81 window
+glam2 -O GATA_PB_without_mot12_81win_glam2_output -2 n PB_without_glam2_motifs_12_81bp.fasta
+```
+
+the all 81bp window peaks returns a tandem-12 motif. \
 
 <!--
 ## GLAM2-round1:
