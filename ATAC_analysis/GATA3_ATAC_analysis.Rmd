@@ -2218,7 +2218,7 @@ dev.off()
 
 ## 1 by 1 pair-wise matching 
 
-Here, instead of doing a global match for all 12 motifs, we are matching between two sets of regions (with distinct motifs) at a time. For example, we are matching regions containing motif A and regions containing motifB that have comparable ATAC DMSO signals as well as ChIP-seq intensity. \  
+Here, instead of doing a global match for all 12 motifs, we are matching between two sets of regions (with distinct motifs) at a time. For example, we are matching regions containing motif A and regions containing motifB that have comparable ATAC DMSO signals as well as ChIP-seq intensity. \
 
 ```{r, engine='R', eval=F, echo=TRUE}
 # module load R/4.1.2
@@ -2812,5 +2812,385 @@ dev.off()
 
 
 
+### 4) categorize up/down/unchanged ATAC signals across regions with distinct motif
 
+**Determine whether binding intensity is associated with chromatin accessibility changes**: For each motif category, classify ChIP-seq regions using both raw log2FC-based groups and significance-based groups. Then plot bwplots to compare GATA3 ChIP-seq intensity across ATAC-up, ATAC-down, and unchanged/non-significant regions. \
+ 
+```{r, engine='R', eval=F, echo=TRUE}
+# cd /home/FCAM/ssun/GATA3_ATAC_July2024/match_from_scratch_260520/match_ChIPint_DMSO_12/
+# module load R/4.1.2
+# R
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+load("GATA3_ChIP_peak_with_atac_counts_DE.results.lattice.Rdata")
+# match for both chip intensity as well as dmso atac signals
+df_match = as.data.frame(DE.results.lattice[, c(
+  "log2FoldChange",
+  "padj",
+  "category",
+  "chip_intensity",
+  "motif",
+  "DMSO_signal"
+)])
+df_match$motif = as.numeric(as.character(df_match$motif))
+
+# Log-transform matching variables because chip_intensity and DMSO_signal may have very different scales
+df_match$log_ChIP_intensity = log2(df_match$chip_intensity + 1)
+df_match$log_DMSO_signal = log2(df_match$DMSO_signal + 1)
+
+df_match = df_match[
+  !is.na(df_match$motif) &
+    !is.na(df_match$log_ChIP_intensity) &
+    !is.na(df_match$log_DMSO_signal),
+]
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(MatchIt)
+
+matched_list_treat_final = list()
+matched_list_control_final = list()
+matched_list_all = list()
+
+motif_pairs = combn(1:12, 2, simplify = FALSE) # all combinations # 66
+
+for (pair in motif_pairs) {
+  
+  motif_a = pair[1]
+  motif_b = pair[2]
+  
+  pair_name = paste0("motif", motif_a, "_vs_motif", motif_b)
+  print(pair_name)
+  
+  test = df_match[df_match$motif %in% c(motif_a, motif_b), ]
+  
+  # define motif_b as treatment group, motif_a as control group
+  test$group_binary = ifelse(test$motif == motif_b, 1, 0)
+  
+   out = matchit(
+    group_binary ~ log_ChIP_intensity + log_DMSO_signal,
+    data = test,
+    method = "nearest",
+    distance = "mahalanobis",
+    ratio = 1,
+    caliper = c(
+    log_ChIP_intensity = 0.1,
+    log_DMSO_signal = 0.1
+    ))
+  
+  matched_df = match.data(out)
+  
+  matched_control = matched_df[matched_df$group_binary == 0, ]
+  matched_treat   = matched_df[matched_df$group_binary == 1, ]
+  
+  matched_list_control_final[[pair_name]] = matched_control
+  matched_list_treat_final[[pair_name]]   = matched_treat
+  matched_list_all[[pair_name]]           = matched_df
+}
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(dplyr)
+library(lattice)
+library(latticeExtra)
+library(RColorBrewer)
+
+# Make long dataframe from matched_list_all
+plot_pair_df = do.call(rbind, lapply(names(matched_list_all), function(pair_name) {
+  
+  df = matched_list_all[[pair_name]]
+  df$pair = pair_name
+  df$peak = rownames(df)
+  
+  ## extract motif numbers from pair name
+  motif_nums = as.integer(unlist(regmatches(pair_name, gregexpr("[0-9]+", pair_name))))
+  motif_a = motif_nums[1]
+  motif_b = motif_nums[2]
+  
+  df$motif_side = ifelse(
+    df$motif == motif_a,
+    paste0("motif", motif_a),
+    paste0("motif", motif_b)
+  )
+  
+  df[, c(
+    "pair",
+    "motif",
+    "motif_side",
+    "peak",
+    "subclass",
+    "group_binary",
+    "log2FoldChange",
+    "padj",
+    "category",
+    "chip_intensity",
+    "DMSO_signal"
+  )]
+}))
+
+rownames(plot_pair_df) = NULL
+
+plot_pair_df$pair = factor(plot_pair_df$pair, levels = names(matched_list_all))
+plot_pair_df$motif = factor(plot_pair_df$motif, levels = 1:12)
+
+#head(plot_pair_df)
+#              pair motif motif_side                        peak subclass
+#1 motif1_vs_motif2     1     motif1 chr1:1238037-1238438_motif1     1268
+#2 motif1_vs_motif2     1     motif1 chr1:1740930-1741331_motif1     3595
+#3 motif1_vs_motif2     1     motif1 chr1:2001821-2002222_motif1     3479
+#4 motif1_vs_motif2     1     motif1 chr1:3703357-3703758_motif1     3561
+#5 motif1_vs_motif2     2     motif2 chr1:5688447-5688848_motif2     2959
+#6 motif1_vs_motif2     2     motif2 chr1:5959630-5960031_motif2     3415
+#  group_binary log2FoldChange         padj          category chip_intensity
+#1            0      0.1968487 4.650825e-01 All Other Regions       43.01128
+#2            0      0.1638587 4.369962e-01 All Other Regions       30.26410
+#3            0      0.2696854 2.295222e-01 All Other Regions       36.15170
+#4            0     -0.1499091 4.045907e-01 All Other Regions      181.31618
+#5            1     -1.0467053 3.416983e-04              Down      134.69437
+#6            1     -2.0765003 1.045631e-07              Down      103.23573
+#  DMSO_signal
+#1    89.91213
+#2   148.18576
+#3   122.53889
+#4   249.57131
+#5    74.89265
+#6    59.51115
+
+
+
+save.image("260620_matched_both_int_dmso_pairwise.Rdata")
+
+table(plot_pair_df$pair)
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+padj_cutoff = 0.05
+
+plot_pair_df = plot_pair_df %>%
+  mutate(
+    ATAC_group_sig = case_when(
+      !is.na(padj) & padj < padj_cutoff & log2FoldChange < 0 ~ "ATAC-down",
+      !is.na(padj) & padj < padj_cutoff & log2FoldChange > 0 ~ "ATAC-up",
+      TRUE ~ "Non-significant"
+    ),
+    ATAC_group_sig = factor(
+      ATAC_group_sig,
+      levels = c("ATAC-down", "Non-significant", "ATAC-up")
+    )
+  )
+
+#head(plot_pair_df)
+#              pair motif motif_side                        peak subclass
+#1 motif1_vs_motif2     1     motif1 chr1:1238037-1238438_motif1     1268
+#2 motif1_vs_motif2     1     motif1 chr1:1740930-1741331_motif1     3595
+#3 motif1_vs_motif2     1     motif1 chr1:2001821-2002222_motif1     3479
+#4 motif1_vs_motif2     1     motif1 chr1:3703357-3703758_motif1     3561
+#5 motif1_vs_motif2     2     motif2 chr1:5688447-5688848_motif2     2959
+#6 motif1_vs_motif2     2     motif2 chr1:5959630-5960031_motif2     3415
+#  group_binary log2FoldChange         padj          category chip_intensity
+#1            0      0.1968487 4.650825e-01 All Other Regions       43.01128
+#2            0      0.1638587 4.369962e-01 All Other Regions       30.26410
+#3            0      0.2696854 2.295222e-01 All Other Regions       36.15170
+#4            0     -0.1499091 4.045907e-01 All Other Regions      181.31618
+#5            1     -1.0467053 3.416983e-04              Down      134.69437
+#6            1     -2.0765003 1.045631e-07              Down      103.23573
+#  DMSO_signal  ATAC_group_sig
+#1    89.91213 Non-significant
+#2   148.18576 Non-significant
+#3   122.53889 Non-significant
+#4   249.57131 Non-significant
+#5    74.89265       ATAC-down
+#6    59.51115       ATAC-down
+```
+
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+library(dplyr)
+
+my.settings = list(
+  box.rectangle = list(col = "black"),
+  box.umbrella = list(lty = 1, col = "black", lwd = 1.6),
+  plot.symbol = list(col = '#93939380', lwd = 1.6, pch = '.'),
+  strip.background = list(col = "grey85"),
+  strip.border = list(col = "grey40")
+)
+
+pdf("ATAC_log2FC_by_significance_group_matched_66pairs_bwplot.pdf",
+    width = 14, height = 16, useDingbats = FALSE)
+
+print(
+  bwplot(
+    log2FoldChange ~ ATAC_group_sig | pair,
+    data = plot_pair_df,
+    layout = c(6, 11),
+    scales = list(
+      x = list(rot = 45, cex = 0.7),
+      y = list(relation = "same")
+    ),
+    xlab = paste0("Significance-based ATAC group, padj < ", padj_cutoff),
+    ylab = "ATAC log2 fold change",
+    main = "ATAC-seq log2FC across significant ATAC groups in 66 matched motif pairs",
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      panel.violin(
+        x, y, ...,
+        col = "#E0FFFF",
+        varwidth = FALSE,
+        outer = FALSE
+      )
+      panel.bwplot(
+        x, y, ...,
+        pch = "|",
+        do.out = FALSE
+      )
+      panel.stripplot(
+        x, y,
+        horizontal = FALSE,
+        col = "#b3b3b366",
+        jitter.data = TRUE,
+        amount = 0.2,
+        factor = 4,
+        pch = 16,
+        cex = 0.3
+      )
+      panel.abline(h = 0, lty = 2, col = "grey50")
+    }
+  )
+)
+
+dev.off()
+```
+
+```{r, engine='R', eval=F, echo=TRUE}
+library(lattice)
+library(dplyr)
+
+my.settings = list(
+  box.rectangle = list(col = "black"),
+  box.umbrella = list(lty = 1, col = "black", lwd = 1.6),
+  plot.symbol = list(col = '#93939380', lwd = 1.6, pch = '.'),
+  strip.background = list(col = "grey85"),
+  strip.border = list(col = "grey40")
+)
+
+pdf("ChIP_int_by_ATAC_significance_group_matched_66pairs_bwplot.pdf",
+    width = 14, height = 16, useDingbats = FALSE)
+
+print(
+  bwplot(
+    log(chip_intensity, base=10) ~ ATAC_group_sig | pair,
+    data = plot_pair_df,
+    layout = c(6, 11),
+    scales = list(
+      x = list(rot = 45, cex = 0.7),
+      y = list(relation = "same")
+    ),
+    xlab = paste0("Significance-based ATAC group, padj < ", padj_cutoff),
+    ylab = "log 10 GATA3 ChIP-seq Intensity",
+    main = "GATA3 ChIP-seq Intenisty across significant ATAC groups in 66 matched motif pairs",
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      panel.violin(
+        x, y, ...,
+        col = "#E0FFFF",
+        varwidth = FALSE,
+        outer = FALSE
+      )
+      panel.bwplot(
+        x, y, ...,
+        pch = "|",
+        do.out = FALSE
+      )
+      panel.stripplot(
+        x, y,
+        horizontal = FALSE,
+        col = "#b3b3b366",
+        jitter.data = TRUE,
+        amount = 0.2,
+        factor = 4,
+        pch = 16,
+        cex = 0.3
+      )
+      panel.abline(h = 0, lty = 2, col = "grey50")
+    }
+  )
+)
+
+dev.off()
+```
+
+stack bar chart: \
+```{r, engine='R', eval=F, echo=TRUE}
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+bar_df = plot_pair_df %>%
+  group_by(pair, ATAC_group_sig) %>%
+  summarise(n = n(), .groups = "drop")
+
+# keep pair order the same as matched_list_all
+bar_df$pair = factor(bar_df$pair, levels = names(matched_list_all))
+
+bar_df$ATAC_group_sig = factor(
+  bar_df$ATAC_group_sig,
+  levels = c("ATAC-down", "ATAC-up", "Non-significant")
+)
+
+my_cols = c(
+  "ATAC-down" = "#377EB8",
+  "ATAC-up" = "#E41A1C",
+  "Non-significant" = "grey80"
+)
+
+my.settings = list(
+  superpose.polygon = list(
+    col = my_cols[levels(bar_df$ATAC_group_sig)],
+    border = "black"
+  ),
+  strip.background = list(col = "grey80", cex = 0.6),
+  strip.border = list(col = "black")
+)
+
+pdf("MatchIt_66pairs_stack_bar_significance_ATAC_group.pdf", width = 16, height = 6, useDingbats = FALSE)
+
+print(
+  barchart(
+    n ~ pair,
+    data = bar_df,
+    groups = ATAC_group_sig,
+    stack = TRUE,
+    auto.key = list(
+      space = "right",
+      lines = FALSE,
+      points = FALSE,
+      rectangles = TRUE,
+      cex = 1,
+      reverse.rows = TRUE
+    ),
+    scales = list(
+      x = list(rot = 45, cex = 0.45)
+    ),
+    ylab = "Number of matched regions",
+    xlab = "Matched motif pairs",
+    main = paste0("ATAC-significance groups across 66 matched pairs (padj < ", padj_cutoff, ")"),
+    par.settings = my.settings,
+    panel = function(x, y, ...) {
+      panel.barchart(x, y, ...)
+      # optional text labels:
+      # panel.text(x, cumsum(y) - y/2, labels = y, cex = 0.4)
+    }
+  )
+)
+
+dev.off()
+```
 
