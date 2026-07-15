@@ -1795,7 +1795,7 @@ head mast_hits_near_0.00005_round6.fasta
 
 ```{r engine='R', eval=F, echo=TRUE}
 # Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
-intersectBed -v -a PB_without_glam2_motifs_12345.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed > PB_without_glam2_motifs_123456.bed # 
+intersectBed -v -a PB_without_glam2_motifs_12345.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed > PB_without_glam2_motifs_123456.bed # 21528
 fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123456.bed -fo PB_without_glam2_motifs_123456.fasta
 
 ```
@@ -2665,11 +2665,8 @@ library(tidyr)
 library(lattice)
 library(RColorBrewer)
 
-bar=read.table('peak.with.motif.sum.txt', sep = "", header=F)
-
-
 bar <- data.frame(
-  enriched_motifs = c("other", "motif_9_161bp", "motif_8_161bp", "motif_7_161bp",  "motif_6_161bp", "motif_5_161bp", "motif_4_161bp", "motif_3_161bp","motif_2_161bp","motif_1_161bp"),
+  enriched_motifs = c("other", "motif_9_101bp", "motif_8_101bp", "motif_7_101bp",  "motif_6_101bp", "motif_5_101bp", "motif_4_101bp", "motif_3_101bp","motif_2_101bp","motif_1_101bp"),
   
   group = c("PB-seq", "PB-seq", "PB-seq", "PB-seq",
             "PB-seq", "PB-seq", "PB-seq", "PB-seq", "PB-seq", "PB-seq"),
@@ -2679,7 +2676,7 @@ bar <- data.frame(
 
 
 bar$dum.x="peak number"
-bar$enriched_motifs<- factor(bar$enriched_motif, levels = c("other", "motif_12_161bp", "motif_11_161bp", "motif_10_161bp",  "motif_9_161bp", "motif_8_161bp", "motif_7_161bp",  "motif_6_161bp", "motif_5_161bp", "motif_4_161bp", "motif_3_161bp","motif_2_161bp","motif_1_161bp"))
+bar$enriched_motifs<- factor(bar$enriched_motif, levels = c("other", "motif_9_101bp", "motif_8_101bp", "motif_7_101bp",  "motif_6_101bp", "motif_5_101bp", "motif_4_101bp", "motif_3_101bp","motif_2_101bp","motif_1_101bp"))
 
 #coherence check
 sum(bar$peak_numbers) 
@@ -2834,6 +2831,130 @@ barchart(
   data = plot_df,
   stack = TRUE,
   layout = c(2, 1), 
+  auto.key = list(
+      space = "right",
+      lines = FALSE,
+      points = FALSE,
+      rectangles = TRUE,
+      cex = 1,
+      reverse.rows = TRUE
+    ),
+  ylab = "Fraction of regions",
+  xlab = "",
+  ylim = c(0, 1),
+  scales = list(
+    x = list(rot = 45),
+    y = list(at = seq(0, 1, 0.2))
+  ),
+  par.settings = list(
+    superpose.polygon = list(
+      col = c("black", "white"),
+      border = "gray40"
+    )
+  ),
+  panel = function(x, y, ...) {
+    panel.barchart(x, y, ...)
+  }
+))
+dev.off()
+```
+
+positive control plot: \
+region with motif 1 positive fraction: 28862 / 102830 (mast p<=0.00005) \
+region with motif 2 positive fraction: 2503 / 73967 (mast p<=0.000005) \
+region with motif 3 positive fraction: 12224 / 71464 (mast p<=0.00005) \
+region with motif 4 positive fraction: 20994 / 59239 (mast p<=0.00005) \
+region with motif 5 positive fraction: 9700 / 38243 (mast p<=0.0001) \
+region with motif 6 positive fraction: 7015 / 28543 (mast p<=0.00005) \
+region with motif 7 positive fraction: 8420 / 21528  (mast p<=0.0001) \
+region with motif 8 positive fraction: 2707 / 13107 (mast p<=0.00005) \
+region with motif 9 positive fraction: 583 / 10400 (mast p<=0.00001) \
+region do not have motifs as now: 9890  
+```{r engine='bash', eval=F, echo=TRUE}
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+raw_df <- data.frame(
+  motif = c("motif1", "motif2", "motif3", "motif4", "motif5", "motif6", "motif7", "motif8", "motif9"),
+  
+  group = c("PB-seq", "PB-seq","PB-seq", "PB-seq","PB-seq", "PB-seq","PB-seq", "PB-seq","PB-seq"),
+  
+  motif_positive = c(28862, 2503, 12224, 20994, 9700, 7015, 8420, 2707, 583),
+  
+  total_regions = c(102830, 73967, 71464, 59239, 38243, 28543, 21528, 13107, 10400),
+  
+  mast_cutoff =  c(rep(0.00005, 4), 0.0001, 0.00005, 0.0001, 0.00005, 0.00001)
+)
+
+raw_df <- raw_df %>%
+  mutate(
+    motif_negative = total_regions - motif_positive,
+    positive_fraction = motif_positive / total_regions,
+    negative_fraction = motif_negative / total_regions
+  )
+  
+# raw_df
+   motif  group motif_positive total_regions mast_cutoff motif_negative
+1 motif1 PB-seq          28862        102830       5e-05          73968
+2 motif2 PB-seq           2503         73967       5e-05          71464
+3 motif3 PB-seq          12224         71464       5e-05          59240
+4 motif4 PB-seq          20994         59239       5e-05          38245
+5 motif5 PB-seq           9700         38243       1e-04          28543
+6 motif6 PB-seq           7015         28543       5e-05          21528
+7 motif7 PB-seq           8420         21528       1e-04          13108
+8 motif8 PB-seq           2707         13107       5e-05          10400
+9 motif9 PB-seq            583         10400       1e-05           9817
+  positive_fraction negative_fraction
+1        0.28067685         0.7193232
+2        0.03383941         0.9661606
+3        0.17105116         0.8289488
+4        0.35439491         0.6456051
+5        0.25364119         0.7463588
+6        0.24576954         0.7542305
+7        0.39111854         0.6088815
+8        0.20653086         0.7934691
+9        0.05605769         0.9439423
+```
+
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+plot_df <- raw_df %>%
+  select(motif, group, motif_positive, motif_negative, total_regions, mast_cutoff) %>%
+  pivot_longer(
+    cols = c(motif_positive, motif_negative),
+    names_to = "motif_status",
+    values_to = "count"
+  ) %>%
+  mutate(
+    fraction = count / total_regions,
+    motif_status = recode(
+      motif_status,
+      motif_positive = "With motif",
+      motif_negative = "Without motif"
+    ),
+    motif_status = factor(motif_status, levels = c("With motif", "Without motif")),
+    #group = factor(group, levels = c("PB-seq")),
+    motif = factor(motif, levels = c("motif1", "motif2", "motif3", "motif4", "motif5", "motif6", "motif7", "motif8", "motif9"))
+  )
+plot_df
+
+
+
+```
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+pdf('260714_barplot_mast_fraction_PBpeak_posctrl_inPeaksnomotif.pdf',width=10,height=6)
+print(
+barchart(
+  fraction ~ motif,
+  groups = motif_status,
+  data = plot_df,
+  stack = TRUE,
+  #layout = c(2, 1), 
   auto.key = list(
       space = "right",
       lines = FALSE,
