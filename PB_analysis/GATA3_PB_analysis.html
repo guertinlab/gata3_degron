@@ -3250,7 +3250,7 @@ par.settings = list(superpose.line = list(col=c(&quot;red&quot;, &quot;black&quo
 my.settings &lt;- list(
   #superpose.polygon=list(col=c(colorRampPalette(c(&quot;red&quot;,&quot;pink&quot;))(6),colorRampPalette(c(&quot;blue&quot;,&quot;light blue&quot;))(3), &quot;light grey&quot;), border=&quot;transparent&quot;),
   #superpose.polygon=list(col=c(&quot;red&quot;,&quot;orange&quot;,&quot;yellow&quot;,&quot;lightgreen&quot;,&quot;skyblue&quot;,&quot;blue&quot;,&quot;#FF00FF&quot;,&quot;brown&quot;,&quot;#CC6600&quot;, &quot;#006666&quot;, &quot;lightgrey&quot;), border=&quot;transparent&quot;),
-  superpose.polygon=list(col=c(&quot;light grey&quot;, brewer.pal(11, &quot;Spectral&quot;), &quot;red&quot;),  border=&quot;transparent&quot;),
+  superpose.polygon=list(col=c(&quot;light grey&quot;, brewer.pal(9, &quot;Spectral&quot;), &quot;red&quot;),  border=&quot;transparent&quot;),
   strip.background=list(col=&quot;grey80&quot;, cex = 0.6),
   strip.border=list(col=&quot;black&quot;)
 )
@@ -3261,7 +3261,7 @@ print(barchart(peak_numbers ~ dum.x,
          auto.key = list(space = &quot;right&quot;, lines=F, points=F, rectangles = TRUE, cex = 1, reverse.rows = TRUE),
          #auto.key=list(space=&quot;right&quot;),
          #scales = list(x = list(rot = 45)),
-         ylab = &quot;number of ChIP-seq peaks&quot;,
+         ylab = &quot;number of PB-seq peaks&quot;,
          xlab = &quot;&quot;,
          par.settings = my.settings,
          panel=function(x, y, ...) {
