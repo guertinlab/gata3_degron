@@ -2430,7 +2430,7 @@ head mast_hits_near_0.00005_round6.fasta
 #AAATCAATGAAATCT
 </code></pre>
 <pre class="r"><code># Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
-intersectBed -v -a PB_without_glam2_motifs_12345.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed &gt; PB_without_glam2_motifs_123456.bed # 
+intersectBed -v -a PB_without_glam2_motifs_12345.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round6.bed &gt; PB_without_glam2_motifs_123456.bed # 21528
 fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123456.bed -fo PB_without_glam2_motifs_123456.fasta</code></pre>
 </div>
 <div id="glam2-all-round7-100bp" class="section level2" number="8.8">
@@ -3220,11 +3220,8 @@ library(tidyr)
 library(lattice)
 library(RColorBrewer)
 
-bar=read.table(&#39;peak.with.motif.sum.txt&#39;, sep = &quot;&quot;, header=F)
-
-
 bar &lt;- data.frame(
-  enriched_motifs = c(&quot;other&quot;, &quot;motif_9_161bp&quot;, &quot;motif_8_161bp&quot;, &quot;motif_7_161bp&quot;,  &quot;motif_6_161bp&quot;, &quot;motif_5_161bp&quot;, &quot;motif_4_161bp&quot;, &quot;motif_3_161bp&quot;,&quot;motif_2_161bp&quot;,&quot;motif_1_161bp&quot;),
+  enriched_motifs = c(&quot;other&quot;, &quot;motif_9_101bp&quot;, &quot;motif_8_101bp&quot;, &quot;motif_7_101bp&quot;,  &quot;motif_6_101bp&quot;, &quot;motif_5_101bp&quot;, &quot;motif_4_101bp&quot;, &quot;motif_3_101bp&quot;,&quot;motif_2_101bp&quot;,&quot;motif_1_101bp&quot;),
   
   group = c(&quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;,
             &quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;, &quot;PB-seq&quot;),
@@ -3234,7 +3231,7 @@ bar &lt;- data.frame(
 
 
 bar$dum.x=&quot;peak number&quot;
-bar$enriched_motifs&lt;- factor(bar$enriched_motif, levels = c(&quot;other&quot;, &quot;motif_12_161bp&quot;, &quot;motif_11_161bp&quot;, &quot;motif_10_161bp&quot;,  &quot;motif_9_161bp&quot;, &quot;motif_8_161bp&quot;, &quot;motif_7_161bp&quot;,  &quot;motif_6_161bp&quot;, &quot;motif_5_161bp&quot;, &quot;motif_4_161bp&quot;, &quot;motif_3_161bp&quot;,&quot;motif_2_161bp&quot;,&quot;motif_1_161bp&quot;))
+bar$enriched_motifs&lt;- factor(bar$enriched_motif, levels = c(&quot;other&quot;, &quot;motif_9_101bp&quot;, &quot;motif_8_101bp&quot;, &quot;motif_7_101bp&quot;,  &quot;motif_6_101bp&quot;, &quot;motif_5_101bp&quot;, &quot;motif_4_101bp&quot;, &quot;motif_3_101bp&quot;,&quot;motif_2_101bp&quot;,&quot;motif_1_101bp&quot;))
 
 #coherence check
 sum(bar$peak_numbers) 
@@ -3369,6 +3366,116 @@ barchart(
   data = plot_df,
   stack = TRUE,
   layout = c(2, 1), 
+  auto.key = list(
+      space = &quot;right&quot;,
+      lines = FALSE,
+      points = FALSE,
+      rectangles = TRUE,
+      cex = 1,
+      reverse.rows = TRUE
+    ),
+  ylab = &quot;Fraction of regions&quot;,
+  xlab = &quot;&quot;,
+  ylim = c(0, 1),
+  scales = list(
+    x = list(rot = 45),
+    y = list(at = seq(0, 1, 0.2))
+  ),
+  par.settings = list(
+    superpose.polygon = list(
+      col = c(&quot;black&quot;, &quot;white&quot;),
+      border = &quot;gray40&quot;
+    )
+  ),
+  panel = function(x, y, ...) {
+    panel.barchart(x, y, ...)
+  }
+))
+dev.off()</code></pre>
+<p>positive control plot:<br />
+region with motif 1 positive fraction: 28862 / 102830 (mast p&lt;=0.00005)<br />
+region with motif 2 positive fraction: 2503 / 73967 (mast p&lt;=0.000005)<br />
+region with motif 3 positive fraction: 12224 / 71464 (mast p&lt;=0.00005)<br />
+region with motif 4 positive fraction: 20994 / 59239 (mast p&lt;=0.00005)<br />
+region with motif 5 positive fraction: 9700 / 38243 (mast p&lt;=0.0001)<br />
+region with motif 6 positive fraction: 7015 / 28543 (mast p&lt;=0.00005)<br />
+region with motif 7 positive fraction: 8420 / 21528 (mast p&lt;=0.0001)<br />
+region with motif 8 positive fraction: 2707 / 13107 (mast p&lt;=0.00005)<br />
+region with motif 9 positive fraction: 583 / 10400 (mast p&lt;=0.00001)<br />
+region do not have motifs as now: 9890</p>
+<pre class="bash"><code>library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+raw_df &lt;- data.frame(
+  motif = c(&quot;motif1&quot;, &quot;motif2&quot;, &quot;motif3&quot;, &quot;motif4&quot;, &quot;motif5&quot;, &quot;motif6&quot;, &quot;motif7&quot;, &quot;motif8&quot;, &quot;motif9&quot;),
+  
+  group = c(&quot;PB-seq&quot;, &quot;PB-seq&quot;,&quot;PB-seq&quot;, &quot;PB-seq&quot;,&quot;PB-seq&quot;, &quot;PB-seq&quot;,&quot;PB-seq&quot;, &quot;PB-seq&quot;,&quot;PB-seq&quot;),
+  
+  motif_positive = c(28862, 2503, 12224, 20994, 9700, 7015, 8420, 2707, 583),
+  
+  total_regions = c(102830, 73967, 71464, 59239, 38243, 28543, 21528, 13107, 10400),
+  
+  mast_cutoff =  c(rep(0.00005, 4), 0.0001, 0.00005, 0.0001, 0.00005, 0.00001)
+)
+
+raw_df &lt;- raw_df %&gt;%
+  mutate(
+    motif_negative = total_regions - motif_positive,
+    positive_fraction = motif_positive / total_regions,
+    negative_fraction = motif_negative / total_regions
+  )
+  
+# raw_df
+   motif  group motif_positive total_regions mast_cutoff motif_negative
+1 motif1 PB-seq          28862        102830       5e-05          73968
+2 motif2 PB-seq           2503         73967       5e-05          71464
+3 motif3 PB-seq          12224         71464       5e-05          59240
+4 motif4 PB-seq          20994         59239       5e-05          38245
+5 motif5 PB-seq           9700         38243       1e-04          28543
+6 motif6 PB-seq           7015         28543       5e-05          21528
+7 motif7 PB-seq           8420         21528       1e-04          13108
+8 motif8 PB-seq           2707         13107       5e-05          10400
+9 motif9 PB-seq            583         10400       1e-05           9817
+  positive_fraction negative_fraction
+1        0.28067685         0.7193232
+2        0.03383941         0.9661606
+3        0.17105116         0.8289488
+4        0.35439491         0.6456051
+5        0.25364119         0.7463588
+6        0.24576954         0.7542305
+7        0.39111854         0.6088815
+8        0.20653086         0.7934691
+9        0.05605769         0.9439423</code></pre>
+<pre class="bash"><code>plot_df &lt;- raw_df %&gt;%
+  select(motif, group, motif_positive, motif_negative, total_regions, mast_cutoff) %&gt;%
+  pivot_longer(
+    cols = c(motif_positive, motif_negative),
+    names_to = &quot;motif_status&quot;,
+    values_to = &quot;count&quot;
+  ) %&gt;%
+  mutate(
+    fraction = count / total_regions,
+    motif_status = recode(
+      motif_status,
+      motif_positive = &quot;With motif&quot;,
+      motif_negative = &quot;Without motif&quot;
+    ),
+    motif_status = factor(motif_status, levels = c(&quot;With motif&quot;, &quot;Without motif&quot;)),
+    #group = factor(group, levels = c(&quot;PB-seq&quot;)),
+    motif = factor(motif, levels = c(&quot;motif1&quot;, &quot;motif2&quot;, &quot;motif3&quot;, &quot;motif4&quot;, &quot;motif5&quot;, &quot;motif6&quot;, &quot;motif7&quot;, &quot;motif8&quot;, &quot;motif9&quot;))
+  )
+plot_df
+</code></pre>
+<pre class="bash"><code>pdf(&#39;260714_barplot_mast_fraction_PBpeak_posctrl_inPeaksnomotif.pdf&#39;,width=10,height=6)
+print(
+barchart(
+  fraction ~ motif,
+  groups = motif_status,
+  data = plot_df,
+  stack = TRUE,
+  #layout = c(2, 1), 
   auto.key = list(
       space = &quot;right&quot;,
       lines = FALSE,
