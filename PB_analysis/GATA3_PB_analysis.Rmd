@@ -2695,7 +2695,7 @@ par.settings = list(superpose.line = list(col=c("red", "black"), lwd=2), strip.b
 my.settings <- list(
   #superpose.polygon=list(col=c(colorRampPalette(c("red","pink"))(6),colorRampPalette(c("blue","light blue"))(3), "light grey"), border="transparent"),
   #superpose.polygon=list(col=c("red","orange","yellow","lightgreen","skyblue","blue","#FF00FF","brown","#CC6600", "#006666", "lightgrey"), border="transparent"),
-  superpose.polygon=list(col=c("light grey", brewer.pal(11, "Spectral"), "red"),  border="transparent"),
+  superpose.polygon=list(col=c("light grey", brewer.pal(9, "Spectral"), "red"),  border="transparent"),
   strip.background=list(col="grey80", cex = 0.6),
   strip.border=list(col="black")
 )
@@ -2706,7 +2706,7 @@ print(barchart(peak_numbers ~ dum.x,
          auto.key = list(space = "right", lines=F, points=F, rectangles = TRUE, cex = 1, reverse.rows = TRUE),
          #auto.key=list(space="right"),
          #scales = list(x = list(rot = 45)),
-         ylab = "number of ChIP-seq peaks",
+         ylab = "number of PB-seq peaks",
          xlab = "",
          par.settings = my.settings,
          panel=function(x, y, ...) {
