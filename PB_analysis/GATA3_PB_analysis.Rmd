@@ -606,6 +606,7 @@ start[j] = as.numeric(strsplit(strsplit(mast.data[j,1], ":")[[1]][2], "-")[[1]][
 Now, the output BED file will be one base ahead.\
 The updated parse_mast_to_coordinates1.R file correctly reflect the actual coordinates of the motifs. \
 
+<!--
 # MEME
 
 ## Input sequences: GATA3 PB-seq data in vitro
@@ -693,7 +694,7 @@ done
 
 ```
 
-
+-->
 
 # GLAM2
 
@@ -771,7 +772,7 @@ sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 genome=/home/FCAM/ssun/Genome/hg38.fa
 dir=/home/FCAM/ssun/PBseq/GATA_Deseq2/peakcall0.05/
 
-# extend the peak region to 161bp window centered on the summit
+# extend the peak region to 101bp window centered on the summit
 slopBed -b 50 -i ${dir}GATA_PB_summits_final_DESeq2_ranked_intensity.bed -g $sizes  | sort -k1,1 -k2,2n > GATA_PB_summits_final_DESeq2_ranked_intensity_101bpwindow.bed #102830
 
 # convert to FASTA
@@ -1937,6 +1938,7 @@ fastaFromBed -fi $genome -bed PB_without_glam2_motifs_1234567.bed -fo PB_without
 ```
 
 ## GLAM2-all-round8-100bp
+
 ```{r, engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=Glam2_all_round8.sh
@@ -1987,7 +1989,7 @@ glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_101win_glam2_round8_out
 
 a degenerate Tandem-10 motif (which had been previously found in round2), no additional GATA3-like gapped motif.
 
-## try same code as round9 ChIP
+### try MEME with same code as round9 ChIP
 ```{r engine='bash', eval=F, echo=TRUE}
 #!/bin/bash
 #SBATCH --job-name=Glam2_all_round8_meme.sh
@@ -2009,6 +2011,429 @@ module load meme/5.5.9
 meme -p 64 -oc GATA3_without_mot1234567_101bp_meme_output -nmotifs 10 -objfun classic -shuf 1 -csites 20000 -searchsize 0 -minw 13 -maxw 16 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 PB_without_glam2_motifs_1234567.fasta
 ```
 
+Found the tandem-11 motif. \
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA3_without_mot1234567_101bp_meme_output/meme.txt
+#mkdir Glam2_all_individual_meme
+cp MEME-1_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif8_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round8 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif8_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round8/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	OverlapQuery_consensus	Target_consensus	Orientation
+#TTATCTNYNTWHRATC	TATCTBNNDDMVATCT	-1	1.29708e-08	1.5565e-07	3.11299e-07	15	TTATCTTTTTTTAATC	TATCTTTAAAAAATCT	+
+#TTATCTNYNTWHRATC	21-AGATAAGG	2	0.000102166	0.00122599	0.00122599	6	TTATCTTTTTTTAATC	CCTTATCT	-
+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif TATCTBNNDDMVATCT as the closest match to the meme motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round8/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: TATCTBNNDDMVATCT
+
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif9_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.bed #2926
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.bed > mast_hits_near_0.0001_round8.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round8.bed -fo mast_hits_near_0.0001_round8.fasta -name -s
+head mast_hits_near_0.0001_round8.fasta
+
+#>chr1:22705131-22705147|p=9.62e-05|strand=+::chr1:22705131-22705147(+)
+#tatctcttctatatct
+#>chr1:79925232-79925248|p=9.1e-05|strand=+::chr1:79925232-79925248(+)
+#tatctgtcttctatct
+#>chr1:82317452-82317468|p=9.1e-05|strand=+::chr1:82317452-82317468(+)
+#tattttttaaaaatct
+#>chr1:158202168-158202184|p=9e-05|strand=-::chr1:158202168-158202184(-)
+#taacaaattatcatca
+#>chr1:175430053-175430069|p=9.1e-05|strand=-::chr1:175430053-175430069(-)
+#TATCTATATTATATCT
+
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.bed #2707
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.bed > mast_hits_near_0.00005_round8.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round8.bed -fo mast_hits_near_0.00005_round8.fasta -name -s
+head mast_hits_near_0.00005_round8.fasta
+
+#>chr1:9623632-9623648|p=4.27e-05|strand=+::chr1:9623632-9623648(+)
+#aatctacctttaatca
+#>chr1:186152321-186152337|p=4.93e-05|strand=+::chr1:186152321-186152337(+)
+#AATCAACATTTAATCA
+#>chr10:1330851-1330867|p=4.6e-05|strand=-::chr10:1330851-1330867(-)
+#tatcagtgcctcatca
+#>chr11:94718710-94718726|p=4.16e-05|strand=-::chr11:94718710-94718726(-)
+#tatcaactgataatca
+#>chr12:15446575-15446591|p=4.93e-05|strand=-::chr12:15446575-15446591(-)
+#AATCCATCGGGCATCA
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_1234567.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8.bed > PB_without_glam2_motifs_12345678.bed # 10400
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_12345678.bed -fo PB_without_glam2_motifs_12345678.fasta
+
+```
+
+## GLAM2-all-round9-100bp
+try-meme-code round10
+```{r engine='R', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round9_meme.sh
+#SBATCH -N 1
+#SBATCH -n 64
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round9_meme.sh_%j.out
+#SBATCH -e Glam2_all_round9_meme.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+meme -p 64 -oc GATA3_without_mot12345678_101bp_meme_output -nmotifs 10 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 10 -maxw 14 -ws 0.1 -wg 0.5 -revcomp -dna -maxsize 100000000 PB_without_glam2_motifs_12345678.fasta
+```
+
+found the third being the tandem-7 motif. \
+
+Conduct a TOMTOM to compare the GLAM2-round3 top motif with the 12 ChIP-seq motif: \
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+# concatenate 12 ChIP-seq motifs in one MEME file: "chip_12_motifs.meme"
+
+# get the top Glam2 motif
+
+#wget https://raw.githubusercontent.com/sysunn/siyu_daily_update/main/December_2023/MEME_individual_from_db_python3.py
+python ../MEME_individual_from_db_python3_updated.py -i GATA3_without_mot12345678_101bp_meme_output/meme.txt
+#mkdir Glam2_all_individual_meme
+cp MEME-3_meme.txt Glam2_all_individual_meme/Glam2_PB_GATAmotif9_meme.txt
+rm *meme.txt
+
+
+# TOMTOM
+tomtom -oc tomtom_glam2_vs_chip12_qval_round9 -eps -thresh 0.05 Glam2_all_individual_meme/Glam2_PB_GATAmotif9_meme.txt chip_12_motifs.meme
+
+head -n 3 tomtom_glam2_vs_chip12_qval_round9/tomtom.tsv
+#Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	OverlapQuery_consensus	Target_consensus	Orientation
+#AGATBAAAGATAAG	AGATGRVAGATAA	0	4.1538e-08	4.98456e-07	9.96912e-07	13	AGATTAAAGATAAG	AGATGAGAGATAA	+
+#AGATBAAAGATAAG	21-AGATAAGG	-7	1.40778e-06	1.68933e-05	1.68933e-05	7	AGATTAAAGATAAG	AGATAAGG	+
+
+
+
+```
+
+Among the 12 ChIP-seq motif variants, TOMTOM ranked motif AGATGRVAGATAA as the closest match to the meme motif. Because the target database contained only 12 motifs, significance values were interpreted cautiously. \
+
+Mast using the closest matched ChIP-seq motif \
+MAST - Given a motif position weight matrix, MAST can search sequences for the occurrence of that motif. \
+Usage: http://meme-suite.org/tools/mast \
+
+```{r, engine='bash', eval=F, echo=TRUE}
+module load meme/5.5.9
+module load py-deeptools
+module load bedtools
+module load R/4.1.2
+genome=/home/FCAM/ssun/Genome/hg38.fa
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+
+meme_dir="/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/"
+tomtom_tsv="tomtom_glam2_vs_chip12_qval_round9/tomtom.tsv"
+
+best_target=$(awk 'BEGIN{FS="\t"} 
+    NR > 1 && $1 !~ /^#/ && NF >= 10 {
+        print $2, $6
+    }' "$tomtom_tsv" | sort -k2,2g | head -n 1 | awk '{print $1}')
+echo "Best TOMTOM Target_ID: $best_target"
+
+
+matched_file=$(awk -v target="$best_target" '
+    /^MOTIF/ {
+        if ($2 == target || $3 == target) {
+            print FILENAME
+            exit
+        }
+    }
+' "$meme_dir"*meme.txt)
+
+
+# Best TOMTOM Target_ID: AGATGRVAGATAA
+
+
+# echo $matched_file
+# /home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif10_meme.txt
+
+mast -mt 0.0001 -hit_list -best  $matched_file PB_without_glam2_motifs_12345678.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed #1099
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00009 && p <= 0.0001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed > mast_hits_near_0.0001_round9.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round9.bed -fo mast_hits_near_0.0001_round9.fasta -name -s
+head mast_hits_near_0.0001_round9.fasta
+
+#>chr1:73234838-73234851|p=9.33e-05|strand=-::chr1:73234838-73234851(-)
+#agttgaaagataa
+#>chr1:79925231-79925244|p=9.33e-05|strand=-::chr1:79925231-79925244(-)
+#agaagacagataa
+#>chr1:226557642-226557655|p=9.58e-05|strand=-::chr1:226557642-226557655(-)
+#agatgaaagagaa
+#>chr10:126812290-126812303|p=9.58e-05|strand=+::chr10:126812290-126812303(+)
+#agatgaaatataa
+#>chr11:98662922-98662935|p=9.11e-05|strand=-::chr11:98662922-98662935(-)
+#taagtagtgaaaa
+
+mast -mt 0.00005 -hit_list -best  $matched_file PB_without_glam2_motifs_12345678.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed #838
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.00004 && p <= 0.00005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed > mast_hits_near_0.00005_round9.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round9.bed -fo mast_hits_near_0.00005_round9.fasta -name -s
+head mast_hits_near_0.00005_round9.fasta
+
+#>chr1:87236024-87236037|p=4.34e-05|strand=-::chr1:87236024-87236037(-)
+#taatgaatgaaaa
+#>chr1:90451220-90451233|p=4.34e-05|strand=+::chr1:90451220-90451233(+)
+#taatcagagaaaa
+#>chr1:173734654-173734667|p=4.68e-05|strand=+::chr1:173734654-173734667(+)
+#AAATTATAGATTA
+#>chr10:32532597-32532610|p=4.04e-05|strand=-::chr10:32532597-32532610(-)
+#tagggagagataa
+#>chr11:4123165-4123178|p=4.85e-05|strand=-::chr11:4123165-4123178(-)
+#AAGGCACAGATAA
+
+
+mast -mt 0.00001 -hit_list -best  $matched_file PB_without_glam2_motifs_12345678.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed #583
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.000009 && p <= 0.00001) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed > mast_hits_near_0.00001_round9.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00001_round9.bed -fo mast_hits_near_0.00001_round9.fasta -name -s
+head mast_hits_near_0.00001_round9.fasta
+
+#>chr12:2780024-2780037|p=9.43e-06|strand=+::chr12:2780024-2780037(+)
+#AGAGCATAGATAA
+#>chr16:32786260-32786273|p=9.43e-06|strand=-::chr16:32786260-32786273(-)
+#AAATTGCTGATAA
+#>chr16:33084126-33084139|p=9.43e-06|strand=+::chr16:33084126-33084139(+)
+#AAATTGCTGATAA
+#>chr16:34781132-34781145|p=9.43e-06|strand=+::chr16:34781132-34781145(+)
+#AAATTGCTGATAA
+#>chr16:77280054-77280067|p=9.43e-06|strand=+::chr16:77280054-77280067(+)
+#AGGGGAAAGATAA
+
+mast -mt 0.000005 -hit_list -best  $matched_file PB_without_glam2_motifs_12345678.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.txt 
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed #510
+
+# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+genome=/home/FCAM/ssun/Genome/hg38.fa
+awk 'BEGIN{OFS="\t"}
+{
+    p = $5
+    if (p >= 0.000004 && p <= 0.000005) {
+        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
+        print $1, $2, $3, name, $5, $6
+    }
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed > mast_hits_near_0.000005_round9.bed #
+
+module load bedtools
+bedtools getfasta -fi $genome -bed mast_hits_near_0.000005_round9.bed -fo mast_hits_near_0.000005_round9.fasta -name -s
+head mast_hits_near_0.000005_round9.fasta
+
+#>chr1:86484840-86484853|p=4.18e-06|strand=+::chr1:86484840-86484853(+)
+#AGATGGGAGAAAA
+#>chr1:226376514-226376527|p=4.43e-06|strand=-::chr1:226376514-226376527(-)
+#AGATTCCAGATAA
+#>chr10:95041234-95041247|p=4.8e-06|strand=+::chr10:95041234-95041247(+)
+#agATTTCTGATAA
+#>chr11:82005570-82005583|p=4.43e-06|strand=+::chr11:82005570-82005583(+)
+#TGATTATAGATAA
+#>chr12:62546352-62546365|p=4.18e-06|strand=-::chr12:62546352-62546365(-)
+#AGATTTTAGATAA
+```
+
+
+
+```{r engine='R', eval=F, echo=TRUE}
+# Use `intersectBed` to find GATA3 peaks without motif 12. And convert to FASTA. 
+intersectBed -v -a PB_without_glam2_motifs_12345678.bed -b mast_GATA3_PSWM_in_all_PB_peaks_glam2_round9.bed > PB_without_glam2_motifs_123456789.bed # 9890
+fastaFromBed -fi $genome -bed PB_without_glam2_motifs_123456789.bed -fo PB_without_glam2_motifs_123456789.fasta
+
+```
+
+
+## GLAM2-all-round10-100bp
+try-meme-code round11
+```{r engine='R', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round10_meme.sh
+#SBATCH -N 1
+#SBATCH -n 64
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round10_meme.sh_%j.out
+#SBATCH -e Glam2_all_round10_meme.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+meme -p 64 -oc GATA3_without_mot123456789_101bp_meme_output -nmotifs 10 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 9 -maxw 11 -ws 0.1 -wg 0.1 -revcomp -dna -maxsize 100000000 PB_without_glam2_motifs_123456789.fasta
+```
+
+Try use the default gap panalty parameters or high panalty parameters. \
+
+try-meme-code round5
+```{r engine='R', eval=F, echo=TRUE}
+#!/bin/bash
+#SBATCH --job-name=Glam2_all_round10_meme.sh
+#SBATCH -N 1
+#SBATCH -n 64
+#SBATCH -c 1
+#SBATCH -p general
+#SBATCH --qos=general
+#SBATCH --mem=128G
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=ssun@uchc.edu
+#SBATCH -o Glam2_all_round10_meme.sh_%j.out
+#SBATCH -e Glam2_all_round10_meme.sh_%j.err
+
+hostname
+export TMPDIR="${HOME}/temp"
+module load meme/5.5.9
+
+#meme -p 64 -oc GATA3_without_mot123456789_101bp_meme_output2 -nmotifs 10 -shuf 1 -objfun classic -csites 20000 -searchsize 0 -minw 9 -maxw 11 -ws 0.1 -wg 0.1 -revcomp -dna -maxsize 100000000 PB_without_glam2_motifs_123456789.fasta
+
+#meme -p 64 without_motifs_1234_top5000.fasta -oc GATA_ChIP_without_motifs_1234_top5000_161window_20_meme_output -nmotifs 20 -csites 20000 -objfun classic -searchsize 0 -minw 4 -maxw 35 -revcomp -dna -bfile hg38_bkgrnd.txt -maxsize 10000000
+```
+
+
+
+<!--
 
 ## extend to 161bp
 
@@ -2051,10 +2476,13 @@ glam2 -n 2000000 -z 1000 -a 8 -b 30 -w 16 -O GATA_PB_all_101win_glam2_round8_161
 
 did not get additional GATA3-like spaced motifs. \
 
+-->
+
 ## mast the rest of motifs in the PB-seq peaks (compare to random regions as a neg control) 
 
 ### 1) see if remaining peaks contains the three un-found motifs. contain== specifictly enriched compared to random regions.
 
+create random region file: \
 ```{r engine='bash', eval=F, echo=TRUE}
 # bedtools shuffle randomly relocate the invervals/peaks in the genome
 #module load bedtools
@@ -2065,93 +2493,44 @@ did not get additional GATA3-like spaced motifs. \
 #grep -v "random" GATA_PB_neg3_summits.bed | grep -v "chrUn" | grep -v "chrEBV" | grep -v "chrM" | grep -v "alt" | #intersectBed -v -a - -b $blacklist > GATA_PB_neg3_summits_final.bed #85474
 ```
 
-
+make several subset with 9890 random regions. \
 ```{r engine='bash', eval=F, echo=TRUE}
 # random peak regions: /home/FCAM/ssun/PBseq/260407_NB551647_0123_AH57FJBGYX/Data/Intensities/BaseCalls/GATA_PB_neg3_summits_final.bed
+for i in {1..5}; do
+    shuf GATA_PB_neg3_summits_final_101window.bed | head -n 9890 > random_peaks_${i}.bed
+done
 
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+for i in {1..5}; do
+    fastaFromBed -fi $genome -bed random_peaks_${i}.bed -fo random_peaks_${i}.fasta
+done
+```
+
+
+The below meme PWM files corresponds to the two motifs that are found in ChIP-seq data but not yet found in PB-seq data. \
+```{r engine='bash', eval=F, echo=TRUE}
 matched_file_2=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif5_meme.txt
-matched_file_3=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif10_meme.txt
 matched_file_4=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif11_meme.txt
 ```
+
 
 ```{r engine='bash', eval=F, echo=TRUE}
 module load meme/5.5.9
 module load py-deeptools
 module load bedtools
 module load R/4.1.2
-
-matched_file_1=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif9_meme.txt
-mast -mt 0.0001 -hit_list -best  $matched_file_1 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.txt 
-
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.bed #2926
-
-# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
 genome=/home/FCAM/ssun/Genome/hg38.fa
-awk 'BEGIN{OFS="\t"}
-{
-    p = $5
-    if (p >= 0.00009 && p <= 0.0001) {
-        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
-        print $1, $2, $3, name, $5, $6
-    }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.bed > mast_hits_near_0.0001_round8_1.bed #
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 
-module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.0001_round8_1.bed -fo mast_hits_near_0.0001_round8_1.fasta -name -s
-head mast_hits_near_0.0001_round8_1.fasta
-
-#>chr1:22705131-22705147|p=9.62e-05|strand=+::chr1:22705131-22705147(+)
-#tatctcttctatatct
-#>chr1:79925232-79925248|p=9.1e-05|strand=+::chr1:79925232-79925248(+)
-#tatctgtcttctatct
-#>chr1:82317452-82317468|p=9.1e-05|strand=+::chr1:82317452-82317468(+)
-#tattttttaaaaatct
-#>chr1:158202168-158202184|p=9e-05|strand=-::chr1:158202168-158202184(-)
-#taacaaattatcatca
-#>chr1:175430053-175430069|p=9.1e-05|strand=-::chr1:175430053-175430069(-)
-#TATCTATATTATATCT
-
-
-mast -mt 0.00005 -hit_list -best  $matched_file_1 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.txt 
-
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.bed #2707
-
-# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
-genome=/home/FCAM/ssun/Genome/hg38.fa
-awk 'BEGIN{OFS="\t"}
-{
-    p = $5
-    if (p >= 0.00004 && p <= 0.00005) {
-        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
-        print $1, $2, $3, name, $5, $6
-    }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_1.bed > mast_hits_near_0.00005_round8_1.bed #
-
-module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round8_1.bed -fo mast_hits_near_0.00005_round8_1.fasta -name -s
-head mast_hits_near_0.00005_round8_1.fasta
-#>chr1:9623632-9623648|p=4.27e-05|strand=+::chr1:9623632-9623648(+)
-#aatctacctttaatca
-#>chr1:186152321-186152337|p=4.93e-05|strand=+::chr1:186152321-186152337(+)
-#AATCAACATTTAATCA
-#>chr10:1330851-1330867|p=4.6e-05|strand=-::chr10:1330851-1330867(-)
-#tatcagtgcctcatca
-#>chr11:94718710-94718726|p=4.16e-05|strand=-::chr11:94718710-94718726(-)
-#tatcaactgataatca
-#>chr12:15446575-15446591|p=4.93e-05|strand=-::chr12:15446575-15446591(-)
-#AATCCATCGGGCATCA
-```
-
-```{r engine='bash', eval=F, echo=TRUE}
 matched_file_2=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif5_meme.txt #NCTTATCWGAT
 
 
-mast -mt 0.00005 -hit_list -best  $matched_file_2 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_2.txt 
+mast -mt 0.00005 -hit_list -best  $matched_file_2 PB_without_glam2_motifs_123456789.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_2.txt 
 
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_2.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_2.bed #363
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_2.txt  
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_2.bed #288
 
 # coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
 genome=/home/FCAM/ssun/Genome/hg38.fa
@@ -2162,131 +2541,46 @@ awk 'BEGIN{OFS="\t"}
         name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
         print $1, $2, $3, name, $5, $6
     }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_2.bed > mast_hits_near_0.00005_round8_2.bed #
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_2.bed > mast_hits_near_0.00005_round10_2.bed #
 
 module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round8_2.bed -fo mast_hits_near_0.00005_round8_2.fasta -name -s
-head mast_hits_near_0.00005_round8_2.fasta
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round10_2.bed -fo mast_hits_near_0.00005_round10_2.fasta -name -s
+head mast_hits_near_0.00005_round10_2.fasta
 
 #>chr1:207596872-207596883|p=4.65e-05|strand=+::chr1:207596872-207596883(+)
 #ataaatctgat
 #>chr10:86925207-86925218|p=4.48e-05|strand=-::chr10:86925207-86925218(-)
 #GTAAATCAGAT
-#>chr11:22561442-22561453|p=4.13e-05|strand=+::chr11:22561442-22561453(+)
-#TTCAATCTGAT
 #>chr11:73823610-73823621|p=4.13e-05|strand=-::chr11:73823610-73823621(-)
 #TGAAATCAGAT
-#>chr12:67086201-67086212|p=4.48e-05|strand=+::chr12:67086201-67086212(+)
-#CTAAATCAGAT
+#>chr14:43763686-43763697|p=4.58e-05|strand=+::chr14:43763686-43763697(+)
+#AGAAATCTGAT
+#>chr15:42816970-42816981|p=4.32e-05|strand=+::chr15:42816970-42816981(+)
+#gtcaatCTGAT
 ```
 
 ```{r engine='bash', eval=F, echo=TRUE}
-matched_file_3=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif10_meme.txt #AGATGRVAGATAA
-
-
-mast -mt 0.00005 -hit_list -best  $matched_file_3 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt 
-
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed #996
-
-# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
-genome=/home/FCAM/ssun/Genome/hg38.fa
-awk 'BEGIN{OFS="\t"}
-{
-    p = $5
-    if (p >= 0.00004 && p <= 0.00005) {
-        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
-        print $1, $2, $3, name, $5, $6
-    }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed > mast_hits_near_0.00005_round8_3.bed #
-
 module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round8_3.bed -fo mast_hits_near_0.00005_round8_3.fasta -name -s
-head mast_hits_near_0.00005_round8_3.fasta
-
-#>chr1:87236024-87236037|p=4.34e-05|strand=-::chr1:87236024-87236037(-)
-#taatgaatgaaaa
-#>chr1:90451220-90451233|p=4.34e-05|strand=+::chr1:90451220-90451233(+)
-#taatcagagaaaa
-#>chr1:173734654-173734667|p=4.68e-05|strand=+::chr1:173734654-173734667(+)
-#AAATTATAGATTA
-#>chr1:231513754-231513767|p=4.5e-05|strand=-::chr1:231513754-231513767(-)
-#taatgtaagaaaa
-#>chr10:32532597-32532610|p=4.04e-05|strand=-::chr10:32532597-32532610(-)
-#tagggagagataa
-
-
-mast -mt 0.00001 -hit_list -best  $matched_file_3 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt 
-
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed #627
-
-# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
 genome=/home/FCAM/ssun/Genome/hg38.fa
-awk 'BEGIN{OFS="\t"}
-{
-    p = $5
-    if (p >= 0.000009 && p <= 0.00001) {
-        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
-        print $1, $2, $3, name, $5, $6
-    }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed > mast_hits_near_0.00001_round8_3.bed #
-
-module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00001_round8_3.bed -fo mast_hits_near_0.00001_round8_3.fasta -name -s
-head mast_hits_near_0.00001_round8_3.fasta
-#>chr12:2780024-2780037|p=9.43e-06|strand=+::chr12:2780024-2780037(+)
-#AGAGCATAGATAA
-#>chr12:98003035-98003048|p=9.43e-06|strand=-::chr12:98003035-98003048(-)
-#GGAGGGAAGATAA
-#>chr16:32786260-32786273|p=9.43e-06|strand=-::chr16:32786260-32786273(-)
-#AAATTGCTGATAA
-#>chr16:33084126-33084139|p=9.43e-06|strand=+::chr16:33084126-33084139(+)
-#AAATTGCTGATAA
-#>chr16:34781132-34781145|p=9.43e-06|strand=+::chr16:34781132-34781145(+)
-#AAATTGCTGATAA
 
 
-mast -mt 0.000005 -hit_list -best  $matched_file_3 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt 
-
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed #537
-
-# coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
-genome=/home/FCAM/ssun/Genome/hg38.fa
-awk 'BEGIN{OFS="\t"}
-{
-    p = $5
-    if (p >= 0.000004 && p <= 0.000005) {
-        name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
-        print $1, $2, $3, name, $5, $6
-    }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_3.bed > mast_hits_near_0.000005_round8_3.bed #
-
-module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.000005_round8_3.bed -fo mast_hits_near_0.000005_round8_3.fasta -name -s
-head mast_hits_near_0.000005_round8_3.fasta
-
-#>chr1:86484840-86484853|p=4.18e-06|strand=+::chr1:86484840-86484853(+)
-#AGATGGGAGAAAA
-#>chr1:226376514-226376527|p=4.43e-06|strand=-::chr1:226376514-226376527(-)
-#AGATTCCAGATAA
-#>chr10:95041234-95041247|p=4.8e-06|strand=+::chr10:95041234-95041247(+)
-#agATTTCTGATAA
-#>chr11:82005570-82005583|p=4.43e-06|strand=+::chr11:82005570-82005583(+)
-#TGATTATAGATAA
-#>chr12:62546352-62546365|p=4.18e-06|strand=-::chr12:62546352-62546365(-)
-#AGATTTTAGATAA
+mast -mt 0.00005 -hit_list -best $matched_file_2 random_peaks_1.fasta | wc -l # 64
+mast -mt 0.00005 -hit_list -best $matched_file_2 random_peaks_2.fasta | wc -l #69
+mast -mt 0.00005 -hit_list -best $matched_file_2 random_peaks_3.fasta | wc -l #80
+mast -mt 0.00005 -hit_list -best $matched_file_2 random_peaks_4.fasta | wc -l #85
+mast -mt 0.00005 -hit_list -best $matched_file_2 random_peaks_5.fasta | wc -l #81
 ```
+
 
 ```{r engine='bash', eval=F, echo=TRUE}
 matched_file_4=/home/FCAM/ssun/GATA3_ChIP_PRO_July2023/ChIP_final/re_run_exhaustive_denovomotif_260414/single_bash2/individual_meme/GATAmotif11_meme.txt # RATCWWGATAA
 
 
-mast -mt 0.00005 -hit_list -best  $matched_file_4 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.txt 
+mast -mt 0.00005 -hit_list -best  $matched_file_4 PB_without_glam2_motifs_123456789.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.txt 
 
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.bed #345
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.txt  
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.bed #223
 
 # coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
 genome=/home/FCAM/ssun/Genome/hg38.fa
@@ -2297,28 +2591,28 @@ awk 'BEGIN{OFS="\t"}
         name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
         print $1, $2, $3, name, $5, $6
     }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.bed > mast_hits_near_0.00005_round8_4.bed #
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.bed > mast_hits_near_0.00005_round10_4.bed #
 
 module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round8_4.bed -fo mast_hits_near_0.00005_round8_4.fasta -name -s
-head mast_hits_near_0.00005_round8_4.fasta
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00005_round10_4.bed -fo mast_hits_near_0.00005_round10_4.fasta -name -s
+head mast_hits_near_0.00005_round10_4.fasta
 
 #>chr1:8375941-8375952|p=4.46e-05|strand=-::chr1:8375941-8375952(-)
 #gatgaagataa
-#>chr1:52308944-52308955|p=4.46e-05|strand=+::chr1:52308944-52308955(+)
-#AATATAGATAA
 #>chr1:60584219-60584230|p=4.46e-05|strand=-::chr1:60584219-60584230(-)
 #aatgtagataa
 #>chr1:68488984-68488995|p=4.46e-05|strand=-::chr1:68488984-68488995(-)
 #GATCAAGAAAA
 #>chr1:77801655-77801666|p=4.46e-05|strand=+::chr1:77801655-77801666(+)
 #aatgtagataa
+#>chr1:78519383-78519394|p=4.46e-05|strand=+::chr1:78519383-78519394(+)
+#AATATAGATAA
 
 
-mast -mt 0.00001 -hit_list -best  $matched_file_4 PB_without_glam2_motifs_1234567.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.txt 
+mast -mt 0.00001 -hit_list -best  $matched_file_4 PB_without_glam2_motifs_123456789.fasta > mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.txt 
 
-Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.txt  
-wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.bed #55
+Rscript /home/FCAM/ssun/scripts/updated_parse_mast_to_coordinates.R mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.txt  
+wc -l mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.bed #43
 
 # coherence check: check the near mast_cutoff sequences -- evaluate if they are acceptable / match to the spaced motif
 genome=/home/FCAM/ssun/Genome/hg38.fa
@@ -2329,16 +2623,244 @@ awk 'BEGIN{OFS="\t"}
         name = $1 ":" $2 "-" $3 "|p=" $5 "|strand=" $6
         print $1, $2, $3, name, $5, $6
     }
-}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round8_4.bed > mast_hits_near_0.00001_round8_4.bed #
+}' mast_GATA3_PSWM_in_all_PB_peaks_glam2_round10_4.bed > mast_hits_near_0.00001_round10_4.bed #
 
 module load bedtools
-bedtools getfasta -fi $genome -bed mast_hits_near_0.00001_round8_4.bed -fo mast_hits_near_0.00001_round8_4.fasta -name -s
-head mast_hits_near_0.00001_round8_4.fasta
+bedtools getfasta -fi $genome -bed mast_hits_near_0.00001_round10_4.bed -fo mast_hits_near_0.00001_round10_4.fasta -name -s
+head mast_hits_near_0.00001_round10_4.fasta
 
 #>chr2:4607948-4607959|p=9.15e-06|strand=-::chr2:4607948-4607959(-)
 #AATCCTGATTA
 ```
 
+```{r engine='bash', eval=F, echo=TRUE}
+module load bedtools
+sizes=/home/FCAM/ssun/Genome/hg38.chrom.sizes
+genome=/home/FCAM/ssun/Genome/hg38.fa
+
+
+mast -mt 0.00005 -hit_list -best $matched_file_4 random_peaks_1.fasta | wc -l # 55
+mast -mt 0.00005 -hit_list -best $matched_file_4 random_peaks_2.fasta | wc -l #66
+mast -mt 0.00005 -hit_list -best $matched_file_4 random_peaks_3.fasta | wc -l #67
+mast -mt 0.00005 -hit_list -best $matched_file_4 random_peaks_4.fasta | wc -l #60
+mast -mt 0.00005 -hit_list -best $matched_file_4 random_peaks_5.fasta | wc -l #58
+```
+
+region with motif 1 positive fraction: 28862 / 102830 (mast p<=0.00005) \
+region with motif 2 positive fraction: 2503 / 102830 (mast p<=0.000005) \
+region with motif 3 positive fraction: 12224 / 102830 (mast p<=0.00005) \
+region with motif 4 positive fraction: 20994 / 102830 (mast p<=0.00005) \
+region with motif 5 positive fraction: 9700 / 102830 (mast p<=0.0001) \
+region with motif 6 positive fraction: 7015 / 102830 (mast p<=0.00005) \
+region with motif 7 positive fraction: 8420 / 102830 (mast p<=0.0001) \
+region with motif 8 positive fraction: 2707 / 102830 (mast p<=0.00005) \
+region with motif 9 positive fraction: 583 / 102830 (mast p<=0.00001) \
+region do not have motifs as now: 9890 / 102830 
+
+```{r engine='bash', eval=F, echo=TRUE}
+#module load R/4.1.2 
+#R 
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+bar=read.table('peak.with.motif.sum.txt', sep = "", header=F)
+
+
+bar <- data.frame(
+  enriched_motifs = c("other", "motif_9_161bp", "motif_8_161bp", "motif_7_161bp",  "motif_6_161bp", "motif_5_161bp", "motif_4_161bp", "motif_3_161bp","motif_2_161bp","motif_1_161bp"),
+  
+  group = c("PB-seq", "PB-seq", "PB-seq", "PB-seq",
+            "PB-seq", "PB-seq", "PB-seq", "PB-seq", "PB-seq", "PB-seq"),
+  
+  peak_numbers = c(9890, 583, 2707, 8420, 7015, 9700, 20994, 12224, 2503, 28862)
+)
+
+
+bar$dum.x="peak number"
+bar$enriched_motifs<- factor(bar$enriched_motif, levels = c("other", "motif_12_161bp", "motif_11_161bp", "motif_10_161bp",  "motif_9_161bp", "motif_8_161bp", "motif_7_161bp",  "motif_6_161bp", "motif_5_161bp", "motif_4_161bp", "motif_3_161bp","motif_2_161bp","motif_1_161bp"))
+
+#coherence check
+sum(bar$peak_numbers) 
+    
+library("lattice") 
+library(RColorBrewer)
+
+pdf('PB_peak_number_with_or_without_GATA3_motif_variant.pdf', width=5, height=8)
+
+
+par.settings = list(superpose.line = list(col=c("red", "black"), lwd=2), strip.background=list(col="grey85")),
+
+my.settings <- list(
+  #superpose.polygon=list(col=c(colorRampPalette(c("red","pink"))(6),colorRampPalette(c("blue","light blue"))(3), "light grey"), border="transparent"),
+  #superpose.polygon=list(col=c("red","orange","yellow","lightgreen","skyblue","blue","#FF00FF","brown","#CC6600", "#006666", "lightgrey"), border="transparent"),
+  superpose.polygon=list(col=c("light grey", brewer.pal(11, "Spectral"), "red"),  border="transparent"),
+  strip.background=list(col="grey80", cex = 0.6),
+  strip.border=list(col="black")
+)
+print(barchart(peak_numbers ~ dum.x,         
+         data = bar,
+         groups = enriched_motifs,
+         stack = TRUE,
+         auto.key = list(space = "right", lines=F, points=F, rectangles = TRUE, cex = 1, reverse.rows = TRUE),
+         #auto.key=list(space="right"),
+         #scales = list(x = list(rot = 45)),
+         ylab = "number of ChIP-seq peaks",
+         xlab = "",
+         par.settings = my.settings,
+         panel=function(x, y, ...) {
+                 panel.barchart(x, y, ...) 
+                # Add text labels
+                # panel.text(x, cumsum(y)-y, labels = y, pos = 3, cex = 0.6)
+         }
+               )
+)
+dev.off()
+```
+
+
+
+Random positive fraction: 
+
+motif5 random 1: 64 / 9890 (mast p<=0.00005)
+motif5 random 2: 69 / 9890 (mast p<=0.00005)
+motif5 random 3: 80 / 9890 (mast p<=0.00005)
+motif5 random 4: 85 / 9890 (mast p<=0.00005)
+motif5 random 5: 81 / 9890 (mast p<=0.00005)
+
+motif11 ranodm1: 55 / 9890 (mast p<=0.00005) 
+motif11 ranodm2: 66 / 9890 (mast p<=0.00005) 
+motif11 ranodm3: 67 / 9890 (mast p<=0.00005) 
+motif11 ranodm4: 60 / 9890 (mast p<=0.00005) 
+motif11 ranodm5: 58 / 9890 (mast p<=0.00005) 
+
+PB-seq positive fraction of the peaks without motif 1-9:
+motif5: 288 / 9890 (mast p<=0.00005)
+motif11: 223 / 9890 (mast p<=0.00005)
+
+plot: 
+```{r engine='bash', eval=F, echo=TRUE}
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(RColorBrewer)
+
+raw_df <- data.frame(
+  motif = c("motif5", "motif11",
+            "motif5", "motif5", "motif5", "motif5", "motif5", "motif11", "motif11","motif11","motif11","motif11"),
+  
+  group = c("PB-seq", "PB-seq",
+            "Random1", "Random2", "Random3", "Random4", "Random5", "Random1", "Random2", "Random3", "Random4", "Random5"),
+  
+  motif_positive = c(288, 223, 
+                      64, 69, 80, 85, 81, 55, 66, 67, 60, 58),
+  
+  total_regions = rep(9890, 12), 
+  
+  mast_cutoff =  rep(0.00005, 12)
+)
+
+raw_df <- raw_df %>%
+  mutate(
+    motif_negative = total_regions - motif_positive,
+    positive_fraction = motif_positive / total_regions,
+    negative_fraction = motif_negative / total_regions
+  )
+  
+# raw_df
+     motif   group motif_positive total_regions mast_cutoff motif_negative
+1   motif5  PB-seq            288          9890       5e-05           9602
+2  motif11  PB-seq            223          9890       5e-05           9667
+3   motif5 Random1             64          9890       5e-05           9826
+4   motif5 Random2             69          9890       5e-05           9821
+5   motif5 Random3             80          9890       5e-05           9810
+6   motif5 Random4             85          9890       5e-05           9805
+7   motif5 Random5             81          9890       5e-05           9809
+8  motif11 Random1             55          9890       5e-05           9835
+9  motif11 Random2             66          9890       5e-05           9824
+10 motif11 Random3             67          9890       5e-05           9823
+11 motif11 Random4             60          9890       5e-05           9830
+12 motif11 Random5             58          9890       5e-05           9832
+   positive_fraction negative_fraction
+1        0.029120324         0.9708797
+2        0.022548028         0.9774520
+3        0.006471183         0.9935288
+4        0.006976744         0.9930233
+5        0.008088979         0.9919110
+6        0.008594540         0.9914055
+7        0.008190091         0.9918099
+8        0.005561173         0.9944388
+9        0.006673407         0.9933266
+10       0.006774520         0.9932255
+11       0.006066734         0.9939333
+12       0.005864510         0.9941355
+```
+
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+plot_df <- raw_df %>%
+  select(motif, group, motif_positive, motif_negative, total_regions, mast_cutoff) %>%
+  pivot_longer(
+    cols = c(motif_positive, motif_negative),
+    names_to = "motif_status",
+    values_to = "count"
+  ) %>%
+  mutate(
+    fraction = count / total_regions,
+    motif_status = recode(
+      motif_status,
+      motif_positive = "With motif",
+      motif_negative = "Without motif"
+    ),
+    motif_status = factor(motif_status, levels = c("With motif", "Without motif")),
+    group = factor(group, levels = c("PB-seq", "Random1", "Random2", "Random3", "Random4","Random5")),
+    motif = factor(motif, levels = c("motif5", "motif11"))
+  )
+plot_df
+
+
+
+```
+
+
+```{r engine='bash', eval=F, echo=TRUE}
+pdf('260714_barplot_mast_fraction_PBpeak_vsRandom_inPeaksnomotif.pdf',width=10,height=6)
+print(
+barchart(
+  fraction ~ group | motif,
+  groups = motif_status,
+  data = plot_df,
+  stack = TRUE,
+  layout = c(2, 1), 
+  auto.key = list(
+      space = "right",
+      lines = FALSE,
+      points = FALSE,
+      rectangles = TRUE,
+      cex = 1,
+      reverse.rows = TRUE
+    ),
+  ylab = "Fraction of regions",
+  xlab = "",
+  ylim = c(0, 1),
+  scales = list(
+    x = list(rot = 45),
+    y = list(at = seq(0, 1, 0.2))
+  ),
+  par.settings = list(
+    superpose.polygon = list(
+      col = c("black", "white"),
+      border = "gray40"
+    )
+  ),
+  panel = function(x, y, ...) {
+    panel.barchart(x, y, ...)
+  }
+))
+dev.off()
+```
 
 
 ### 2) see if all PB-seq peaks specifically enriched for the three un-found motifs. \
@@ -2827,140 +3349,9 @@ barchart(
 dev.off()
 ```
 
-Random positive fraction: 
-motif9: 738 / 85474 (mast p<=0.00005)
-motif5: 636 / 85474 (mast p<=0.00005) or 968 / 85474 (mast p<=0.0001)
-motif10: 134 / 85474 (mast p<=0.000005) or 1522 / 85474 (mast p<=0.00005)
-motif11: 601 / 85474 (mast p<=0.00005) or 1554 / 85474(mast p<=0.0001)
-
-PB-seq positive fraction of the peaks without motif 1-7:
-motif9: 2707 / 13107 (mast p<=0.00005)
-motif5: 363 / 13107 (mast p<=0.00005)
-motif10: 537 / 13107 (mast p<=0.000005)
-motif11: 345 / 13107 (mast p<=0.00005)
-
-plot: 
-```{r engine='bash', eval=F, echo=TRUE}
-library(dplyr)
-library(tidyr)
-library(lattice)
-library(RColorBrewer)
-
-raw_df <- data.frame(
-  motif = c("motif9", "motif5", "motif10", "motif11",
-            "motif9", "motif5", "motif10", "motif11"),
-  
-  group = c("PB-seq", "PB-seq", "PB-seq", "PB-seq",
-            "Random", "Random", "Random", "Random"),
-  
-  motif_positive = c(2707, 363, 537, 345,
-                     738, 636, 134, 601),
-  
-  total_regions = c(13107, 13107, 13107, 13107,
-                    85474, 85474, 85474, 85474),
-  
-  mast_cutoff = c("0.00005",
-                  "0.0001",
-                  "0.000005",
-                  "0.0001",
-                  "0.00005",
-                  "0.0001",
-                  "0.000005",
-                  "0.0001")
-)
-
-raw_df <- raw_df %>%
-  mutate(
-    motif_negative = total_regions - motif_positive,
-    positive_fraction = motif_positive / total_regions,
-    negative_fraction = motif_negative / total_regions
-  )
-  
-# raw_df
-    motif  group motif_positive total_regions mast_cutoff motif_negative
-1  motif9 PB-seq           2707         13107     0.00005          10400
-2  motif5 PB-seq            363         13107      0.0001          12744
-3 motif10 PB-seq            537         13107    0.000005          12570
-4 motif11 PB-seq            345         13107      0.0001          12762
-5  motif9 Random            738         85474     0.00005          84736
-6  motif5 Random            636         85474      0.0001          84838
-7 motif10 Random            134         85474    0.000005          85340
-8 motif11 Random            601         85474      0.0001          84873
-  positive_fraction negative_fraction
-1       0.206530861         0.7934691
-2       0.027695125         0.9723049
-3       0.040970474         0.9590295
-4       0.026321813         0.9736782
-5       0.008634205         0.9913658
-6       0.007440859         0.9925591
-7       0.001567728         0.9984323
-8       0.007031378         0.9929686
-```
 
 
-
-```{r engine='bash', eval=F, echo=TRUE}
-plot_df <- raw_df %>%
-  select(motif, group, motif_positive, motif_negative, total_regions, mast_cutoff) %>%
-  pivot_longer(
-    cols = c(motif_positive, motif_negative),
-    names_to = "motif_status",
-    values_to = "count"
-  ) %>%
-  mutate(
-    fraction = count / total_regions,
-    motif_status = recode(
-      motif_status,
-      motif_positive = "With motif",
-      motif_negative = "Without motif"
-    ),
-    motif_status = factor(motif_status, levels = c("With motif", "Without motif")),
-    group = factor(group, levels = c("PB-seq", "Random")),
-    motif = factor(motif, levels = c("motif5", "motif9", "motif10", "motif11"))
-  )
-plot_df
-
-
-
-```
-
-
-```{r engine='bash', eval=F, echo=TRUE}
-pdf('barplot_mast_fraction_PBpeak_vsRandom_inPeaksnomotif.pdf',width=16,height=6)
-print(
-barchart(
-  fraction ~ group | motif,
-  groups = motif_status,
-  data = plot_df,
-  stack = TRUE,
-  layout = c(4, 1), 
-  auto.key = list(
-      space = "right",
-      lines = FALSE,
-      points = FALSE,
-      rectangles = TRUE,
-      cex = 1,
-      reverse.rows = TRUE
-    ),
-  ylab = "Fraction of regions",
-  xlab = "",
-  ylim = c(0, 1),
-  scales = list(
-    x = list(rot = 45),
-    y = list(at = seq(0, 1, 0.2))
-  ),
-  par.settings = list(
-    superpose.polygon = list(
-      col = c("black", "white"),
-      border = "gray40"
-    )
-  ),
-  panel = function(x, y, ...) {
-    panel.barchart(x, y, ...)
-  }
-))
-dev.off()
-```
+<!--
 ## #################
 
 ## GLAM2-all-round1-100bp-top5000
