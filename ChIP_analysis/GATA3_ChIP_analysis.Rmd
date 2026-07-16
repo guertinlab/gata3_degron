@@ -488,6 +488,8 @@ combine first then read depth normalize, then the more high coverage
 data is weighted twice as much in the final visualization. All the
 relevant track files are here: \
 
+
+
 **Single library (normalized)** \
 
 UCSC Genome Browser trackhub link for non-merged, normalized bigWig files: http://guertinlab.cam.uchc.edu/GATA3_ChIP_nonmerge_hub/hub.txt \
@@ -609,6 +611,15 @@ macs3 callpeak --call-summits -t ${directory}*_GATA_CC*sorted.bam -c ${directory
 #wc -l GATA_ChIP_summits.bed
 #99289 
 ```
+
+```{r}
+mkdir GATA_no_treatment_IgG_fastq_files
+
+unzip GATA3_ChIP.zip '*GATA_CC*' -d GATA_no_treatment_IgG_fastq_files
+unzip GATA3_ChIP.zip '*IgG*' -d GATA_no_treatment_IgG_fastq_files
+unzip GATA3_ChIP_pool2.zip '*IgG*' -d GATA_no_treatment_IgG_fastq_files
+```
+
 
 **CTCF peaks**
 ```{r engine='bash', eval=F, echo=TRUE}
